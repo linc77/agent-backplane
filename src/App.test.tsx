@@ -4,7 +4,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
-import type { CodexAuditRun, ScanResult } from "./lib/types";
+import type {
+  CodexAuditMode,
+  CodexAuditRun,
+  CodexAuditTask,
+  MemoryProfile,
+  ScanResult,
+} from "./lib/types";
 
 const invokeMock = vi.hoisted(() => vi.fn());
 const revealItemInDirMock = vi.hoisted(() => vi.fn());
@@ -104,6 +110,42 @@ const clarityScanResult: ScanResult = {
     },
   ],
   risks: [],
+};
+
+const clarityMemoryProfile: MemoryProfile = {
+  schemaVersion: "1",
+  generatedAt: "2026-06-09T00:00:00Z",
+  sourceHash: "clarity-profile-hash",
+  generator: "deterministic-profile-v1",
+  cachePath: "/Users/qsh/.codex/memories/.amm/profile.json",
+  sections: [
+    {
+      id: "python-rust-current-stack",
+      title: "你明确把 Python/Rust 作为当前主栈",
+      body: "目前的记忆主要显示：The user's current profile explicitly prefers Python/Rust.",
+      confidence: "high",
+      stability: "stable",
+      evidence: [
+        {
+          sourcePath: "extensions/ad_hoc/notes/profile.md",
+          startLine: 1,
+          endLine: 3,
+          summary: "The user's current profile explicitly prefers Python/Rust.",
+        },
+        {
+          sourcePath: "MEMORY.md",
+          startLine: 1,
+          endLine: 3,
+          summary: "The user's current technical stack is Python/Rust.",
+        },
+      ],
+    },
+  ],
+  metadata: {
+    memoryRoot: "/Users/qsh/.codex/memories",
+    inputEntries: 3,
+    currentEntries: 1,
+  },
 };
 
 const auditRun: CodexAuditRun = {
@@ -216,6 +258,22 @@ const auditRun: CodexAuditRun = {
   },
 };
 
+function auditTask(
+  status: CodexAuditTask["status"],
+  mode: CodexAuditTask["mode"] = "curated",
+  run: CodexAuditRun | null = status === "succeeded" ? auditRun : null,
+): CodexAuditTask {
+  return {
+    id: status === "idle" ? null : "audit-task",
+    mode: status === "idle" ? null : mode,
+    status,
+    startedAt: status === "idle" ? null : "2026-06-09T00:00:00Z",
+    finishedAt: status === "running" || status === "cancelling" ? null : "2026-06-09T00:00:01Z",
+    error: status === "failed" ? "codex exec failed" : null,
+    run,
+  };
+}
+
 function renderApp() {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -233,7 +291,15 @@ function renderApp() {
 
 describe("App pane resizing", () => {
   beforeEach(() => {
-    invokeMock.mockResolvedValue(scanResult);
+    invokeMock.mockImplementation((command: string) => {
+      if (command === "scan_memories") {
+        return Promise.resolve(scanResult);
+      }
+      if (command === "load_memory_profile") {
+        return Promise.resolve({ ...clarityMemoryProfile, sections: [] });
+      }
+      return Promise.reject(new Error(`unexpected command: ${command}`));
+    });
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 1400 });
     HTMLElement.prototype.setPointerCapture = vi.fn();
   });
@@ -275,6 +341,9 @@ describe("App memory clarity", () => {
       if (command === "scan_memories") {
         return Promise.resolve(clarityScanResult);
       }
+      if (command === "load_memory_profile") {
+        return Promise.resolve(clarityMemoryProfile);
+      }
       if (command === "get_source_excerpt") {
         return Promise.resolve("The user's current technical stack is Python/Rust.");
       }
@@ -289,157 +358,474 @@ describe("App memory clarity", () => {
     revealItemInDirMock.mockReset();
   });
 
-  it("separates current profile from activity evidence", async () => {
-    const { getByRole, queryByText } = renderApp();
+  it("shows a calm overview and minimal sidebar", async () => {
+    const { findByText, getByRole, queryByText } = renderApp();
 
     await waitFor(() =>
-      expect(getByRole("heading", { name: "Current Profile" })).toBeInTheDocument(),
+      expect(getByRole("heading", { name: "Codex 目前这样理解你" })).toBeInTheDocument(),
     );
-    await waitFor(() =>
-      expect(getByRole("button", { name: /Profile\s*2/ })).toBeInTheDocument(),
-    );
-    expect(getByRole("button", { name: /Activity Log\s*1/ })).toBeInTheDocument();
-    expect(queryByText("Fixture mode: demo memory only")).not.toBeInTheDocument();
-    expect(queryByText("No audit report yet")).not.toBeInTheDocument();
+    expect(getByRole("button", { name: "记忆" })).toBeInTheDocument();
+    expect(getByRole("button", { name: "检查" })).toBeInTheDocument();
+    expect(queryByText("复核队列")).not.toBeInTheDocument();
+    expect(queryByText("已加载摘要")).not.toBeInTheDocument();
+    expect(queryByText("记忆注册表")).not.toBeInTheDocument();
+    expect(queryByText("活动记录")).not.toBeInTheDocument();
+    expect(queryByText("全部来源")).not.toBeInTheDocument();
+    expect(queryByText("资料")).not.toBeInTheDocument();
+    expect(queryByText("知识看板")).not.toBeInTheDocument();
+    expect(queryByText("检查器")).not.toBeInTheDocument();
+    expect(await findByText(/current profile explicitly prefers Python\/Rust/)).toBeInTheDocument();
+    expect(queryByText("长期稳定")).not.toBeInTheDocument();
+    expect(queryByText("高可信")).not.toBeInTheDocument();
+    expect(queryByText("来源优先级")).not.toBeInTheDocument();
+    expect(queryByText("演示模式：仅使用示例记忆")).not.toBeInTheDocument();
+    expect(queryByText("还没有检查结果")).not.toBeInTheDocument();
     expect(queryByText("10-minute activity")).not.toBeInTheDocument();
-    expect(queryByText("The user's current profile explicitly prefers Python/Rust.")).toBeInTheDocument();
-
-    fireEvent.click(getByRole("button", { name: /Activity Log/ }));
-
-    await waitFor(() =>
-      expect(getByRole("heading", { name: "Activity Log" })).toBeInTheDocument(),
-    );
-    expect(queryByText("10-minute activity")).toBeInTheDocument();
   });
 
-  it("keeps profile correction notes visible in current profile and corrections", async () => {
+  it("keeps effective memory separate from activity source records", async () => {
     const { getByRole, queryByText } = renderApp();
 
-    await waitFor(() =>
-      expect(queryByText("The user's current profile explicitly prefers Python/Rust.")).toBeInTheDocument(),
-    );
-
-    fireEvent.click(getByRole("button", { name: /Corrections\s*1/ }));
+    fireEvent.click(await waitFor(() => getByRole("button", { name: "记忆" })));
 
     await waitFor(() =>
-      expect(getByRole("heading", { name: "Corrections" })).toBeInTheDocument(),
+      expect(getByRole("heading", { name: "记忆" })).toBeInTheDocument(),
     );
-    expect(queryByText("The user's current profile explicitly prefers Python/Rust.")).toBeInTheDocument();
+    expect(queryByText(/current profile explicitly prefers Python\/Rust/)).toBeInTheDocument();
+    expect(queryByText(/current technical stack is Python\/Rust/)).not.toBeInTheDocument();
+    expect(queryByText("10-minute activity")).not.toBeInTheDocument();
   });
 
-  it("opens the selected source location", async () => {
-    revealItemInDirMock.mockResolvedValue(undefined);
-    const { findByText, getByRole } = renderApp();
+  it("keeps profile correction notes visible in memory", async () => {
+    const { getByRole, queryByText } = renderApp();
 
-    fireEvent.click(await findByText("The user's current technical stack is Python/Rust."));
-    fireEvent.click(getByRole("button", { name: /Open source/ }));
-
+    fireEvent.click(await waitFor(() => getByRole("button", { name: "记忆" })));
     await waitFor(() =>
-      expect(revealItemInDirMock).toHaveBeenCalledWith("/Users/qsh/.codex/memories/MEMORY.md"),
+      expect(queryByText(/current profile explicitly prefers Python\/Rust/)).toBeInTheDocument(),
     );
   });
 
-  it("shows source excerpt errors in the inspector", async () => {
+  it("labels profile evidence as current or historical", async () => {
+    const { findAllByText, findByText, getByRole } = renderApp();
+
+    await waitFor(() =>
+      expect(getByRole("heading", { name: "Codex 目前这样理解你" })).toBeInTheDocument(),
+    );
+    fireEvent.click((await findAllByText("查看依据"))[0]);
+
+    expect(await findByText("当前依据")).toBeInTheDocument();
+    expect(await findByText("历史依据")).toBeInTheDocument();
+    expect(await findByText("当前记忆正在引用这条依据。")).toBeInTheDocument();
+    expect(await findByText("这条依据已被更新记忆覆盖，只作为历史背景。")).toBeInTheDocument();
+  });
+
+  it("keeps Codex profile generation out of startup and runs it on demand", async () => {
+    const codexProfile: MemoryProfile = {
+      ...clarityMemoryProfile,
+      generator: "codex-profile-v1",
+      sections: [
+        {
+          ...clarityMemoryProfile.sections[0],
+          body: "Codex regenerated this memory profile from current evidence.",
+        },
+      ],
+    };
     invokeMock.mockImplementation((command: string) => {
       if (command === "scan_memories") {
         return Promise.resolve(clarityScanResult);
       }
-      if (command === "get_source_excerpt") {
-        return Promise.reject(new Error("source read failed"));
+      if (command === "load_memory_profile") {
+        return Promise.resolve(clarityMemoryProfile);
+      }
+      if (command === "start_memory_profile_generation") {
+        return Promise.resolve({
+          id: "profile-task-1",
+          status: "succeeded",
+          startedAt: "2026-06-09T00:00:00Z",
+          finishedAt: "2026-06-09T00:00:01Z",
+          error: null,
+          profile: codexProfile,
+        });
       }
       return Promise.reject(new Error(`unexpected command: ${command}`));
     });
-    const { findByText } = renderApp();
-
-    fireEvent.click(await findByText("The user's current technical stack is Python/Rust."));
-
-    expect(await findByText("Error: source read failed")).toBeInTheDocument();
-  });
-
-  it("searches entries globally from the active topic", async () => {
-    const { findByPlaceholderText, findByText, getByText } = renderApp();
-
-    fireEvent.change(await findByPlaceholderText("Search memory..."), {
-      target: { value: "BeeBotOS" },
-    });
-
-    expect(await findByText("Search Results")).toBeInTheDocument();
-    expect(getByText("1 matching memory entries")).toBeInTheDocument();
-    expect(await findByText("10-minute activity")).toBeInTheDocument();
-    expect(getByText("Activity")).toBeInTheDocument();
-  });
-
-  it("filters sources by search text", async () => {
-    const { findByPlaceholderText, findByText, getByRole, queryByText } = renderApp();
-
-    fireEvent.click(getByRole("button", { name: /Sources/ }));
-    fireEvent.change(await findByPlaceholderText("Search memory..."), {
-      target: { value: "MEMORY.md" },
-    });
-
-    await waitFor(() => expect(queryByText("MEMORY.md")).toBeInTheDocument());
-    expect(await findByText("1 matching sources")).toBeInTheDocument();
-    expect(queryByText("extensions/chronicle/resources/example.md")).not.toBeInTheDocument();
-
-    fireEvent.change(await findByPlaceholderText("Search memory..."), {
-      target: { value: "not-a-source" },
-    });
-    expect(await findByText("0 matching sources")).toBeInTheDocument();
-    expect(await findByText("No sources match this view.")).toBeInTheDocument();
-  });
-
-  it("opens a source card location", async () => {
-    revealItemInDirMock.mockResolvedValue(undefined);
-    const { findByRole, getByRole } = renderApp();
-
-    fireEvent.click(getByRole("button", { name: /Sources/ }));
-    fireEvent.click(await findByRole("button", { name: "Open source MEMORY.md" }));
+    const { findByText, getByRole } = renderApp();
 
     await waitFor(() =>
-      expect(revealItemInDirMock).toHaveBeenCalledWith("/Users/qsh/.codex/memories/MEMORY.md"),
+      expect(getByRole("heading", { name: "Codex 目前这样理解你" })).toBeInTheDocument(),
+    );
+    expect(invokeMock).not.toHaveBeenCalledWith("generate_memory_profile", expect.anything());
+
+    fireEvent.click(getByRole("button", { name: "记忆" }));
+    fireEvent.click(await waitFor(() => getByRole("button", { name: "重新生成" })));
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith("start_memory_profile_generation", {
+        rootOverride: null,
+      }),
+    );
+    expect(await findByText("Codex regenerated this memory profile from current evidence.")).toBeInTheDocument();
+  });
+
+  it("shows when regeneration returns the deterministic fallback profile", async () => {
+    const fallbackProfile: MemoryProfile = {
+      ...clarityMemoryProfile,
+      generator: "deterministic-profile-v3-fallback",
+      sections: [
+        {
+          ...clarityMemoryProfile.sections[0],
+          body: "Fallback regenerated this memory profile after Codex timed out.",
+        },
+      ],
+    };
+    invokeMock.mockImplementation((command: string) => {
+      if (command === "scan_memories") {
+        return Promise.resolve(clarityScanResult);
+      }
+      if (command === "load_memory_profile") {
+        return Promise.resolve(clarityMemoryProfile);
+      }
+      if (command === "start_memory_profile_generation") {
+        return Promise.resolve({
+          id: "profile-task-fallback",
+          status: "succeeded",
+          startedAt: "2026-06-09T00:00:00Z",
+          finishedAt: "2026-06-09T00:02:00Z",
+          error: null,
+          profile: fallbackProfile,
+        });
+      }
+      return Promise.reject(new Error(`unexpected command: ${command}`));
+    });
+    const { findByText, getByRole } = renderApp();
+
+    fireEvent.click(await waitFor(() => getByRole("button", { name: "记忆" })));
+    fireEvent.click(await waitFor(() => getByRole("button", { name: "重新生成" })));
+
+    expect(await findByText("Fallback regenerated this memory profile after Codex timed out.")).toBeInTheDocument();
+    expect(await findByText("由 规则 fallback 基于 1 条当前记忆生成")).toBeInTheDocument();
+  });
+
+  it("can cancel a running memory profile generation task", async () => {
+    invokeMock.mockImplementation((command: string) => {
+      if (command === "scan_memories") {
+        return Promise.resolve(clarityScanResult);
+      }
+      if (command === "load_memory_profile") {
+        return Promise.resolve(clarityMemoryProfile);
+      }
+      if (command === "start_memory_profile_generation") {
+        return Promise.resolve({
+          id: "profile-task-2",
+          status: "running",
+          startedAt: "2026-06-09T00:00:00Z",
+          finishedAt: null,
+          error: null,
+          profile: null,
+        });
+      }
+      if (command === "cancel_memory_profile_generation") {
+        return Promise.resolve({
+          id: "profile-task-2",
+          status: "cancelling",
+          startedAt: "2026-06-09T00:00:00Z",
+          finishedAt: null,
+          error: null,
+          profile: null,
+        });
+      }
+      return Promise.reject(new Error(`unexpected command: ${command}`));
+    });
+    const { getByRole } = renderApp();
+
+    fireEvent.click(await waitFor(() => getByRole("button", { name: "记忆" })));
+    fireEvent.click(await waitFor(() => getByRole("button", { name: "重新生成" })));
+    fireEvent.click(await waitFor(() => getByRole("button", { name: "取消" })));
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith("cancel_memory_profile_generation"),
     );
   });
 
-  it("applies and resets the memory root override", async () => {
-    const { findByLabelText, findByPlaceholderText, findByText, getByRole } = renderApp();
+  it("retries profile generation after a failed task", async () => {
+    const codexProfile: MemoryProfile = {
+      ...clarityMemoryProfile,
+      generator: "codex-profile-v1",
+      sections: [
+        {
+          ...clarityMemoryProfile.sections[0],
+          body: "Retry regenerated the memory profile.",
+        },
+      ],
+    };
+    let startCount = 0;
+    invokeMock.mockImplementation((command: string) => {
+      if (command === "scan_memories") {
+        return Promise.resolve(clarityScanResult);
+      }
+      if (command === "load_memory_profile") {
+        return Promise.resolve(clarityMemoryProfile);
+      }
+      if (command === "start_memory_profile_generation") {
+        startCount += 1;
+        return Promise.resolve(
+          startCount === 1
+            ? {
+                id: "profile-task-failed",
+                status: "failed",
+                startedAt: "2026-06-09T00:00:00Z",
+                finishedAt: "2026-06-09T00:00:01Z",
+                error: "codex exec failed",
+                profile: null,
+              }
+            : {
+                id: "profile-task-retry",
+                status: "succeeded",
+                startedAt: "2026-06-09T00:00:02Z",
+                finishedAt: "2026-06-09T00:00:03Z",
+                error: null,
+                profile: codexProfile,
+              },
+        );
+      }
+      return Promise.reject(new Error(`unexpected command: ${command}`));
+    });
+    const { findAllByText, findByText, getByRole } = renderApp();
+
+    fireEvent.click(await waitFor(() => getByRole("button", { name: "记忆" })));
+    fireEvent.click(await waitFor(() => getByRole("button", { name: "重新生成" })));
+    expect((await findAllByText("codex exec failed")).length).toBeGreaterThan(0);
+
+    fireEvent.click(getByRole("button", { name: "重新生成" }));
+
+    await waitFor(() => expect(startCount).toBe(2));
+    expect(await findByText("Retry regenerated the memory profile.")).toBeInTheDocument();
+  });
+
+  it("retries profile generation after cancellation completes", async () => {
+    const codexProfile: MemoryProfile = {
+      ...clarityMemoryProfile,
+      generator: "codex-profile-v1",
+      sections: [
+        {
+          ...clarityMemoryProfile.sections[0],
+          body: "Regenerated after cancellation.",
+        },
+      ],
+    };
+    let startCount = 0;
+    let pollCount = 0;
+    invokeMock.mockImplementation((command: string) => {
+      if (command === "scan_memories") {
+        return Promise.resolve(clarityScanResult);
+      }
+      if (command === "load_memory_profile") {
+        return Promise.resolve(clarityMemoryProfile);
+      }
+      if (command === "start_memory_profile_generation") {
+        startCount += 1;
+        return Promise.resolve(
+          startCount === 1
+            ? {
+                id: "profile-task-running",
+                status: "running",
+                startedAt: "2026-06-09T00:00:00Z",
+                finishedAt: null,
+                error: null,
+                profile: null,
+              }
+            : {
+                id: "profile-task-after-cancel",
+                status: "succeeded",
+                startedAt: "2026-06-09T00:00:02Z",
+                finishedAt: "2026-06-09T00:00:03Z",
+                error: null,
+                profile: codexProfile,
+              },
+        );
+      }
+      if (command === "cancel_memory_profile_generation") {
+        return Promise.resolve({
+          id: "profile-task-running",
+          status: "cancelling",
+          startedAt: "2026-06-09T00:00:00Z",
+          finishedAt: null,
+          error: null,
+          profile: null,
+        });
+      }
+      if (command === "get_memory_profile_generation") {
+        pollCount += 1;
+        return Promise.resolve({
+          id: "profile-task-running",
+          status: pollCount > 0 ? "cancelled" : "cancelling",
+          startedAt: "2026-06-09T00:00:00Z",
+          finishedAt: "2026-06-09T00:00:01Z",
+          error: null,
+          profile: null,
+        });
+      }
+      return Promise.reject(new Error(`unexpected command: ${command}`));
+    });
+    const { findByText, getByRole } = renderApp();
+
+    fireEvent.click(await waitFor(() => getByRole("button", { name: "记忆" })));
+    fireEvent.click(await waitFor(() => getByRole("button", { name: "重新生成" })));
+    fireEvent.click(await waitFor(() => getByRole("button", { name: "取消" })));
+    await waitFor(
+      () => expect(getByRole("button", { name: "重新生成" })).toBeInTheDocument(),
+      { timeout: 2500 },
+    );
+
+    fireEvent.click(getByRole("button", { name: "重新生成" }));
+
+    await waitFor(() => expect(startCount).toBe(2));
+    expect(await findByText("Regenerated after cancellation.")).toBeInTheDocument();
+  });
+
+  it("opens the selected source location", async () => {
+    revealItemInDirMock.mockResolvedValue(undefined);
+    const { getAllByText, getByRole } = renderApp();
+
+    fireEvent.click(await waitFor(() => getByRole("button", { name: "记忆" })));
+    fireEvent.click(await waitFor(() => getAllByText("查看依据")[0]));
+    fireEvent.click(getByRole("button", { name: "extensions/ad_hoc/notes/profile.md 第 1-3 行" }));
+
+    await waitFor(() =>
+      expect(revealItemInDirMock).toHaveBeenCalledWith(
+        "/Users/qsh/.codex/memories/extensions/ad_hoc/notes/profile.md",
+      ),
+    );
+  });
+
+  it("drafts a correction from a memory profile section", async () => {
+    invokeMock.mockImplementation((command: string) => {
+      if (command === "scan_memories") {
+        return Promise.resolve(clarityScanResult);
+      }
+      if (command === "load_memory_profile") {
+        return Promise.resolve(clarityMemoryProfile);
+      }
+      if (command === "draft_correction") {
+        return Promise.resolve({
+          slug: "memory-profile-python-rust-current-stack",
+          content: "Memory update request:\n\n- Review profile overview.\n",
+          targetPath:
+            "/Users/qsh/.codex/memories/extensions/ad_hoc/notes/memory-profile-python-rust-current-stack.md",
+        });
+      }
+      return Promise.reject(new Error(`unexpected command: ${command}`));
+    });
+    const { findByText, getAllByRole, getByRole } = renderApp();
+
+    fireEvent.click(await waitFor(() => getByRole("button", { name: "记忆" })));
+    fireEvent.click(getAllByRole("button", { name: "这不对" })[0]);
+
+    expect(await findByText("修正笔记")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith("draft_correction", {
+        rootOverride: null,
+        slug: "memory-profile-python-rust-current-stack",
+        bulletLines: expect.arrayContaining([
+          expect.stringContaining(
+            'Review and update memory profile section "你明确把 Python/Rust 作为当前主栈"',
+          ),
+        ]),
+      }),
+    );
+  });
+
+  it("reloads the memory profile after writing a profile correction", async () => {
+    const correctedProfile: MemoryProfile = {
+      ...clarityMemoryProfile,
+      sourceHash: "corrected-profile-hash",
+      sections: [
+        {
+          id: "python-rust-correction-is-current",
+          title: "你明确把 Python/Rust 作为当前主栈",
+          body: "修正后画像显示：你希望 AMM 优先相信 Python/Rust，而不是旧的 Java/Spring Boot 描述。",
+          confidence: "high",
+          stability: "stable",
+          evidence: [
+            {
+              sourcePath: "extensions/ad_hoc/notes/memory-profile-python-rust-current-stack.md",
+              startLine: 1,
+              endLine: 3,
+              summary: "The user's current primary technical stack is Python/Rust.",
+            },
+          ],
+        },
+      ],
+    };
+    let scanCalls = 0;
+    let profileCalls = 0;
+    invokeMock.mockImplementation((command: string) => {
+      if (command === "scan_memories") {
+        scanCalls += 1;
+        return Promise.resolve(clarityScanResult);
+      }
+      if (command === "load_memory_profile") {
+        profileCalls += 1;
+        return Promise.resolve(profileCalls === 1 ? clarityMemoryProfile : correctedProfile);
+      }
+      if (command === "draft_correction") {
+        return Promise.resolve({
+          slug: "memory-profile-python-rust-current-stack",
+          content: "Memory update request:\n\n- Review profile overview.\n",
+          targetPath:
+            "/Users/qsh/.codex/memories/extensions/ad_hoc/notes/memory-profile-python-rust-current-stack.md",
+        });
+      }
+      if (command === "write_correction") {
+        return Promise.resolve(
+          "/Users/qsh/.codex/memories/extensions/ad_hoc/notes/memory-profile-python-rust-current-stack.md",
+        );
+      }
+      return Promise.reject(new Error(`unexpected command: ${command}`));
+    });
+    const { findByText, getAllByRole, getByRole } = renderApp();
+
+    fireEvent.click(await waitFor(() => getByRole("button", { name: "记忆" })));
+    fireEvent.click(getAllByRole("button", { name: "这不对" })[0]);
+    expect(await findByText("修正笔记")).toBeInTheDocument();
+    fireEvent.click(getByRole("button", { name: "写入修正笔记" }));
+
+    expect(await findByText(/修正后画像显示/)).toBeInTheDocument();
+    expect(getByRole("heading", { name: "记忆" })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(scanCalls).toBeGreaterThanOrEqual(2);
+      expect(profileCalls).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  it("searches entries inside the current derived memory view", async () => {
+    const { findByPlaceholderText, findByText, getAllByRole, getByRole, getByText } = renderApp();
+
+    fireEvent.click(await waitFor(() => getByRole("button", { name: "记忆" })));
+    fireEvent.change(await findByPlaceholderText("搜索当前视图..."), {
+      target: { value: "Python/Rust" },
+    });
+
+    expect(getByRole("heading", { name: "记忆" })).toBeInTheDocument();
+    expect(getByText("1 个匹配章节")).toBeInTheDocument();
+    expect(await findByText("你明确把 Python/Rust 作为当前主栈")).toBeInTheDocument();
+    expect(getAllByRole("button", { name: "这不对" }).length).toBeGreaterThan(0);
+  });
+
+  it("uses the default memory root without override controls", async () => {
+    const { getByRole, queryByLabelText, queryByRole } = renderApp();
     const scanCalls = () => invokeMock.mock.calls.filter(([command]) => command === "scan_memories");
     const lastScanCall = () => {
       const calls = scanCalls();
       return calls[calls.length - 1];
     };
 
-    await findByText("/Users/qsh/.codex/memories");
+    await waitFor(() => expect(getByRole("heading", { name: "Codex 目前这样理解你" })).toBeInTheDocument());
     expect(lastScanCall()).toEqual(["scan_memories", { rootOverride: null }]);
-    const searchInput = await findByPlaceholderText("Search memory...");
-    fireEvent.change(searchInput, {
-      target: { value: "BeeBotOS" },
-    });
-
-    fireEvent.change(await findByLabelText("Memory root"), {
-      target: { value: "/tmp/amm-fixture-memory" },
-    });
-    fireEvent.click(getByRole("button", { name: "Apply" }));
-
-    await waitFor(() => expect(searchInput).toHaveValue(""));
-    await waitFor(() =>
-      expect(lastScanCall()).toEqual([
-        "scan_memories",
-        {
-          rootOverride: "/tmp/amm-fixture-memory",
-        },
-      ]),
-    );
-
-    fireEvent.click(getByRole("button", { name: "Default" }));
-
-    await waitFor(() =>
-      expect(lastScanCall()).toEqual([
-        "scan_memories",
-        {
-          rootOverride: null,
-        },
-      ]),
-    );
+    expect(queryByRole("button", { name: /Users\/qsh/ })).not.toBeInTheDocument();
+    expect(queryByLabelText("Memory root")).not.toBeInTheDocument();
+    expect(queryByRole("button", { name: "应用" })).not.toBeInTheDocument();
+    expect(queryByRole("button", { name: "默认" })).not.toBeInTheDocument();
   });
 });
 
@@ -456,12 +842,15 @@ describe("App Codex audit", () => {
 
   it("runs a mocked audit and renders every report section", async () => {
     revealItemInDirMock.mockResolvedValue(undefined);
-    invokeMock.mockImplementation((command: string) => {
+    invokeMock.mockImplementation((command: string, args?: { mode?: CodexAuditMode }) => {
       if (command === "scan_memories") {
         return Promise.resolve(clarityScanResult);
       }
-      if (command === "run_codex_audit") {
-        return Promise.resolve(auditRun);
+      if (command === "load_memory_profile") {
+        return Promise.resolve(clarityMemoryProfile);
+      }
+      if (command === "start_codex_audit") {
+        return Promise.resolve(auditTask("succeeded", args?.mode ?? "curated"));
       }
       if (command === "draft_correction_from_content") {
         return Promise.resolve({
@@ -489,16 +878,18 @@ describe("App Codex audit", () => {
       queryByPlaceholderText,
     } = renderApp();
 
-    await findByText("Stable profile");
-    fireEvent.click(getByRole("button", { name: "Audit" }));
     await waitFor(() =>
-      expect(getByRole("heading", { name: "Codex Audit" })).toBeInTheDocument(),
+      expect(getByRole("heading", { name: "Codex 目前这样理解你" })).toBeInTheDocument(),
     );
-    expect(queryByPlaceholderText("Search memory...")).not.toBeInTheDocument();
-    fireEvent.click(getByRole("button", { name: /Run Codex Audit/ }));
+    fireEvent.click(getByRole("button", { name: "检查" }));
+    await waitFor(() =>
+      expect(getByRole("heading", { name: "检查" })).toBeInTheDocument(),
+    );
+    expect(queryByPlaceholderText("搜索当前视图...")).not.toBeInTheDocument();
+    fireEvent.click(getByRole("button", { name: /开始检查/ }));
 
     await waitFor(() =>
-      expect(invokeMock).toHaveBeenCalledWith("run_codex_audit", {
+      expect(invokeMock).toHaveBeenCalledWith("start_codex_audit", {
         rootOverride: null,
         mode: "curated",
       }),
@@ -510,14 +901,14 @@ describe("App Codex audit", () => {
     expect(getByText("Java/Spring Boot")).toBeInTheDocument();
     expect(getByText("Active project is uncertain")).toBeInTheDocument();
     expect(getByText("Clarify current primary stack")).toBeInTheDocument();
-    expect(getAllByText("memory_summary.md L20-24").length).toBeGreaterThan(0);
+    expect(getAllByText("memory_summary.md 第 20-24 行").length).toBeGreaterThan(0);
 
-    fireEvent.click(getAllByRole("button", { name: "memory_summary.md L20-24" })[0]);
+    fireEvent.click(getAllByRole("button", { name: "memory_summary.md 第 20-24 行" })[0]);
     await waitFor(() =>
       expect(revealItemInDirMock).toHaveBeenCalledWith("/Users/qsh/.codex/memories/memory_summary.md"),
     );
 
-    fireEvent.click(getByRole("button", { name: /Draft correction/ }));
+    fireEvent.click(getByRole("button", { name: /起草修正/ }));
 
     await waitFor(() =>
       expect(invokeMock).toHaveBeenCalledWith("draft_correction_from_content", {
@@ -526,15 +917,15 @@ describe("App Codex audit", () => {
         content: auditRun.report.suggestedCorrections[0].content,
       }),
     );
-    expect(getByRole("heading", { name: "Correction note" })).toBeInTheDocument();
+    expect(getByRole("heading", { name: "修正笔记" })).toBeInTheDocument();
     expect(invokeMock).not.toHaveBeenCalledWith("write_correction", expect.anything());
 
     const editedCorrectionContent =
       "Memory update request:\n\n- Edited correction content before write.\n";
-    fireEvent.change(await findByLabelText("Content"), {
+    fireEvent.change(await findByLabelText("内容"), {
       target: { value: editedCorrectionContent },
     });
-    fireEvent.click(getByRole("button", { name: "Write correction note" }));
+    fireEvent.click(getByRole("button", { name: "写入修正笔记" }));
 
     await waitFor(() =>
       expect(invokeMock).toHaveBeenCalledWith("write_correction", {
@@ -549,7 +940,7 @@ describe("App Codex audit", () => {
     );
     expect(
       await findByText(
-        "Correction note written: /Users/qsh/.codex/memories/extensions/ad_hoc/notes/20260609-correction-primary-stack.md",
+        "修正笔记已写入：/Users/qsh/.codex/memories/extensions/ad_hoc/notes/20260609-correction-primary-stack.md",
       ),
     ).toBeInTheDocument();
   });
@@ -559,77 +950,92 @@ describe("App Codex audit", () => {
       if (command === "scan_memories") {
         return Promise.resolve(clarityScanResult);
       }
-      if (command === "run_codex_audit") {
-        return Promise.resolve({
+      if (command === "load_memory_profile") {
+        return Promise.resolve(clarityMemoryProfile);
+      }
+      if (command === "start_codex_audit") {
+        const mode = (args?.mode ?? "curated") as CodexAuditMode;
+        const run = {
           ...auditRun,
           report: {
             ...auditRun.report,
-            mode: args?.mode ?? "curated",
+            mode,
           },
-        });
+        } satisfies CodexAuditRun;
+        return Promise.resolve(auditTask("succeeded", mode, run));
       }
       return Promise.reject(new Error(`unexpected command: ${command}`));
     });
 
     const { findByText, getByRole, queryByText } = renderApp();
 
-    await findByText("Stable profile");
-    fireEvent.click(getByRole("button", { name: "Audit" }));
-    fireEvent.click(getByRole("button", { name: /Run Codex Audit/ }));
+    await waitFor(() =>
+      expect(getByRole("heading", { name: "Codex 目前这样理解你" })).toBeInTheDocument(),
+    );
+    fireEvent.click(getByRole("button", { name: "检查" }));
+    fireEvent.click(getByRole("button", { name: /开始检查/ }));
     expect(await findByText("Primary stack mismatch")).toBeInTheDocument();
 
-    fireEvent.change(getByRole("combobox", { name: "Audit mode" }), {
+    fireEvent.change(getByRole("combobox", { name: "检查范围" }), {
       target: { value: "full" },
     });
 
     expect(queryByText("Primary stack mismatch")).not.toBeInTheDocument();
-    expect(getByRole("heading", { name: "No audit report yet" })).toBeInTheDocument();
+    expect(getByRole("heading", { name: "还没有检查结果" })).toBeInTheDocument();
 
-    fireEvent.click(getByRole("button", { name: /Run Codex Audit/ }));
+    fireEvent.click(getByRole("button", { name: /开始检查/ }));
     await waitFor(() =>
-      expect(invokeMock).toHaveBeenCalledWith("run_codex_audit", {
+      expect(invokeMock).toHaveBeenCalledWith("start_codex_audit", {
         rootOverride: null,
         mode: "full",
       }),
     );
   });
 
-  it("ignores audit results from an old mode after switching", async () => {
-    let resolveAudit: (run: CodexAuditRun) => void = () => {};
-    const pendingAudit = new Promise<CodexAuditRun>((resolve) => {
-      resolveAudit = resolve;
-    });
+  it("can cancel a running audit task and retry after cancellation", async () => {
+    let startCount = 0;
     invokeMock.mockImplementation((command: string) => {
       if (command === "scan_memories") {
         return Promise.resolve(clarityScanResult);
       }
-      if (command === "run_codex_audit") {
-        return pendingAudit;
+      if (command === "load_memory_profile") {
+        return Promise.resolve(clarityMemoryProfile);
+      }
+      if (command === "start_codex_audit") {
+        startCount += 1;
+        return Promise.resolve(
+          startCount === 1
+            ? auditTask("running", "curated")
+            : auditTask("succeeded", "curated"),
+        );
+      }
+      if (command === "cancel_codex_audit") {
+        return Promise.resolve(auditTask("cancelled", "curated"));
       }
       return Promise.reject(new Error(`unexpected command: ${command}`));
     });
 
-    const { findByText, getByRole, queryByText } = renderApp();
+    const { findByText, getByRole } = renderApp();
 
-    await findByText("Stable profile");
-    fireEvent.click(getByRole("button", { name: "Audit" }));
-    fireEvent.click(getByRole("button", { name: /Run Codex Audit/ }));
     await waitFor(() =>
-      expect(invokeMock).toHaveBeenCalledWith("run_codex_audit", {
+      expect(getByRole("heading", { name: "Codex 目前这样理解你" })).toBeInTheDocument(),
+    );
+    fireEvent.click(getByRole("button", { name: "检查" }));
+    fireEvent.click(getByRole("button", { name: /开始检查/ }));
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith("start_codex_audit", {
         rootOverride: null,
         mode: "curated",
       }),
     );
+    expect(getByRole("combobox", { name: "检查范围" })).toBeDisabled();
+    fireEvent.click(getByRole("button", { name: "取消" }));
 
-    fireEvent.change(getByRole("combobox", { name: "Audit mode" }), {
-      target: { value: "full" },
-    });
-    resolveAudit(auditRun);
-    await pendingAudit;
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await waitFor(() => expect(invokeMock).toHaveBeenCalledWith("cancel_codex_audit"));
+    fireEvent.click(getByRole("button", { name: /开始检查/ }));
 
-    expect(queryByText("Primary stack mismatch")).not.toBeInTheDocument();
-    expect(getByRole("heading", { name: "No audit report yet" })).toBeInTheDocument();
+    await waitFor(() => expect(startCount).toBe(2));
+    expect(await findByText("Primary stack mismatch")).toBeInTheDocument();
   });
 
   it("shows audit errors without writing corrections", async () => {
@@ -637,20 +1043,25 @@ describe("App Codex audit", () => {
       if (command === "scan_memories") {
         return Promise.resolve(clarityScanResult);
       }
-      if (command === "run_codex_audit") {
+      if (command === "load_memory_profile") {
+        return Promise.resolve(clarityMemoryProfile);
+      }
+      if (command === "start_codex_audit") {
         return Promise.reject(new Error("codex exec failed"));
       }
       return Promise.reject(new Error(`unexpected command: ${command}`));
     });
 
-    const { findByText, getAllByText, getByRole } = renderApp();
+    const { getAllByText, getByRole } = renderApp();
 
-    await findByText("Stable profile");
-    fireEvent.click(getByRole("button", { name: "Audit" }));
     await waitFor(() =>
-      expect(getByRole("heading", { name: "Codex Audit" })).toBeInTheDocument(),
+      expect(getByRole("heading", { name: "Codex 目前这样理解你" })).toBeInTheDocument(),
     );
-    fireEvent.click(getByRole("button", { name: /Run Codex Audit/ }));
+    fireEvent.click(getByRole("button", { name: "检查" }));
+    await waitFor(() =>
+      expect(getByRole("heading", { name: "检查" })).toBeInTheDocument(),
+    );
+    fireEvent.click(getByRole("button", { name: /开始检查/ }));
 
     await waitFor(() => expect(getAllByText("Error: codex exec failed").length).toBeGreaterThan(0));
     expect(invokeMock).not.toHaveBeenCalledWith("write_correction", expect.anything());

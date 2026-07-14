@@ -86,20 +86,16 @@ fn flush_entry(
     if !has_content {
         return;
     }
-    let summary = body
-        .lines()
-        .map(str::trim)
-        .find(|line| {
-            !line.is_empty()
-                && !line.starts_with('#')
-                && !line.eq_ignore_ascii_case("memory update request:")
-        })
-        .unwrap_or(title)
-        .trim()
-        .trim_start_matches("- ")
-        .chars()
-        .take(220)
-        .collect::<String>();
+    let Some(summary_source) = select_summary_line(&body).or_else(|| {
+        if is_metadata_only_entry(&body) {
+            None
+        } else {
+            Some(title.to_string())
+        }
+    }) else {
+        return;
+    };
+    let summary = summary_source.chars().take(220).collect::<String>();
     if summary.trim().is_empty() {
         return;
     }
@@ -121,6 +117,83 @@ fn flush_entry(
         start_line,
         end_line,
     });
+}
+
+fn select_summary_line(body: &str) -> Option<String> {
+    let mut in_metadata_block = false;
+    for line in body.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("### ") {
+            in_metadata_block = is_metadata_heading(trimmed);
+            continue;
+        }
+        if in_metadata_block {
+            continue;
+        }
+
+        let normalized = normalize_summary_line(trimmed);
+        if is_usable_summary_line(&normalized) {
+            return Some(normalized);
+        }
+    }
+
+    None
+}
+
+fn is_metadata_only_entry(body: &str) -> bool {
+    let mut in_metadata_block = false;
+    let mut saw_non_heading = false;
+    for line in body.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("### ") {
+            in_metadata_block = is_metadata_heading(trimmed);
+            continue;
+        }
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+
+        saw_non_heading = true;
+        if in_metadata_block {
+            continue;
+        }
+        let normalized = normalize_summary_line(trimmed);
+        if !is_registry_metadata_line(&normalized) {
+            return false;
+        }
+    }
+
+    saw_non_heading
+}
+
+fn normalize_summary_line(line: &str) -> String {
+    line.trim()
+        .trim_start_matches("- ")
+        .trim_start_matches("desc:")
+        .trim_start_matches("learnings:")
+        .trim()
+        .to_string()
+}
+
+fn is_usable_summary_line(line: &str) -> bool {
+    !line.is_empty()
+        && !line.starts_with('#')
+        && !line.eq_ignore_ascii_case("memory update request:")
+        && !is_registry_metadata_line(line)
+}
+
+fn is_metadata_heading(line: &str) -> bool {
+    let heading = line.trim_start_matches('#').trim().to_lowercase();
+    matches!(heading.as_str(), "rollout_summary_files" | "keywords")
+}
+
+fn is_registry_metadata_line(line: &str) -> bool {
+    let lower = line.to_lowercase();
+    lower.starts_with("scope:")
+        || lower.starts_with("applies_to:")
+        || lower.starts_with("rollout_summaries/")
+        || lower.contains("rollout_path=")
+        || lower.contains("thread_id=")
 }
 
 fn is_version_preamble(title: &str, summary: &str) -> bool {
@@ -308,5 +381,23 @@ mod tests {
                 && entry.summary.contains("Codex memory manager MVP")
                 && entry.topic == MemoryTopic::Projects
         }));
+    }
+
+    #[test]
+    fn skips_memory_registry_metadata_when_choosing_summaries() {
+        let entries = parse_entries(
+            "MEMORY.md",
+            "# Task Group: local skills-manager layout\nscope: Machine-local inspection metadata.\napplies_to: cwd=/Users/qsh.\n\n## Task 1: Inspect local skills management\n\n### rollout_summary_files\n\n- rollout_summaries/2026-example.md (rollout_path=/tmp/example.jsonl, thread_id=abc)\n\n### keywords\n\n- skills, symlink, sqlite3\n\n## User preferences\n\n- when the user asks about local skills, answer by auditing real filesystem objects [Task 1]\n\n## Reusable knowledge\n\n- `skills-manager` is the authoritative manager on this machine [Task 1]\n",
+        );
+
+        assert!(!entries.iter().any(|entry| entry.summary.contains("scope:")
+            || entry.summary.contains("rollout_summaries/")
+            || entry.summary == "skills, symlink, sqlite3"));
+        assert!(entries
+            .iter()
+            .any(|entry| entry.summary.starts_with("when the user asks")));
+        assert!(entries
+            .iter()
+            .any(|entry| entry.summary.starts_with("`skills-manager`")));
     }
 }

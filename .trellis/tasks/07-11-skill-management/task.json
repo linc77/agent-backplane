@@ -1,0 +1,28 @@
+{
+  "id": "skill-management",
+  "name": "skill-management",
+  "title": "Add local skill management module",
+  "description": "",
+  "status": "in_progress",
+  "dev_type": null,
+  "scope": "src-tauri skill inventory command; React Skills view; tests and loop evidence",
+  "package": null,
+  "priority": "P2",
+  "creator": "qsh",
+  "assignee": "qsh",
+  "createdAt": "2026-07-11",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "07-13-native-skill-discovery"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}

@@ -1,15 +1,18 @@
 import { X } from "lucide-react";
+import type { UiText } from "../lib/i18n";
 import type { CorrectionDraft } from "../lib/types";
 
 export function CorrectionDialog({
   draft,
   isWriting,
+  uiText,
   onCancel,
   onContentChange,
   onConfirm,
 }: {
   draft: CorrectionDraft;
   isWriting: boolean;
+  uiText: UiText;
   onCancel: () => void;
   onContentChange: (content: string) => void;
   onConfirm: () => void;
@@ -19,8 +22,8 @@ export function CorrectionDialog({
       <section className="dialog">
         <header>
           <div>
-            <p className="eyebrow">Safe write preview</p>
-            <h2>Correction note</h2>
+            <p className="eyebrow">{uiText.dialog.eyebrow}</p>
+            <h2>{uiText.dialog.title}</h2>
           </div>
           <button className="icon-button" onClick={onCancel} type="button">
             <X size={18} />
@@ -28,12 +31,12 @@ export function CorrectionDialog({
         </header>
 
         <label>
-          Target path
+          {uiText.dialog.targetPath}
           <input readOnly value={draft.targetPath} />
         </label>
 
         <label>
-          Content
+          {uiText.dialog.content}
           <textarea
             onChange={(event) => onContentChange(event.target.value)}
             rows={10}
@@ -43,10 +46,10 @@ export function CorrectionDialog({
 
         <footer>
           <button className="secondary-button" onClick={onCancel} type="button">
-            Cancel
+            {uiText.dialog.cancel}
           </button>
           <button className="primary-button" disabled={isWriting} onClick={onConfirm} type="button">
-            {isWriting ? "Writing..." : "Write correction note"}
+            {isWriting ? uiText.dialog.writing : uiText.dialog.writeCorrection}
           </button>
         </footer>
       </section>

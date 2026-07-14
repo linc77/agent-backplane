@@ -1,10 +1,16 @@
 #![allow(dead_code)]
 
 use std::collections::HashMap;
-use std::fs;
+use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+use std::thread;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
@@ -14,6 +20,7 @@ use super::scanner::{scan_sources, MemorySource, MemorySourceKind};
 
 const BUNDLE_SCHEMA_VERSION: &str = "1";
 const BUNDLE_TEXT_LIMIT: usize = 4_000;
+const CODEX_EXEC_TIMEOUT: Duration = Duration::from_secs(120);
 const REPORT_SCHEMA_RELATIVE_PATH: &str = "schemas/current-memory-report.schema.json";
 const REPORT_SCHEMA_JSON: &str = include_str!("../../../schemas/current-memory-report.schema.json");
 
@@ -169,40 +176,126 @@ pub struct RealCodexExecRunner;
 
 impl CodexExecRunner for RealCodexExecRunner {
     fn run(&self, spec: &CodexExecSpec) -> Result<CodexExecOutput, String> {
-        let mut command = Command::new("codex");
-        command.args(&spec.args);
-        if let Some(current_dir) = &spec.current_dir {
-            command.current_dir(current_dir);
-        }
-        if spec.stdin.is_some() {
-            command.stdin(Stdio::piped());
-        }
-        command.stdout(Stdio::piped()).stderr(Stdio::piped());
-
-        let mut child = command
-            .spawn()
-            .map_err(|err| format!("failed to start codex exec: {err}"))?;
-
-        if let Some(stdin) = &spec.stdin {
-            let mut child_stdin = child
-                .stdin
-                .take()
-                .ok_or_else(|| "failed to open codex exec stdin".to_string())?;
-            child_stdin
-                .write_all(stdin.as_bytes())
-                .map_err(|err| format!("failed to write codex exec stdin: {err}"))?;
-        }
-
-        let output = child
-            .wait_with_output()
-            .map_err(|err| format!("failed to wait for codex exec: {err}"))?;
-
-        Ok(CodexExecOutput {
-            status_code: output.status.code().unwrap_or(-1),
-            stdout: String::from_utf8_lossy(&output.stdout).to_string(),
-            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
-        })
+        run_codex_exec(spec, None)
     }
+}
+
+pub struct CancellableCodexExecRunner {
+    cancelled: Arc<AtomicBool>,
+}
+
+impl CancellableCodexExecRunner {
+    pub fn new(cancelled: Arc<AtomicBool>) -> Self {
+        Self { cancelled }
+    }
+}
+
+impl CodexExecRunner for CancellableCodexExecRunner {
+    fn run(&self, spec: &CodexExecSpec) -> Result<CodexExecOutput, String> {
+        run_codex_exec(spec, Some(self.cancelled.clone()))
+    }
+}
+
+fn run_codex_exec(
+    spec: &CodexExecSpec,
+    cancelled: Option<Arc<AtomicBool>>,
+) -> Result<CodexExecOutput, String> {
+    let (stdout_path, stderr_path) = codex_output_paths();
+    let stdout_file = OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .open(&stdout_path)
+        .map_err(|err| format!("failed to create codex stdout capture: {err}"))?;
+    let stderr_file = OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .open(&stderr_path)
+        .map_err(|err| format!("failed to create codex stderr capture: {err}"))?;
+    let mut command = Command::new("codex");
+    command.args(&spec.args);
+    if let Some(current_dir) = &spec.current_dir {
+        command.current_dir(current_dir);
+    }
+    if spec.stdin.is_some() {
+        command.stdin(Stdio::piped());
+    }
+    command
+        .stdout(Stdio::from(stdout_file))
+        .stderr(Stdio::from(stderr_file));
+
+    let mut child = command
+        .spawn()
+        .map_err(|err| format!("failed to start codex exec: {err}"))?;
+
+    if let Some(stdin) = &spec.stdin {
+        let mut child_stdin = child
+            .stdin
+            .take()
+            .ok_or_else(|| "failed to open codex exec stdin".to_string())?;
+        child_stdin
+            .write_all(stdin.as_bytes())
+            .map_err(|err| format!("failed to write codex exec stdin: {err}"))?;
+    }
+
+    let deadline = Instant::now() + CODEX_EXEC_TIMEOUT;
+    let status = loop {
+        if let Some(status) = child
+            .try_wait()
+            .map_err(|err| format!("failed to wait for codex exec: {err}"))?
+        {
+            break status;
+        }
+        if cancelled
+            .as_ref()
+            .is_some_and(|flag| flag.load(Ordering::SeqCst))
+        {
+            let _ = child.kill();
+            let _ = child.wait();
+            let _ = read_and_remove_capture(&stderr_path);
+            let _ = read_and_remove_capture(&stdout_path);
+            return Err("codex exec cancelled".to_string());
+        }
+        if Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            let stderr = read_and_remove_capture(&stderr_path);
+            let stdout = read_and_remove_capture(&stdout_path);
+            return Ok(CodexExecOutput {
+                status_code: -1,
+                stdout,
+                stderr: format!(
+                    "codex exec timed out after {} seconds. {}",
+                    CODEX_EXEC_TIMEOUT.as_secs(),
+                    stderr.trim()
+                ),
+            });
+        }
+        thread::sleep(Duration::from_millis(100));
+    };
+
+    Ok(CodexExecOutput {
+        status_code: status.code().unwrap_or(-1),
+        stdout: read_and_remove_capture(&stdout_path),
+        stderr: read_and_remove_capture(&stderr_path),
+    })
+}
+
+fn codex_output_paths() -> (PathBuf, PathBuf) {
+    let nonce = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0);
+    let base = std::env::temp_dir().join(format!("amm-codex-{}-{nonce}", std::process::id()));
+    (
+        base.with_extension("stdout.log"),
+        base.with_extension("stderr.log"),
+    )
+}
+
+fn read_and_remove_capture(path: &Path) -> String {
+    let content = fs::read_to_string(path).unwrap_or_default();
+    let _ = fs::remove_file(path);
+    content
 }
 
 pub fn build_curated_memory_bundle(

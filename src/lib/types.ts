@@ -132,3 +132,119 @@ export interface CodexAuditRun {
   report: CodexAuditReport;
   cachePath: string;
 }
+
+export type CodexAuditTaskStatus =
+  | "idle"
+  | "running"
+  | "cancelling"
+  | "succeeded"
+  | "failed"
+  | "cancelled";
+
+export interface CodexAuditTask {
+  id: string | null;
+  mode: CodexAuditMode | null;
+  status: CodexAuditTaskStatus;
+  startedAt: string | null;
+  finishedAt: string | null;
+  error: string | null;
+  run: CodexAuditRun | null;
+}
+
+export type MemoryProfileConfidence = "high" | "medium" | "low";
+export type MemoryProfileStability = "stable" | "recent" | "uncertain";
+
+export interface MemoryProfileSection {
+  id: string;
+  title: string;
+  body: string;
+  evidence: EvidenceRef[];
+  confidence: MemoryProfileConfidence;
+  stability: MemoryProfileStability;
+}
+
+export interface MemoryProfileMetadata {
+  memoryRoot: string;
+  inputEntries: number;
+  currentEntries: number;
+}
+
+export interface MemoryProfile {
+  schemaVersion: "1";
+  generatedAt: string;
+  sourceHash: string;
+  generator: string;
+  cachePath: string;
+  sections: MemoryProfileSection[];
+  metadata: MemoryProfileMetadata;
+}
+
+export type MemoryProfileGenerationStatus =
+  | "idle"
+  | "running"
+  | "cancelling"
+  | "succeeded"
+  | "failed"
+  | "cancelled";
+
+export interface MemoryProfileGenerationTask {
+  id: string | null;
+  status: MemoryProfileGenerationStatus;
+  startedAt: string | null;
+  finishedAt: string | null;
+  error: string | null;
+  profile: MemoryProfile | null;
+}
+
+export type SkillScope = "global" | "project";
+export type SkillFilesystemKind = "directory" | "symlink";
+export type SkillHealth = "ready" | "invalid";
+
+export interface SkillRootStatus {
+  id: string;
+  label: string;
+  path: string;
+  tool: string;
+  scope: SkillScope;
+  exists: boolean;
+  copyCount: number;
+}
+
+export interface SkillCopy {
+  id: string;
+  name: string;
+  description: string;
+  path: string;
+  manifestPath: string;
+  tool: string;
+  scope: SkillScope;
+  filesystemKind: SkillFilesystemKind;
+  resolvedPath: string;
+  valid: boolean;
+  issue: string | null;
+  contentHash: string;
+}
+
+export interface SkillCapability {
+  id: string;
+  name: string;
+  description: string;
+  contentHash: string;
+  health: SkillHealth;
+  copyCount: number;
+  tools: string[];
+  copies: SkillCopy[];
+}
+
+export interface SkillInventory {
+  generatedAt: string;
+  provider: string;
+  snapshotPath: string;
+  snapshotError: string | null;
+  capabilityCount: number;
+  copyCount: number;
+  duplicateGroupCount: number;
+  invalidCount: number;
+  roots: SkillRootStatus[];
+  capabilities: SkillCapability[];
+}

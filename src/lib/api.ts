@@ -1,7 +1,16 @@
 import { invoke } from "@tauri-apps/api/core";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import type { CodexAuditMode, CodexAuditRun, CorrectionDraft, ScanResult } from "./types";
-import { demoAuditRun, demoScanResult } from "./demoData";
+import type {
+  CodexAuditMode,
+  CodexAuditRun,
+  CodexAuditTask,
+  CorrectionDraft,
+  MemoryProfile,
+  MemoryProfileGenerationTask,
+  ScanResult,
+  SkillInventory,
+} from "./types";
+import { demoAuditRun, demoMemoryProfile, demoScanResult } from "./demoData";
 
 export function scanMemories(rootOverride: string | null = null) {
   if (isFixtureMode()) {
@@ -9,6 +18,70 @@ export function scanMemories(rootOverride: string | null = null) {
   }
 
   return invoke<ScanResult>("scan_memories", { rootOverride });
+}
+
+export function generateMemoryProfile(rootOverride: string | null = null) {
+  if (isFixtureMode()) {
+    return Promise.resolve(fixtureMemoryProfile(rootOverride));
+  }
+
+  return invoke<MemoryProfile>("generate_memory_profile", { rootOverride });
+}
+
+export function startMemoryProfileGeneration(rootOverride: string | null = null) {
+  if (isFixtureMode()) {
+    return Promise.resolve(fixtureProfileGenerationTask(rootOverride, "succeeded"));
+  }
+
+  return invoke<MemoryProfileGenerationTask>("start_memory_profile_generation", { rootOverride });
+}
+
+export function getMemoryProfileGeneration() {
+  if (isFixtureMode()) {
+    return Promise.resolve(fixtureProfileGenerationTask(null, "idle"));
+  }
+
+  return invoke<MemoryProfileGenerationTask>("get_memory_profile_generation");
+}
+
+export function cancelMemoryProfileGeneration() {
+  if (isFixtureMode()) {
+    return Promise.resolve(fixtureProfileGenerationTask(null, "cancelled"));
+  }
+
+  return invoke<MemoryProfileGenerationTask>("cancel_memory_profile_generation");
+}
+
+export function startCodexAudit(rootOverride: string | null, mode: CodexAuditMode) {
+  if (isFixtureMode()) {
+    return Promise.resolve(fixtureCodexAuditTask(rootOverride, mode, "succeeded"));
+  }
+
+  return invoke<CodexAuditTask>("start_codex_audit", { rootOverride, mode });
+}
+
+export function getCodexAudit() {
+  if (isFixtureMode()) {
+    return Promise.resolve(fixtureCodexAuditTask(null, "curated", "idle"));
+  }
+
+  return invoke<CodexAuditTask>("get_codex_audit");
+}
+
+export function cancelCodexAudit() {
+  if (isFixtureMode()) {
+    return Promise.resolve(fixtureCodexAuditTask(null, "curated", "cancelled"));
+  }
+
+  return invoke<CodexAuditTask>("cancel_codex_audit");
+}
+
+export function loadMemoryProfile(rootOverride: string | null = null) {
+  if (isFixtureMode()) {
+    return Promise.resolve(fixtureMemoryProfile(rootOverride));
+  }
+
+  return invoke<MemoryProfile>("load_memory_profile", { rootOverride });
 }
 
 export function getSourceExcerpt(
@@ -83,19 +156,7 @@ export function writeCorrection(rootOverride: string | null, draft: CorrectionDr
 
 export function runCodexAudit(rootOverride: string | null, mode: CodexAuditMode) {
   if (isFixtureMode()) {
-    const root = fixtureRoot(rootOverride);
-    return Promise.resolve({
-      ...demoAuditRun,
-      cachePath: `${root}/.amm/codex-runs/demo-${mode}.json`,
-      report: {
-        ...demoAuditRun.report,
-        mode,
-        metadata: {
-          ...demoAuditRun.report.metadata,
-          memoryRoot: root,
-        },
-      },
-    } satisfies CodexAuditRun);
+    return Promise.resolve(fixtureCodexAuditRun(rootOverride, mode));
   }
 
   return invoke<CodexAuditRun>("run_codex_audit", { rootOverride, mode });
@@ -110,6 +171,14 @@ export function openSourceFile(path: string) {
   return revealItemInDir(path);
 }
 
+export function loadSkillInventory(projectRootOverride: string | null = null) {
+  if (isFixtureMode()) {
+    return Promise.resolve(fixtureSkillInventory);
+  }
+
+  return invoke<SkillInventory>("load_skill_inventory", { projectRootOverride });
+}
+
 export function isFixtureMode() {
   return (
     typeof window !== "undefined" &&
@@ -119,6 +188,66 @@ export function isFixtureMode() {
 
 function fixtureRoot(rootOverride: string | null) {
   return rootOverride?.trim() || demoScanResult.root;
+}
+
+function fixtureMemoryProfile(rootOverride: string | null) {
+  const root = fixtureRoot(rootOverride);
+  return {
+    ...demoMemoryProfile,
+    cachePath: `${root}/.amm/profile.json`,
+    metadata: {
+      ...demoMemoryProfile.metadata,
+      memoryRoot: root,
+    },
+  } satisfies MemoryProfile;
+}
+
+function fixtureProfileGenerationTask(
+  rootOverride: string | null,
+  status: MemoryProfileGenerationTask["status"],
+) {
+  const profile = status === "succeeded" ? fixtureMemoryProfile(rootOverride) : null;
+  return {
+    id: status === "idle" ? null : "fixture-profile-generation",
+    status,
+    startedAt: status === "idle" ? null : "2026-06-09T00:00:00Z",
+    finishedAt: status === "running" || status === "cancelling" ? null : "2026-06-09T00:00:01Z",
+    error: null,
+    profile,
+  } satisfies MemoryProfileGenerationTask;
+}
+
+function fixtureCodexAuditTask(
+  rootOverride: string | null,
+  mode: CodexAuditMode,
+  status: CodexAuditTask["status"],
+) {
+  const run = status === "succeeded" ? fixtureCodexAuditRun(rootOverride, mode) : null;
+  return {
+    id: status === "idle" ? null : "fixture-codex-audit",
+    mode: status === "idle" ? null : mode,
+    status,
+    startedAt: status === "idle" ? null : "2026-06-09T00:00:00Z",
+    finishedAt: status === "running" || status === "cancelling" ? null : "2026-06-09T00:00:01Z",
+    error: null,
+    run,
+  } satisfies CodexAuditTask;
+}
+
+function fixtureCodexAuditRun(rootOverride: string | null, mode: CodexAuditMode) {
+  const root = fixtureRoot(rootOverride);
+  return {
+    ...demoAuditRun,
+    cachePath: `${root}/.amm/codex-runs/demo-${mode}.json`,
+    report: {
+      ...demoAuditRun.report,
+      mode,
+      metadata: {
+        ...demoAuditRun.report.metadata,
+        memoryRoot: root,
+      },
+    },
+  } satisfies CodexAuditRun;
 }
 
 function withFixtureRoot(rootOverride: string | null): ScanResult {
@@ -149,3 +278,125 @@ function buildFixtureDraft(
     targetPath: `${fixtureRoot(rootOverride)}/extensions/ad_hoc/notes/demo-${safeSlug}.md`,
   };
 }
+
+const fixtureSkillInventory: SkillInventory = {
+  generatedAt: "2026-07-13T00:00:00Z",
+  provider: "native-filesystem",
+  snapshotPath: "/Users/demo/.agent-memory-manager/skill-inventory.json",
+  snapshotError: null,
+  capabilityCount: 3,
+  copyCount: 4,
+  duplicateGroupCount: 1,
+  invalidCount: 1,
+  roots: [
+    {
+      id: "agents",
+      label: "Agent Skills",
+      path: "/Users/demo/.agents/skills",
+      tool: "Agents",
+      scope: "global",
+      exists: true,
+      copyCount: 3,
+    },
+    {
+      id: "project-codex",
+      label: "Project · Codex",
+      path: "/Users/demo/project/.codex/skills",
+      tool: "Codex",
+      scope: "project",
+      exists: true,
+      copyCount: 1,
+    },
+  ],
+  capabilities: [
+    {
+      id: "hash-find-skills",
+      name: "find-skills",
+      description: "Discover installable agent skills.",
+      contentHash: "hash-find-skills",
+      health: "ready",
+      copyCount: 2,
+      tools: ["Agents", "Codex"],
+      copies: [
+        {
+          id: "copy-find-agents",
+          name: "find-skills",
+          description: "Discover installable agent skills.",
+          path: "/Users/demo/.agents/skills/find-skills",
+          manifestPath: "/Users/demo/.agents/skills/find-skills/SKILL.md",
+          tool: "Agents",
+          scope: "global",
+          filesystemKind: "symlink",
+          resolvedPath: "/Users/demo/library/find-skills",
+          valid: true,
+          issue: null,
+          contentHash: "hash-find-skills",
+        },
+        {
+          id: "copy-find-codex",
+          name: "find-skills",
+          description: "Discover installable agent skills.",
+          path: "/Users/demo/project/.codex/skills/find-skills",
+          manifestPath: "/Users/demo/project/.codex/skills/find-skills/SKILL.md",
+          tool: "Codex",
+          scope: "project",
+          filesystemKind: "directory",
+          resolvedPath: "/Users/demo/project/.codex/skills/find-skills",
+          valid: true,
+          issue: null,
+          contentHash: "hash-find-skills",
+        },
+      ],
+    },
+    {
+      id: "hash-diagnose",
+      name: "diagnose",
+      description: "Diagnose hard bugs with a disciplined feedback loop.",
+      contentHash: "hash-diagnose",
+      health: "ready",
+      copyCount: 1,
+      tools: ["Agents"],
+      copies: [
+        {
+          id: "copy-diagnose",
+          name: "diagnose",
+          description: "Diagnose hard bugs with a disciplined feedback loop.",
+          path: "/Users/demo/.agents/skills/diagnose",
+          manifestPath: "/Users/demo/.agents/skills/diagnose/SKILL.md",
+          tool: "Agents",
+          scope: "global",
+          filesystemKind: "directory",
+          resolvedPath: "/Users/demo/.agents/skills/diagnose",
+          valid: true,
+          issue: null,
+          contentHash: "hash-diagnose",
+        },
+      ],
+    },
+    {
+      id: "invalid-copy-broken",
+      name: "broken-skill",
+      description: "",
+      contentHash: "hash-broken",
+      health: "invalid",
+      copyCount: 1,
+      tools: ["Agents"],
+      copies: [
+        {
+          id: "copy-broken",
+          name: "broken-skill",
+          description: "",
+          path: "/Users/demo/.agents/skills/broken-skill",
+          manifestPath: "/Users/demo/.agents/skills/broken-skill/SKILL.md",
+          tool: "Agents",
+          scope: "global",
+          filesystemKind: "directory",
+          resolvedPath: "/Users/demo/.agents/skills/broken-skill",
+          valid: false,
+          issue: "Missing YAML frontmatter",
+          contentHash: "hash-broken",
+        },
+      ],
+    },
+  ],
+};

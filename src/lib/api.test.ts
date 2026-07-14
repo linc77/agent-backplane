@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   draftCorrectionFromContent,
+  loadSkillInventory,
   openSourceFile,
   runCodexAudit,
   scanMemories,
@@ -56,5 +57,36 @@ describe("fixture API mode", () => {
     expect(written).toBe(draft.targetPath);
     expect(invokeMock).not.toHaveBeenCalled();
     expect(revealItemInDirMock).not.toHaveBeenCalled();
+  });
+
+  it("serves deterministic skill inventory without calling Tauri", async () => {
+    const inventory = await loadSkillInventory();
+
+    expect(inventory.capabilityCount).toBe(3);
+    expect(inventory.copyCount).toBe(4);
+    expect(inventory.invalidCount).toBe(1);
+    expect(inventory.capabilities.map((capability) => capability.name)).toContain("find-skills");
+    expect(inventory.capabilities.find((capability) => capability.name === "find-skills")?.copyCount).toBe(2);
+    expect(invokeMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("desktop skill API", () => {
+  beforeEach(() => {
+    window.history.pushState(null, "", "/");
+  });
+
+  afterEach(() => {
+    invokeMock.mockReset();
+  });
+
+  it("invokes the native Skill inventory command", async () => {
+    const inventory = { provider: "native-filesystem", capabilities: [] };
+    invokeMock.mockResolvedValue(inventory);
+
+    await expect(loadSkillInventory()).resolves.toBe(inventory);
+    expect(invokeMock).toHaveBeenCalledWith("load_skill_inventory", {
+      projectRootOverride: null,
+    });
   });
 });

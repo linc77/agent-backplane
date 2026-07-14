@@ -3,12 +3,21 @@ set -euo pipefail
 
 files=(
   AGENTS.md
-  docs/README.md
-  docs/loop/README.md
-  docs/loop/verification/2026-06-09-overnight-handoff.md
+  docs/loop/loops.md
 )
 
 missing=0
+for file in "${files[@]}"; do
+  if [[ ! -e "$file" ]]; then
+    printf 'missing loop verification input: %s\n' "$file" >&2
+    missing=1
+  fi
+done
+
+if [[ "$missing" -ne 0 ]]; then
+  exit "$missing"
+fi
+
 while IFS= read -r path; do
   if [[ "$path" == *"*"* ]]; then
     continue

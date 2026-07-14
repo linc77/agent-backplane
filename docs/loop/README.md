@@ -9,6 +9,10 @@ Use this index before opening individual loop files. Prefer active records; trea
 
 ## Recent Completed
 
+- `docs/loop/goals/2026-06-09-language-switch.md` — added a Chinese/English UI language switch; evidence in `docs/loop/verification/2026-06-09-language-switch.md`.
+- `docs/loop/goals/2026-06-09-default-zh-localization.md` — added local i18n with Chinese as the default UI language; evidence in `docs/loop/verification/2026-06-09-default-zh-localization.md`.
+- `docs/loop/goals/2026-06-09-source-first-memory-design.md` — redesigned AMM around real Codex memory data sources; evidence in `docs/loop/verification/2026-06-09-source-first-memory-design.md`.
+- `docs/loop/issues/2026-06-09-tauri-installed-app-shadowing-dev.md` — recorded installed app/dev bundle shadowing discovered during desktop verification.
 - `docs/loop/issues/2026-06-09-audit-view-clutter.md` — moved Codex Audit into a dedicated Review/Audit view; evidence in `docs/loop/verification/2026-06-09-overnight-optimization.md`.
 - `docs/loop/issues/2026-06-09-global-search.md` — made entry search global across memory topics; evidence in `docs/loop/verification/2026-06-09-overnight-optimization.md`.
 - `docs/loop/issues/2026-06-09-correction-related-topics.md` — made correction notes appear in related current-memory topics; evidence in `docs/loop/verification/2026-06-09-overnight-optimization.md`.

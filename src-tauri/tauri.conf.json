@@ -12,6 +12,7 @@
   "app": {
     "windows": [
       {
+        "create": false,
         "label": "main",
         "title": "Agent Memory Manager",
         "width": 1180,

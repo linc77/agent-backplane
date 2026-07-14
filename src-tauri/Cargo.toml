@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "A local Codex memory inspector and safe correction manager"
 authors = ["Linc"]
 edition = "2021"
+default-run = "agent-memory-manager"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

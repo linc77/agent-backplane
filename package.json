@@ -5,8 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:desktop": "bash scripts/dev-desktop.sh",
+    "build:desktop:debug": "tauri build --debug --bundles app --config src-tauri/tauri.dev.conf.json",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "profile:generate": "cargo run --manifest-path src-tauri/Cargo.toml --bin amm-profile-generate --",
+    "profile:generate:codex": "cargo run --manifest-path src-tauri/Cargo.toml --bin amm-profile-generate -- --require-codex",
+    "profile:verify": "node scripts/verify-profile-cache.mjs",
+    "profile:verify:optional": "node scripts/verify-profile-cache.mjs --optional",
     "tauri": "tauri",
     "verify": "bash scripts/verify.sh"
   },

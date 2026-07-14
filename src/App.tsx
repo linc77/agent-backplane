@@ -8,12 +8,18 @@ import {
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  cancelCodexAudit,
+  cancelMemoryProfileGeneration,
   draftCorrection,
   draftCorrectionFromContent,
+  getCodexAudit,
+  getMemoryProfileGeneration,
   isFixtureMode,
+  loadMemoryProfile,
   openSourceFile,
-  runCodexAudit,
   scanMemories,
+  startCodexAudit,
+  startMemoryProfileGeneration,
   writeCorrection,
 } from "./lib/api";
 import {
@@ -22,47 +28,58 @@ import {
   paneGridTemplate,
   resizePaneLayout,
   type PaneDivider,
-type PaneLayout,
+  type PaneLayout,
 } from "./lib/paneLayout";
+import {
+  getUiText,
+  readStoredLocale,
+  writeStoredLocale,
+  type Locale,
+} from "./lib/i18n";
+import { resolveMemoryTruth } from "./lib/memoryTruth";
+import type { MemoryView } from "./lib/memoryViews";
 import type {
   CodexAuditMode,
   CodexAuditRun,
+  CodexAuditTask,
   CorrectionDraft,
   MemoryEntry,
-  MemoryTopic,
+  MemoryProfileGenerationTask,
+  MemoryProfileSection,
   SuggestedCorrection,
 } from "./lib/types";
 import { CorrectionDialog } from "./components/CorrectionDialog";
 import { Inspector } from "./components/Inspector";
 import { KnowledgeBoard } from "./components/KnowledgeBoard";
 import { Sidebar } from "./components/Sidebar";
+import { SkillManager } from "./components/SkillManager";
 import "./App.css";
 
 interface AuditRequest {
-  rootOverride: string | null;
   mode: CodexAuditMode;
 }
 
 function App() {
   const queryClient = useQueryClient();
   const fixtureMode = isFixtureMode();
-  const [rootOverride, setRootOverride] = useState<string | null>(null);
-  const [activeTopic, setActiveTopic] = useState<MemoryTopic>("profile");
+  const [locale, setLocale] = useState<Locale>(() => readStoredLocale());
+  const uiText = useMemo(() => getUiText(locale), [locale]);
+  const [activeTopic, setActiveTopic] = useState<MemoryView>("overview");
   const [query, setQuery] = useState("");
   const [selectedEntryId, setSelectedEntryId] = useState<string | undefined>();
   const [draft, setDraft] = useState<CorrectionDraft | null>(null);
   const [lastWritePath, setLastWritePath] = useState<string | null>(null);
   const [auditMode, setAuditMode] = useState<CodexAuditMode>("curated");
   const [auditRun, setAuditRun] = useState<CodexAuditRun | null>(null);
+  const [auditTask, setAuditTask] = useState<CodexAuditTask | null>(null);
+  const [profileGenerationTask, setProfileGenerationTask] =
+    useState<MemoryProfileGenerationTask | null>(null);
   const [paneLayout, setPaneLayout] = useState(() =>
     clampPaneLayout(DEFAULT_PANE_LAYOUT, window.innerWidth),
   );
   const [draggingDivider, setDraggingDivider] = useState<PaneDivider | null>(null);
-  const auditContextRef = useRef<{ rootOverride: string | null; mode: CodexAuditMode }>({
-    rootOverride,
-    mode: auditMode,
-  });
-  auditContextRef.current = { rootOverride, mode: auditMode };
+  const auditContextRef = useRef<{ mode: CodexAuditMode }>({ mode: auditMode });
+  auditContextRef.current = { mode: auditMode };
   const dragRef = useRef<{
     divider: PaneDivider;
     startX: number;
@@ -71,14 +88,21 @@ function App() {
   } | null>(null);
 
   const scanQuery = useQuery({
-    queryKey: ["memories", rootOverride],
-    queryFn: () => scanMemories(rootOverride),
+    queryKey: ["memories"],
+    queryFn: () => scanMemories(),
+  });
+
+  const profileQuery = useQuery({
+    queryKey: ["memory-profile"],
+    queryFn: () => loadMemoryProfile(),
   });
 
   const selectedEntry = useMemo(
     () => scanQuery.data?.entries.find((entry) => entry.id === selectedEntryId),
     [scanQuery.data?.entries, selectedEntryId],
   );
+
+  const truth = useMemo(() => resolveMemoryTruth(scanQuery.data), [scanQuery.data]);
 
   const selectedSource = useMemo(
     () =>
@@ -96,45 +120,183 @@ function App() {
     [scanQuery.data?.risks, selectedEntry],
   );
 
+  const selectedTruth = selectedEntry ? truth.byEntryId.get(selectedEntry.id) : undefined;
+
   const draftMutation = useMutation({
     mutationFn: (entry: MemoryEntry) =>
-      draftCorrection(rootOverride, "memory-correction", [
+      draftCorrection(null, "memory-correction", [
         `Review and update memory from ${entry.sourcePath} lines ${entry.startLine}-${entry.endLine}: ${entry.summary}`,
       ]),
     onSuccess: setDraft,
   });
 
+  const profileCorrectionMutation = useMutation({
+    mutationFn: (section: MemoryProfileSection) =>
+      draftCorrection(null, `memory-profile-${section.id}`, [
+        `Review and update memory profile section "${section.title}": ${section.body}`,
+        ...section.evidence.map(
+          (evidence) =>
+            `Evidence ${evidence.sourcePath} lines ${evidence.startLine}-${evidence.endLine}: ${evidence.summary}`,
+        ),
+      ]),
+    onSuccess: setDraft,
+  });
+
   const writeMutation = useMutation({
-    mutationFn: (nextDraft: CorrectionDraft) => writeCorrection(rootOverride, nextDraft),
+    mutationFn: (nextDraft: CorrectionDraft) => writeCorrection(null, nextDraft),
     onSuccess: async (path) => {
       setDraft(null);
       setLastWritePath(path);
-      await queryClient.invalidateQueries({ queryKey: ["memories", rootOverride] });
+      setActiveTopic("effective");
+      setSelectedEntryId(undefined);
+      setQuery("");
+      setProfileGenerationTask(null);
+      await Promise.all([scanQuery.refetch(), profileQuery.refetch()]);
     },
   });
 
   const suggestedCorrectionMutation = useMutation({
     mutationFn: (correction: SuggestedCorrection) =>
-      draftCorrectionFromContent(rootOverride, correction.id, correction.content),
+      draftCorrectionFromContent(null, correction.id, correction.content),
     onSuccess: setDraft,
   });
 
-  const auditMutation = useMutation({
-    mutationFn: async (request: AuditRequest) => ({
-      request,
-      run: await runCodexAudit(request.rootOverride, request.mode),
-    }),
-    onSuccess: ({ request, run }) => {
-      const current = auditContextRef.current;
-      if (request.rootOverride === current.rootOverride && request.mode === current.mode) {
-        setAuditRun(run);
+  function applyAuditTask(task: CodexAuditTask) {
+    setAuditTask(task);
+    if (task.run && task.mode === auditContextRef.current.mode) {
+      setAuditRun(task.run);
+    }
+  }
+
+  const startAuditMutation = useMutation({
+    mutationFn: (request: AuditRequest) => startCodexAudit(null, request.mode),
+    onSuccess: applyAuditTask,
+  });
+
+  const cancelAuditMutation = useMutation({
+    mutationFn: () => cancelCodexAudit(),
+    onSuccess: setAuditTask,
+  });
+
+  const startProfileGenerationMutation = useMutation({
+    mutationFn: () => startMemoryProfileGeneration(),
+    onSuccess: (task) => {
+      setProfileGenerationTask(task);
+      if (task.profile) {
+        queryClient.setQueryData(["memory-profile"], task.profile);
       }
     },
+  });
+
+  const cancelProfileGenerationMutation = useMutation({
+    mutationFn: () => cancelMemoryProfileGeneration(),
+    onSuccess: setProfileGenerationTask,
   });
 
   const openSourceMutation = useMutation({
     mutationFn: (path: string) => openSourceFile(path),
   });
+
+  useEffect(() => {
+    if (
+      profileGenerationTask?.status !== "running" &&
+      profileGenerationTask?.status !== "cancelling"
+    ) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      void getMemoryProfileGeneration()
+        .then((task) => {
+          setProfileGenerationTask(task);
+          if (task.profile) {
+            queryClient.setQueryData(["memory-profile"], task.profile);
+          }
+        })
+        .catch((error) => {
+          setProfileGenerationTask({
+            id: profileGenerationTask.id,
+            status: "failed",
+            startedAt: profileGenerationTask.startedAt,
+            finishedAt: new Date().toISOString(),
+            error: String(error),
+            profile: null,
+          });
+        });
+    }, 1000);
+
+    return () => window.clearInterval(interval);
+  }, [profileGenerationTask?.id, profileGenerationTask?.status, queryClient]);
+
+  useEffect(() => {
+    if (auditTask?.status !== "running" && auditTask?.status !== "cancelling") {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      void getCodexAudit()
+        .then((task) => {
+          applyAuditTask(task);
+        })
+        .catch((error) => {
+          setAuditTask({
+            id: auditTask.id,
+            mode: auditTask.mode,
+            status: "failed",
+            startedAt: auditTask.startedAt,
+            finishedAt: new Date().toISOString(),
+            error: String(error),
+            run: null,
+          });
+        });
+    }, 1000);
+
+    return () => window.clearInterval(interval);
+  }, [auditTask?.id, auditTask?.mode, auditTask?.status]);
+
+  useEffect(() => {
+    if (profileGenerationTask?.profile) {
+      queryClient.setQueryData(["memory-profile"], profileGenerationTask.profile);
+    }
+  }, [profileGenerationTask?.profile, queryClient]);
+
+  const profileGenerationError =
+    startProfileGenerationMutation.error ??
+    cancelProfileGenerationMutation.error ??
+    (profileGenerationTask?.status === "failed" ? profileGenerationTask.error : null);
+
+  const auditError =
+    startAuditMutation.error ??
+    cancelAuditMutation.error ??
+    (auditTask?.status === "failed" ? auditTask.error : null);
+
+  const isProfileRegenerating =
+    startProfileGenerationMutation.isPending ||
+    cancelProfileGenerationMutation.isPending ||
+    profileGenerationTask?.status === "running" ||
+    profileGenerationTask?.status === "cancelling";
+
+  const isAuditRunning =
+    startAuditMutation.isPending ||
+    cancelAuditMutation.isPending ||
+    auditTask?.status === "running" ||
+    auditTask?.status === "cancelling";
+
+  function regenerateProfile() {
+    startProfileGenerationMutation.mutate();
+  }
+
+  function cancelProfileGeneration() {
+    cancelProfileGenerationMutation.mutate();
+  }
+
+  function runOrCancelCodexAudit() {
+    if (isAuditRunning) {
+      cancelAuditMutation.mutate();
+      return;
+    }
+    startAuditMutation.mutate({ mode: auditMode });
+  }
 
   useEffect(() => {
     const handleResize = () =>
@@ -186,7 +348,7 @@ function App() {
   function renderPaneResizer(divider: PaneDivider) {
     return (
       <div
-        aria-label={divider === "left" ? "Resize sidebar" : "Resize inspector"}
+        aria-label={divider === "left" ? uiText.app.resizeSidebar : uiText.app.resizeInspector}
         className={draggingDivider === divider ? "pane-resizer active" : "pane-resizer"}
         onKeyDown={(event) => nudgePaneResize(divider, event)}
         onPointerCancel={stopPaneResize}
@@ -199,71 +361,103 @@ function App() {
     );
   }
 
+  function changeLocale(nextLocale: Locale) {
+    setLocale(nextLocale);
+    writeStoredLocale(nextLocale);
+  }
+
   return (
     <div
-      className={draggingDivider ? "app-shell resizing" : "app-shell"}
+      className={`${draggingDivider ? "app-shell resizing" : "app-shell"}${
+        activeTopic === "skillManager" ? " skills-mode" : ""
+      }`}
       style={{ gridTemplateColumns: paneGridTemplate(paneLayout) }}
     >
-      {fixtureMode && <div className="fixture-banner">Fixture mode: demo memory only</div>}
+      {fixtureMode && <div className="fixture-banner">{uiText.app.fixtureBanner}</div>}
       <Sidebar
         activeTopic={activeTopic}
-        rootOverride={rootOverride}
-        rootPath={scanQuery.data?.root}
-        onApplyRootOverride={(path) => {
-          setRootOverride(path);
-          setQuery("");
-          setSelectedEntryId(undefined);
-          setAuditRun(null);
-          setLastWritePath(null);
-          auditMutation.reset();
-        }}
+        locale={locale}
+        uiText={uiText}
+        onLocaleChange={changeLocale}
         onSelectTopic={(topic) => {
           setActiveTopic(topic);
           setSelectedEntryId(undefined);
         }}
-        scan={scanQuery.data}
       />
 
       {renderPaneResizer("left")}
 
+      {activeTopic === "skillManager" ? (
+        <SkillManager uiText={uiText} />
+      ) : (
       <KnowledgeBoard
         activeTopic={activeTopic}
-        auditError={auditMutation.error}
+        auditError={auditError}
         auditMode={auditMode}
         auditRun={auditRun}
-        isAuditRunning={auditMutation.isPending}
+        isAuditRunning={isAuditRunning}
         onAuditModeChange={(mode) => {
           setAuditMode(mode);
           setAuditRun(null);
-          auditMutation.reset();
+          setAuditTask(null);
+          startAuditMutation.reset();
+          cancelAuditMutation.reset();
         }}
         onQueryChange={setQuery}
-        onRefresh={() => scanQuery.refetch()}
+        onRefresh={() => {
+          void scanQuery.refetch();
+          void profileQuery.refetch();
+        }}
+        onDraftProfileCorrection={(section) => profileCorrectionMutation.mutate(section)}
         onDraftSuggestedCorrection={(correction) => suggestedCorrectionMutation.mutate(correction)}
         onOpenSource={(path) => openSourceMutation.mutate(path)}
-        onRunCodexAudit={() => auditMutation.mutate({ rootOverride, mode: auditMode })}
+        onRunCodexAudit={runOrCancelCodexAudit}
+        onCancelProfileGeneration={cancelProfileGeneration}
+        onRegenerateProfile={regenerateProfile}
         onSelectEntry={(entry) => setSelectedEntryId(entry.id)}
         query={query}
+        profile={profileQuery.data}
+        profileError={profileQuery.error ?? profileGenerationError}
+        isProfileLoading={profileQuery.isLoading}
+        isProfileRegenerating={isProfileRegenerating}
         scan={scanQuery.data}
         selectedEntryId={selectedEntryId}
+        uiText={uiText}
       />
+      )}
 
-      {renderPaneResizer("right")}
+      {activeTopic !== "skillManager" && (
+        <>
+          {renderPaneResizer("right")}
+          <Inspector
+            entry={selectedEntry}
+            onDraftCorrection={(entry) => draftMutation.mutate(entry)}
+            risk={selectedRisk}
+            source={selectedSource}
+            truthItem={selectedTruth}
+            uiText={uiText}
+          />
+        </>
+      )}
 
-      <Inspector
-        entry={selectedEntry}
-        onDraftCorrection={(entry) => draftMutation.mutate(entry)}
-        risk={selectedRisk}
-        rootOverride={rootOverride}
-        source={selectedSource}
-      />
-
-      {scanQuery.isLoading && <div className="status-toast">Scanning Codex memory...</div>}
-      {lastWritePath && <div className="status-toast">Correction note written: {lastWritePath}</div>}
+      {scanQuery.isLoading && <div className="status-toast">{uiText.app.scanning}</div>}
+      {profileQuery.isLoading && <div className="status-toast">{uiText.memorySummary.loading}</div>}
+      {isProfileRegenerating && (
+        <div className="status-toast">{uiText.memorySummary.loading}</div>
+      )}
+      {isAuditRunning && <div className="status-toast">{uiText.board.running}</div>}
+      {lastWritePath && <div className="status-toast">{uiText.app.correctionWritten(lastWritePath)}</div>}
       {scanQuery.error && <div className="status-toast error">{String(scanQuery.error)}</div>}
+      {profileQuery.error && <div className="status-toast error">{String(profileQuery.error)}</div>}
+      {profileGenerationError && (
+        <div className="status-toast error">{String(profileGenerationError)}</div>
+      )}
       {draftMutation.error && <div className="status-toast error">{String(draftMutation.error)}</div>}
+      {profileCorrectionMutation.error && (
+        <div className="status-toast error">{String(profileCorrectionMutation.error)}</div>
+      )}
       {writeMutation.error && <div className="status-toast error">{String(writeMutation.error)}</div>}
-      {auditMutation.error && <div className="status-toast error">{String(auditMutation.error)}</div>}
+      {auditError && <div className="status-toast error">{String(auditError)}</div>}
       {openSourceMutation.error && (
         <div className="status-toast error">{String(openSourceMutation.error)}</div>
       )}
@@ -275,6 +469,7 @@ function App() {
         <CorrectionDialog
           draft={draft}
           isWriting={writeMutation.isPending}
+          uiText={uiText}
           onCancel={() => setDraft(null)}
           onContentChange={(content) => setDraft({ ...draft, content })}
           onConfirm={() => writeMutation.mutate(draft)}

@@ -1,0 +1,18 @@
+{
+  "productName": "Agent Memory Manager Dev",
+  "identifier": "com.linc.agent-memory-manager.dev",
+  "app": {
+    "windows": [
+      {
+        "create": false,
+        "label": "main",
+        "title": "Agent Memory Manager Dev",
+        "width": 1180,
+        "height": 760,
+        "minWidth": 980,
+        "minHeight": 640,
+        "center": true
+      }
+    ]
+  }
+}

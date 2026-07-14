@@ -1,4 +1,4 @@
-import type { CodexAuditRun, ScanResult } from "./types";
+import type { CodexAuditRun, MemoryProfile, ScanResult } from "./types";
 
 export const demoScanResult: ScanResult = {
   root: "/demo/.codex/memories",
@@ -187,5 +187,56 @@ export const demoAuditRun: CodexAuditRun = {
       inputEntries: 3,
       model: "browser-fixture",
     },
+  },
+};
+
+export const demoMemoryProfile: MemoryProfile = {
+  schemaVersion: "1",
+  generatedAt: "2026-06-09T00:00:00Z",
+  sourceHash: "demo-profile-source-hash",
+  generator: "deterministic-profile-v1",
+  cachePath: "/demo/.codex/memories/.amm/profile.json",
+  sections: [
+    {
+      id: "python-rust-is-current-stack",
+      title: "你把 Python/Rust 作为当前主栈",
+      body: "当前修正记忆显示，你希望 AMM 优先相信 Python/Rust 是现在的主技术栈。",
+      confidence: "high",
+      stability: "stable",
+      evidence: [
+        {
+          sourcePath: "extensions/ad_hoc/notes/profile.md",
+          startLine: 1,
+          endLine: 4,
+          summary: "Treat Python/Rust as the current primary stack.",
+        },
+      ],
+    },
+    {
+      id: "correction-notes-override-old-stack",
+      title: "你用修正笔记覆盖旧技术栈记忆",
+      body: "这段画像来自修正笔记，而不是旧摘要；旧的 Java/Spring Boot 暗示应被当作历史上下文。",
+      confidence: "high",
+      stability: "stable",
+      evidence: [
+        {
+          sourcePath: "extensions/ad_hoc/notes/profile.md",
+          startLine: 1,
+          endLine: 4,
+          summary: "Treat Python/Rust as the current primary stack.",
+        },
+        {
+          sourcePath: "MEMORY.md",
+          startLine: 1,
+          endLine: 8,
+          summary: "Older profile text still appears in the memory registry.",
+        },
+      ],
+    },
+  ],
+  metadata: {
+    memoryRoot: "/demo/.codex/memories",
+    inputEntries: 3,
+    currentEntries: 1,
   },
 };
