@@ -1,5 +1,5 @@
 import { link, mkdir, open, readFile, realpath, rm, stat, unlink } from "node:fs/promises";
-import { dirname, extname, join, resolve } from "node:path";
+import { dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { CorrectionDraft } from "../../../../src/lib/types";
 
 function timestamp(date = new Date()) {
@@ -48,8 +48,9 @@ export async function getSourceExcerpt(
   endLine: number,
 ) {
   const [canonicalRoot, canonicalPath] = await Promise.all([realpath(root), realpath(path)]);
-  const prefix = canonicalRoot.endsWith("/") ? canonicalRoot : `${canonicalRoot}/`;
-  if (canonicalPath !== canonicalRoot && !canonicalPath.startsWith(prefix)) {
+  const relativePath = relative(canonicalRoot, canonicalPath);
+  const isOutsideRoot = relativePath === ".." || relativePath.startsWith(`..${sep}`) || isAbsolute(relativePath);
+  if (isOutsideRoot) {
     throw new Error("source path must stay inside the selected memory root");
   }
   return (await readFile(canonicalPath, "utf8"))

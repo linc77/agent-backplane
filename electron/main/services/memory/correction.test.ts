@@ -1,6 +1,6 @@
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { draftCorrection, getSourceExcerpt, writeCorrection } from "./correction";
 
@@ -18,8 +18,9 @@ describe("memory correction parity", () => {
     const root = await temporaryRoot();
     const draft = draftCorrection(root, "Profile Stack", ["Python/Rust is current."]);
     const path = await writeCorrection(root, draft);
-    expect(path).toContain("extensions/ad_hoc/notes");
+    expect(dirname(path)).toBe(join(root, "extensions", "ad_hoc", "notes"));
     expect(await readFile(path, "utf8")).toContain("Python/Rust");
+    expect(await getSourceExcerpt(root, path, 1, 1)).toBe("Memory update request:");
   });
 
   it("rejects writes and excerpts outside the selected root", async () => {

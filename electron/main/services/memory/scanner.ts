@@ -1,5 +1,5 @@
 import { readFile, readdir, stat } from "node:fs/promises";
-import { extname, join, relative } from "node:path";
+import { extname, join, relative, sep } from "node:path";
 import type { AgentKind, MemorySource, MemorySourceKind } from "../../../../src/lib/types";
 import { sha256, textLines } from "../shared";
 
@@ -17,7 +17,7 @@ async function readSource(root: string, path: string, kind: MemorySourceKind): P
   return {
     id: hash.slice(0, 16),
     path,
-    relativePath: relative(root, path),
+    relativePath: relative(root, path).split(sep).join("/"),
     kind,
     modifiedMs: metadata.mtimeMs,
     bytes: metadata.size,
