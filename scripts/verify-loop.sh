@@ -2,7 +2,6 @@
 set -euo pipefail
 
 files=(
-  AGENTS.md
   docs/loop/loops.md
 )
 
