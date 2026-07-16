@@ -70,3 +70,36 @@ Added native Codex, Claude Code, and Hermes provider profiles with Keychain cred
 ### Next Steps
 
 - None - task complete
+
+
+## Session 3: Global Agent context switching
+
+**Date**: 2026-07-16
+**Task**: Global Agent context switching
+**Branch**: `main`
+
+### Summary
+
+Replaced the top-left brand with a persistent Codex, Claude Code, and Hermes context; scoped Memory, Skills, MCP, and provider configuration; added read-only native discovery, MCP redaction, tests, browser verification, and Trellis contracts.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0cf9191` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
