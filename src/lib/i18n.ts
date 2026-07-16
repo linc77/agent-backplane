@@ -77,6 +77,48 @@ export interface UiText {
     noDescription: string;
     copyCount: (count: number) => string;
   };
+  agents: {
+    eyebrow: string;
+    title: string;
+    subtitle: string;
+    refresh: string;
+    addProfile: string;
+    loading: string;
+    installed: string;
+    notInstalled: string;
+    currentConfig: string;
+    currentModel: string;
+    currentProvider: string;
+    noProfiles: string;
+    active: string;
+    enable: string;
+    enabling: string;
+    edit: string;
+    delete: string;
+    imported: string;
+    managed: string;
+    credentialStored: string;
+    noCredential: string;
+    official: string;
+    custom: string;
+    profileName: string;
+    providerKey: string;
+    baseUrl: string;
+    model: string;
+    protocol: string;
+    apiKey: string;
+    apiKeyHint: string;
+    clearCredential: string;
+    cancel: string;
+    save: string;
+    saving: string;
+    createTitle: string;
+    editTitle: string;
+    backupCreated: (path: string) => string;
+    switched: (agent: string) => string;
+    configPath: string;
+    catalogPath: string;
+  };
   board: {
     eyebrow: string;
     scannedSources: string;
@@ -182,6 +224,7 @@ const zhCN: UiText = {
     raw: "原始记忆",
     skills: "技能",
     skillManager: "Skills",
+    agentManager: "Agents",
     allSources: "全部来源",
     audit: "检查",
   },
@@ -298,6 +341,48 @@ const zhCN: UiText = {
     noDescription: "暂无说明",
     copyCount: (count) => `${count} 份副本`,
   },
+  agents: {
+    eyebrow: "Agent 配置",
+    title: "Agents",
+    subtitle: "在一处管理 Codex、Claude Code 与 Hermes 的模型服务配置。",
+    refresh: "刷新",
+    addProfile: "添加配置",
+    loading: "正在读取本机 Agent 配置...",
+    installed: "已安装",
+    notInstalled: "未检测到",
+    currentConfig: "当前配置",
+    currentModel: "当前模型",
+    currentProvider: "当前服务",
+    noProfiles: "还没有这个 Agent 的配置。",
+    active: "正在使用",
+    enable: "启用",
+    enabling: "切换中...",
+    edit: "编辑",
+    delete: "删除",
+    imported: "本机导入",
+    managed: "AMM 管理",
+    credentialStored: "凭据已保存",
+    noCredential: "无托管凭据",
+    official: "官方",
+    custom: "自定义",
+    profileName: "配置名称",
+    providerKey: "Provider 标识",
+    baseUrl: "Base URL",
+    model: "模型",
+    protocol: "协议",
+    apiKey: "API Key",
+    apiKeyHint: "留空则保留现有凭据。AMM 保存在 macOS 钥匙串；启用时按 Agent 原生格式写入其配置。",
+    clearCredential: "清除已保存凭据",
+    cancel: "取消",
+    save: "保存",
+    saving: "保存中...",
+    createTitle: "添加 Agent 配置",
+    editTitle: "编辑 Agent 配置",
+    backupCreated: (path) => `原配置已备份：${path}`,
+    switched: (agent) => `${agent} 已切换到新配置`,
+    configPath: "原生配置",
+    catalogPath: "AMM 配置目录",
+  },
   board: {
     eyebrow: "记忆",
     scannedSources: "依据",
@@ -386,6 +471,7 @@ const enUS: UiText = {
     raw: "Raw Memory",
     skills: "Skills",
     skillManager: "Skills",
+    agentManager: "Agents",
     allSources: "All Sources",
     audit: "Check",
   },
@@ -501,6 +587,48 @@ const enUS: UiText = {
     scanRoots: "Scan roots",
     noDescription: "No description",
     copyCount: (count) => `${count} copies`,
+  },
+  agents: {
+    eyebrow: "Agent configuration",
+    title: "Agents",
+    subtitle: "Manage provider and model profiles for Codex, Claude Code, and Hermes in one place.",
+    refresh: "Refresh",
+    addProfile: "Add profile",
+    loading: "Reading local Agent configurations...",
+    installed: "Installed",
+    notInstalled: "Not detected",
+    currentConfig: "Current config",
+    currentModel: "Current model",
+    currentProvider: "Current provider",
+    noProfiles: "No profiles for this Agent yet.",
+    active: "Active",
+    enable: "Enable",
+    enabling: "Switching...",
+    edit: "Edit",
+    delete: "Delete",
+    imported: "Imported",
+    managed: "AMM managed",
+    credentialStored: "Credential stored",
+    noCredential: "No managed credential",
+    official: "Official",
+    custom: "Custom",
+    profileName: "Profile name",
+    providerKey: "Provider key",
+    baseUrl: "Base URL",
+    model: "Model",
+    protocol: "Protocol",
+    apiKey: "API key",
+    apiKeyHint: "Leave blank to keep the existing credential. AMM stores it in macOS Keychain and materializes it only when the Agent's native format requires it.",
+    clearCredential: "Clear stored credential",
+    cancel: "Cancel",
+    save: "Save",
+    saving: "Saving...",
+    createTitle: "Add Agent profile",
+    editTitle: "Edit Agent profile",
+    backupCreated: (path) => `Previous config backed up to: ${path}`,
+    switched: (agent) => `${agent} switched to the new profile`,
+    configPath: "Native config",
+    catalogPath: "AMM profile catalog",
   },
   board: {
     eyebrow: "Memory",

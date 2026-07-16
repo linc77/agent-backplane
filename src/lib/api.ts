@@ -1,6 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import type {
+  AgentActivationResult,
+  AgentConfigInventory,
+  AgentKind,
   CodexAuditMode,
   CodexAuditRun,
   CodexAuditTask,
@@ -8,6 +11,7 @@ import type {
   MemoryProfile,
   MemoryProfileGenerationTask,
   ScanResult,
+  SaveAgentProfileInput,
   SkillInventory,
 } from "./types";
 import { demoAuditRun, demoMemoryProfile, demoScanResult } from "./demoData";
@@ -177,6 +181,83 @@ export function loadSkillInventory(projectRootOverride: string | null = null) {
   }
 
   return invoke<SkillInventory>("load_skill_inventory", { projectRootOverride });
+}
+
+export function loadAgentConfigInventory() {
+  if (isFixtureMode()) {
+    return Promise.resolve(cloneFixtureAgentInventory());
+  }
+
+  return invoke<AgentConfigInventory>("load_agent_config_inventory");
+}
+
+export function saveAgentProviderProfile(input: SaveAgentProfileInput) {
+  if (isFixtureMode()) {
+    const inventory = cloneFixtureAgentInventory();
+    const target = inventory.targets.find((item) => item.agent === input.agent);
+    if (target) {
+      const id = input.id || `fixture-${input.agent}-${target.profiles.length + 1}`;
+      const existing = target.profiles.findIndex((profile) => profile.id === id);
+      const profile = {
+        id,
+        agent: input.agent,
+        name: input.name,
+        providerKey: input.providerKey,
+        baseUrl: input.baseUrl,
+        model: input.model,
+        protocol: input.protocol,
+        official: input.official,
+        source: "managed" as const,
+        hasSecret: Boolean(input.apiKey) || (existing >= 0 && target.profiles[existing].hasSecret),
+        active: existing >= 0 ? target.profiles[existing].active : false,
+      };
+      if (existing >= 0) {
+        target.profiles[existing] = profile;
+      } else {
+        target.profiles.push(profile);
+      }
+    }
+    return Promise.resolve(inventory);
+  }
+
+  return invoke<AgentConfigInventory>("save_agent_provider_profile", { input });
+}
+
+export function deleteAgentProviderProfile(agent: AgentKind, profileId: string) {
+  if (isFixtureMode()) {
+    const inventory = cloneFixtureAgentInventory();
+    const target = inventory.targets.find((item) => item.agent === agent);
+    if (target) {
+      target.profiles = target.profiles.filter((profile) => profile.id !== profileId);
+    }
+    return Promise.resolve(inventory);
+  }
+
+  return invoke<AgentConfigInventory>("delete_agent_provider_profile", { agent, profileId });
+}
+
+export function activateAgentProviderProfile(agent: AgentKind, profileId: string) {
+  if (isFixtureMode()) {
+    const inventory = cloneFixtureAgentInventory();
+    const target = inventory.targets.find((item) => item.agent === agent);
+    const profile = target?.profiles.find((item) => item.id === profileId);
+    if (target && profile) {
+      target.profiles.forEach((item) => {
+        item.active = item.id === profileId;
+      });
+      target.activeProfileId = profile.id;
+      target.activeProviderKey = profile.providerKey;
+      target.activeModel = profile.model;
+      target.activeBaseUrl = profile.baseUrl;
+    }
+    return Promise.resolve({
+      inventory,
+      backupPath: `/Users/demo/.agent-memory-manager/backups/agent-config/${agent}/config.bak`,
+      reloadHint: target?.reloadHint ?? "",
+    } satisfies AgentActivationResult);
+  }
+
+  return invoke<AgentActivationResult>("activate_agent_provider_profile", { agent, profileId });
 }
 
 export function isFixtureMode() {
@@ -400,3 +481,111 @@ const fixtureSkillInventory: SkillInventory = {
     },
   ],
 };
+
+const fixtureAgentInventory: AgentConfigInventory = {
+  generatedAt: "2026-07-16T01:20:47Z",
+  catalogPath: "/Users/demo/.agent-memory-manager/agent-config-profiles.json",
+  targets: [
+    {
+      agent: "codex",
+      label: "Codex",
+      installed: true,
+      executablePath: "/opt/homebrew/bin/codex",
+      configPath: "/Users/demo/.codex/config.toml",
+      configExists: true,
+      activeProfileId: "fixture-codex-official",
+      activeProviderKey: "openai",
+      activeModel: "gpt-5.4",
+      activeBaseUrl: "https://chatgpt.com/codex",
+      reloadHint: "Restart Codex or open a new terminal session.",
+      profiles: [
+        {
+          id: "fixture-codex-official",
+          agent: "codex",
+          name: "OpenAI Official",
+          providerKey: "openai",
+          baseUrl: "https://chatgpt.com/codex",
+          model: "gpt-5.4",
+          protocol: "responses",
+          official: true,
+          source: "imported",
+          hasSecret: false,
+          active: true,
+        },
+        {
+          id: "fixture-codex-team",
+          agent: "codex",
+          name: "Team Gateway",
+          providerKey: "team-gateway",
+          baseUrl: "https://gateway.example.com/openai/v1",
+          model: "gpt-5.4",
+          protocol: "responses",
+          official: false,
+          source: "managed",
+          hasSecret: true,
+          active: false,
+        },
+      ],
+    },
+    {
+      agent: "claudeCode",
+      label: "Claude Code",
+      installed: true,
+      executablePath: "/opt/homebrew/bin/claude",
+      configPath: "/Users/demo/.claude/settings.json",
+      configExists: true,
+      activeProfileId: "fixture-claude-local",
+      activeProviderKey: "anthropic",
+      activeModel: "claude-sonnet-4-5",
+      activeBaseUrl: "https://api.anthropic.com",
+      reloadHint: "Claude Code reloads settings automatically.",
+      profiles: [
+        {
+          id: "fixture-claude-local",
+          agent: "claudeCode",
+          name: "Anthropic Official",
+          providerKey: "anthropic",
+          baseUrl: "https://api.anthropic.com",
+          model: "claude-sonnet-4-5",
+          protocol: "anthropicMessages",
+          official: true,
+          source: "imported",
+          hasSecret: true,
+          active: true,
+        },
+      ],
+    },
+    {
+      agent: "hermes",
+      label: "Hermes",
+      installed: true,
+      executablePath: "/Users/demo/.local/bin/hermes",
+      configPath: "/Users/demo/.hermes/config.yaml",
+      configExists: true,
+      activeProfileId: "fixture-hermes-local",
+      activeProviderKey: "openrouter",
+      activeModel: "nousresearch/hermes-4-405b",
+      activeBaseUrl: "https://openrouter.ai/api/v1",
+      reloadHint: "Start a new Hermes session to use the profile.",
+      profiles: [
+        {
+          id: "fixture-hermes-local",
+          agent: "hermes",
+          name: "OpenRouter",
+          providerKey: "openrouter",
+          baseUrl: "https://openrouter.ai/api/v1",
+          model: "nousresearch/hermes-4-405b",
+          protocol: "chatCompletions",
+          official: false,
+          source: "imported",
+          hasSecret: true,
+          active: true,
+        },
+      ],
+    },
+  ],
+};
+
+function cloneFixtureAgentInventory() {
+  return structuredClone(fixtureAgentInventory);
+}

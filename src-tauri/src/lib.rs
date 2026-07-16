@@ -1,3 +1,4 @@
+pub mod agent_config;
 pub mod memory;
 pub mod skill_manager;
 
@@ -26,6 +27,10 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            agent_config::load_agent_config_inventory,
+            agent_config::save_agent_provider_profile,
+            agent_config::delete_agent_provider_profile,
+            agent_config::activate_agent_provider_profile,
             memory::commands::scan_memories,
             memory::commands::get_source_excerpt,
             memory::commands::draft_correction,

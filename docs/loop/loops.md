@@ -10,6 +10,7 @@ Use this index before opening individual loop files. Prefer active records; trea
 
 ## Recent Completed
 
+- `docs/loop/verification/2026-07-16-agent-configuration-console.md` — added a native Codex / Claude Code / Hermes configuration console with Keychain credentials, backups, atomic writes, preservation tests, and browser verification.
 - `docs/loop/verification/2026-07-13-native-skill-discovery.md` — replaced the initial competitor CLI adapter with AMM-owned native Skill discovery, capability/copy identity, snapshot, UI, tests, and live desktop verification.
 - `docs/loop/verification/2026-07-12-skill-management.md` — historical first Skills slice; its SkillManager CLI dependency was superseded by native discovery on 2026-07-13.
 - `docs/loop/goals/2026-06-27-amm-six-direction-goal.md` — six-direction AMM product goal completed with evidence in `docs/loop/verification/2026-06-27-amm-six-direction-goal.md`; live desktop click capture remains tracked separately in `docs/loop/issues/2026-06-27-dev-debug-window-visibility.md`.

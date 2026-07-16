@@ -1,4 +1,5 @@
 import {
+  BotMessageSquare,
   BookOpen,
   Bot,
   Blocks,
@@ -20,6 +21,7 @@ function navItems(uiText: UiText): TopicDef[] {
     { id: "overview", label: uiText.views.overview, icon: Home },
     { id: "effective", label: uiText.views.effective, icon: BookOpen },
     { id: "skillManager", label: uiText.views.skillManager, icon: Blocks },
+    { id: "agentManager", label: uiText.views.agentManager, icon: BotMessageSquare },
     { id: "audit", label: uiText.views.audit, icon: SearchCheck },
   ];
 }

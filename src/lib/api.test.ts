@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  activateAgentProviderProfile,
   draftCorrectionFromContent,
+  loadAgentConfigInventory,
   loadSkillInventory,
   openSourceFile,
   runCodexAudit,
@@ -69,6 +71,21 @@ describe("fixture API mode", () => {
     expect(inventory.capabilities.find((capability) => capability.name === "find-skills")?.copyCount).toBe(2);
     expect(invokeMock).not.toHaveBeenCalled();
   });
+
+  it("serves Agent profiles and activation without exposing credentials", async () => {
+    const inventory = await loadAgentConfigInventory();
+    const result = await activateAgentProviderProfile("codex", "fixture-codex-team");
+
+    expect(inventory.targets.map((target) => target.agent)).toEqual([
+      "codex",
+      "claudeCode",
+      "hermes",
+    ]);
+    expect(result.inventory.targets[0].activeProfileId).toBe("fixture-codex-team");
+    expect(result.backupPath).toContain("backups/agent-config/codex");
+    expect(JSON.stringify(inventory)).not.toContain("sk-");
+    expect(invokeMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("desktop skill API", () => {
@@ -87,6 +104,20 @@ describe("desktop skill API", () => {
     await expect(loadSkillInventory()).resolves.toBe(inventory);
     expect(invokeMock).toHaveBeenCalledWith("load_skill_inventory", {
       projectRootOverride: null,
+    });
+  });
+
+  it("invokes native Agent inventory and activation commands", async () => {
+    const inventory = { generatedAt: "now", targets: [] };
+    const activation = { inventory, backupPath: null, reloadHint: "Restart" };
+    invokeMock.mockResolvedValueOnce(inventory).mockResolvedValueOnce(activation);
+
+    await expect(loadAgentConfigInventory()).resolves.toBe(inventory);
+    await expect(activateAgentProviderProfile("hermes", "profile-1")).resolves.toBe(activation);
+    expect(invokeMock).toHaveBeenNthCalledWith(1, "load_agent_config_inventory");
+    expect(invokeMock).toHaveBeenNthCalledWith(2, "activate_agent_provider_profile", {
+      agent: "hermes",
+      profileId: "profile-1",
     });
   });
 });

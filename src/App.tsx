@@ -49,6 +49,7 @@ import type {
   SuggestedCorrection,
 } from "./lib/types";
 import { CorrectionDialog } from "./components/CorrectionDialog";
+import { AgentConfigManager } from "./components/AgentConfigManager";
 import { Inspector } from "./components/Inspector";
 import { KnowledgeBoard } from "./components/KnowledgeBoard";
 import { Sidebar } from "./components/Sidebar";
@@ -370,6 +371,8 @@ function App() {
     <div
       className={`${draggingDivider ? "app-shell resizing" : "app-shell"}${
         activeTopic === "skillManager" ? " skills-mode" : ""
+      }${
+        activeTopic === "agentManager" ? " agent-mode" : ""
       }`}
       style={{ gridTemplateColumns: paneGridTemplate(paneLayout) }}
     >
@@ -389,6 +392,8 @@ function App() {
 
       {activeTopic === "skillManager" ? (
         <SkillManager uiText={uiText} />
+      ) : activeTopic === "agentManager" ? (
+        <AgentConfigManager uiText={uiText} />
       ) : (
       <KnowledgeBoard
         activeTopic={activeTopic}
@@ -426,7 +431,7 @@ function App() {
       />
       )}
 
-      {activeTopic !== "skillManager" && (
+      {activeTopic !== "skillManager" && activeTopic !== "agentManager" && (
         <>
           {renderPaneResizer("right")}
           <Inspector

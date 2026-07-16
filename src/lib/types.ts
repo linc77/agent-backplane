@@ -248,3 +248,61 @@ export interface SkillInventory {
   roots: SkillRootStatus[];
   capabilities: SkillCapability[];
 }
+
+export type AgentKind = "codex" | "claudeCode" | "hermes";
+export type AgentProtocol = "responses" | "anthropicMessages" | "chatCompletions";
+export type AgentProfileSource = "imported" | "managed";
+
+export interface AgentProviderProfile {
+  id: string;
+  agent: AgentKind;
+  name: string;
+  providerKey: string;
+  baseUrl: string;
+  model: string;
+  protocol: AgentProtocol;
+  official: boolean;
+  source: AgentProfileSource;
+  hasSecret: boolean;
+  active: boolean;
+}
+
+export interface AgentTarget {
+  agent: AgentKind;
+  label: string;
+  installed: boolean;
+  executablePath: string | null;
+  configPath: string;
+  configExists: boolean;
+  activeProfileId: string | null;
+  activeProviderKey: string;
+  activeModel: string;
+  activeBaseUrl: string;
+  reloadHint: string;
+  profiles: AgentProviderProfile[];
+}
+
+export interface AgentConfigInventory {
+  generatedAt: string;
+  catalogPath: string;
+  targets: AgentTarget[];
+}
+
+export interface SaveAgentProfileInput {
+  id: string | null;
+  agent: AgentKind;
+  name: string;
+  providerKey: string;
+  baseUrl: string;
+  model: string;
+  protocol: AgentProtocol;
+  official: boolean;
+  apiKey: string | null;
+  clearSecret: boolean;
+}
+
+export interface AgentActivationResult {
+  inventory: AgentConfigInventory;
+  backupPath: string | null;
+  reloadHint: string;
+}

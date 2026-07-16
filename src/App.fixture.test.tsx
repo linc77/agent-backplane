@@ -119,6 +119,27 @@ describe("App browser fixture mode", () => {
     expect(queryByText("find-skills")).not.toBeInTheDocument();
   });
 
+  it("switches Agent targets and activates a provider profile", async () => {
+    const { findByRole, findByText, getByRole, queryByRole, container } = renderFixtureApp();
+
+    fireEvent.click(await findByRole("button", { name: "Agents" }));
+
+    expect(await findByRole("heading", { name: "Agents" })).toBeInTheDocument();
+    expect(await findByText("OpenAI Official")).toBeInTheDocument();
+    expect(container.querySelector(".app-shell")).toHaveClass("agent-mode");
+    expect(queryByRole("separator", { name: "调整依据栏宽度" })).not.toBeInTheDocument();
+
+    fireEvent.click(getByRole("button", { name: /Claude Code/ }));
+    expect(await findByText("Anthropic Official")).toBeInTheDocument();
+    fireEvent.click(getByRole("button", { name: /Hermes/ }));
+    expect(await findByText("OpenRouter")).toBeInTheDocument();
+
+    fireEvent.click(getByRole("button", { name: /Codex/ }));
+    fireEvent.click(await findByRole("button", { name: "启用" }));
+    expect(await findByText(/Codex 已切换到新配置/)).toBeInTheDocument();
+    expect(await findByText(/原配置已备份/)).toBeInTheDocument();
+  });
+
   it("drives the core memory review flow without Tauri commands", async () => {
     const {
       findAllByText,
