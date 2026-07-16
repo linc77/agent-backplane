@@ -30,6 +30,4 @@ thiserror = "2"
 tempfile = "3"
 toml_edit = "0.25"
 serde_yaml = "0.9"
-
-[target.'cfg(target_os = "macos")'.dependencies]
-security-framework = "3.7"
+keyring = "4.1.5"

@@ -1,10 +1,19 @@
 # Agent Memory Manager
 
-macOS-first desktop app for understanding what local Agents know and can do. It inspects Codex memory, surfaces stale or conflicting entries, writes safe correction notes, and natively inventories global/project Skills without depending on an external Skill manager.
+Cross-platform desktop app for understanding and controlling what local Agents know and can do. It inspects Codex memory, surfaces stale or conflicting entries, writes safe correction notes, natively inventories global/project Skills, and manages provider profiles for Codex, Claude Code, and Hermes.
 
 The Skills workspace separates logical capabilities from filesystem copies,
 shows tool exposure and symlink state, and writes a derived AMM-owned snapshot
 to `~/.agent-memory-manager/skill-inventory.json`. Discovery is read-only.
+
+## Downloads
+
+Installers are published on [GitHub Releases](https://github.com/linc77/agent-memory-manager/releases/latest):
+
+- macOS Apple Silicon: `.dmg`
+- Windows x64: NSIS `.exe` or WiX `.msi`
+
+The first public builds are unsigned. macOS Gatekeeper or Windows SmartScreen may require explicit confirmation before opening them.
 
 ## Development
 

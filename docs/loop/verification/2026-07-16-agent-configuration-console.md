@@ -21,7 +21,7 @@ credentials or erasing unrelated settings.
   `~/.claude/settings.json`, and `~/.hermes/config.yaml`.
 - Stores AMM profile metadata in
   `~/.agent-memory-manager/agent-config-profiles.json` and credentials in the
-  macOS Keychain.
+  native credential store (macOS Keychain or Windows Credential Manager).
 - Creates timestamped backups before activation and replaces native files
   atomically with mode `0600`.
 - Preserves unrelated Codex TOML tables, Claude JSON settings, and Hermes YAML

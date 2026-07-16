@@ -27,7 +27,7 @@ Frontend wrappers use the same command names and camelCase fields. Tauri maps `p
 - `AgentConfigInventory.targets[]` includes installation state, executable/config paths, detected active fields, and redacted profiles.
 - `AgentActivationResult` includes refreshed inventory, optional `backupPath`, and `reloadHint`.
 - AMM catalog: `~/.agent-memory-manager/agent-config-profiles.json`, mode `0600`, no API key fields.
-- Credentials: macOS Keychain service `com.linc.agent-memory-manager.agent-provider`, account is the profile id.
+- Credentials: the native system credential store under service `com.linc.agent-memory-manager.agent-provider`, account is the profile id. This maps to macOS Keychain and Windows Credential Manager.
 - The AMM catalog and frontend never receive plaintext credentials. Activation may materialize a credential in an Agent's native config when that Agent's supported format requires it.
 - Native files: Codex `~/.codex/config.toml`, Claude Code `~/.claude/settings.json`, Hermes `~/.hermes/config.yaml`. Respect `CODEX_HOME`, `CLAUDE_CONFIG_DIR`, and `HERMES_HOME` overrides.
 - Before activation, copy an existing native file below `~/.agent-memory-manager/backups/agent-config/<agent>/` and replace the native file atomically.

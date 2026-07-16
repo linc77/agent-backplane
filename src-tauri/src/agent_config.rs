@@ -14,7 +14,6 @@ use toml_edit::{value, DocumentMut, Item, Table};
 
 const CATALOG_SCHEMA_VERSION: u32 = 1;
 const KEYCHAIN_SERVICE: &str = "com.linc.agent-memory-manager.agent-provider";
-const ERR_SEC_ITEM_NOT_FOUND: i32 = -25300;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "camelCase")]
@@ -247,50 +246,32 @@ trait SecretStore {
 
 struct PlatformSecretStore;
 
-#[cfg(target_os = "macos")]
 impl SecretStore for PlatformSecretStore {
     fn get(&self, profile_id: &str) -> Result<Option<String>, String> {
-        match security_framework::passwords::get_generic_password(KEYCHAIN_SERVICE, profile_id) {
-            Ok(bytes) => String::from_utf8(bytes)
-                .map(Some)
-                .map_err(|_| "Keychain credential is not valid UTF-8".to_string()),
-            Err(error) if error.code() == ERR_SEC_ITEM_NOT_FOUND => Ok(None),
-            Err(error) => Err(format!("failed to read credential from Keychain: {error}")),
+        let entry = keyring::v1::Entry::new(KEYCHAIN_SERVICE, profile_id)
+            .map_err(|error| format!("failed to access system credential store: {error}"))?;
+        match entry.get_password() {
+            Ok(secret) => Ok(Some(secret)),
+            Err(keyring::v1::Error::NoEntry) => Ok(None),
+            Err(error) => Err(format!("failed to read system credential: {error}")),
         }
     }
 
     fn set(&self, profile_id: &str, secret: &str) -> Result<(), String> {
-        security_framework::passwords::set_generic_password(
-            KEYCHAIN_SERVICE,
-            profile_id,
-            secret.as_bytes(),
-        )
-        .map_err(|error| format!("failed to save credential in Keychain: {error}"))
+        keyring::v1::Entry::new(KEYCHAIN_SERVICE, profile_id)
+            .map_err(|error| format!("failed to access system credential store: {error}"))?
+            .set_password(secret)
+            .map_err(|error| format!("failed to save system credential: {error}"))
     }
 
     fn delete(&self, profile_id: &str) -> Result<(), String> {
-        match security_framework::passwords::delete_generic_password(KEYCHAIN_SERVICE, profile_id) {
+        let entry = keyring::v1::Entry::new(KEYCHAIN_SERVICE, profile_id)
+            .map_err(|error| format!("failed to access system credential store: {error}"))?;
+        match entry.delete_credential() {
             Ok(()) => Ok(()),
-            Err(error) if error.code() == ERR_SEC_ITEM_NOT_FOUND => Ok(()),
-            Err(error) => Err(format!(
-                "failed to delete credential from Keychain: {error}"
-            )),
+            Err(keyring::v1::Error::NoEntry) => Ok(()),
+            Err(error) => Err(format!("failed to delete system credential: {error}")),
         }
-    }
-}
-
-#[cfg(not(target_os = "macos"))]
-impl SecretStore for PlatformSecretStore {
-    fn get(&self, _profile_id: &str) -> Result<Option<String>, String> {
-        Ok(None)
-    }
-
-    fn set(&self, _profile_id: &str, _secret: &str) -> Result<(), String> {
-        Err("credential storage is currently available on macOS only".to_string())
-    }
-
-    fn delete(&self, _profile_id: &str) -> Result<(), String> {
-        Ok(())
     }
 }
 
