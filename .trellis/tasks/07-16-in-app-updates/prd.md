@@ -47,24 +47,24 @@ the application on every release.
 
 ## Acceptance Criteria
 
-- [ ] The sidebar footer exposes a keyboard-accessible Settings button in both
+- [x] The sidebar footer exposes a keyboard-accessible Settings button in both
       locales, independent of the selected Agent.
-- [ ] Settings shows the actual desktop app version and the persisted startup
+- [x] Settings shows the actual desktop app version and the persisted startup
       check preference.
-- [ ] Manual checks distinguish no update, update available, and request or
+- [x] Manual checks distinguish no update, update available, and request or
       verification failure.
-- [ ] Startup checks never start a download and visibly mark Settings when a
+- [x] Startup checks never start a download and visibly mark Settings when a
       newer version is available.
-- [ ] Confirming an available update reports download progress, installs the
+- [x] Confirming an available update reports download progress, installs the
       signed artifact, and requests an app relaunch.
-- [ ] The updater endpoint is HTTPS and points at the public GitHub Release
+- [x] The updater endpoint is HTTPS and points at the public GitHub Release
       `latest.json` asset.
-- [ ] Tauri capabilities grant only update check/download/install and process
+- [x] Tauri capabilities grant only update check/download/install and process
       restart access needed by the frontend.
-- [ ] The release workflow consumes signing secrets without logging them and
+- [x] The release workflow consumes signing secrets without logging them and
       emits macOS ARM64 plus Windows x64 updater artifacts and signatures.
-- [ ] Focused UI/state tests, `pnpm verify`, and a signed artifact build pass.
-- [ ] Verification records the one-time manual transition from `v0.1.1` to the
+- [x] Focused UI/state tests, `pnpm verify`, and a signed artifact build pass.
+- [x] Verification records the one-time manual transition from `v0.1.1` to the
       first updater-enabled release.
 
 ## Out of Scope
