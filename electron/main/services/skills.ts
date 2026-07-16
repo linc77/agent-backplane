@@ -133,7 +133,11 @@ export function parseSkillManifest(text: string) {
   const description = scalar("description");
   if (!name.trim()) throw new Error("Missing frontmatter name");
   if (!description.trim()) throw new Error("Missing frontmatter description");
-  return { name, description };
+  return {
+    name,
+    description,
+    markdown: lines.slice(end + 1).join("\n").trim(),
+  };
 }
 
 async function readSkillCopy(root: SkillRoot, manifestPath: string): Promise<SkillCopy> {
@@ -144,12 +148,15 @@ async function readSkillCopy(root: SkillRoot, manifestPath: string): Promise<Ski
     .catch(() => "directory" as const);
   const resolvedPath = await realpath(path).catch(() => path);
   let bytes = Buffer.alloc(0);
-  let manifest: { name: string; description: string } | null = null;
+  let manifest: { name: string; description: string; markdown: string } | null = null;
+  let markdown = "";
   let issue: string | null = null;
   try {
     bytes = await readFile(manifestPath);
     const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    markdown = text.trim();
     manifest = parseSkillManifest(text);
+    markdown = manifest.markdown;
   } catch (error) {
     issue = error instanceof Error ? error.message : String(error);
   }
@@ -157,6 +164,7 @@ async function readSkillCopy(root: SkillRoot, manifestPath: string): Promise<Ski
     id: sha256(path),
     name: manifest?.name ?? fallbackName,
     description: manifest?.description ?? "",
+    markdown,
     path,
     manifestPath,
     tool: root.tool,
@@ -183,6 +191,7 @@ function groupCapabilities(copies: SkillCopy[]) {
         id,
         name: representative.name,
         description: representative.description,
+        markdown: representative.markdown,
         contentHash: representative.contentHash,
         health: sorted.every((copy) => copy.valid) ? "ready" : "invalid",
         copyCount: sorted.length,

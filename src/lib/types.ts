@@ -214,6 +214,7 @@ export interface SkillCopy {
   id: string;
   name: string;
   description: string;
+  markdown: string;
   path: string;
   manifestPath: string;
   tool: string;
@@ -229,6 +230,7 @@ export interface SkillCapability {
   id: string;
   name: string;
   description: string;
+  markdown: string;
   contentHash: string;
   health: SkillHealth;
   copyCount: number;

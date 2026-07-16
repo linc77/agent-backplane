@@ -9,9 +9,10 @@ afterEach(async () => Promise.all(roots.splice(0).map((root) => rm(root, { recur
 
 describe("native Skill discovery parity", () => {
   it("parses scalar and folded frontmatter", () => {
-    expect(parseSkillManifest('---\nname: demo\ndescription: "A useful skill"\n---')).toEqual({
+    expect(parseSkillManifest('---\nname: demo\ndescription: "A useful skill"\n---\n# Demo\n\nUse it.')).toEqual({
       name: "demo",
       description: "A useful skill",
+      markdown: "# Demo\n\nUse it.",
     });
     expect(parseSkillManifest("---\nname: folded\ndescription: >\n  First line.\n  Second line.\n---").description)
       .toBe("First line. Second line.");
@@ -27,7 +28,7 @@ describe("native Skill discovery parity", () => {
     await mkdir(managed, { recursive: true });
     await mkdir(join(project, "demo-copy"), { recursive: true });
     await mkdir(join(global, "broken"), { recursive: true });
-    const manifest = "---\nname: demo\ndescription: Demo capability\n---\n";
+    const manifest = "---\nname: demo\ndescription: Demo capability\n---\n# Demo\n\n- First step\n";
     await writeFile(join(managed, "SKILL.md"), manifest);
     await writeFile(join(project, "demo-copy/SKILL.md"), manifest);
     await writeFile(join(global, "broken/SKILL.md"), "# broken");
@@ -44,6 +45,10 @@ describe("native Skill discovery parity", () => {
     expect(inventory.duplicateGroupCount).toBe(1);
     expect(inventory.invalidCount).toBe(1);
     expect(inventory.capabilities.find((capability) => capability.name === "demo")?.copyCount).toBe(2);
+    expect(inventory.capabilities.find((capability) => capability.name === "demo")?.markdown)
+      .toContain("# Demo");
+    expect(inventory.capabilities.find((capability) => capability.health === "invalid")?.markdown)
+      .toBe("# broken");
     expect(inventory.snapshotError).toBeNull();
   });
 });

@@ -67,46 +67,51 @@ describe("App browser fixture mode", () => {
     expect(await findByRole("heading", { name: "Codex 目前这样理解你" })).toBeInTheDocument();
     expect(await findByRole("button", { name: /Codex/ })).toBeInTheDocument();
     expect(await findByRole("button", { name: "记忆" })).toBeInTheDocument();
+    expect(queryByRole("button", { name: "检查" })).not.toBeInTheDocument();
+    fireEvent.click(await findByRole("button", { name: "记忆" }));
     expect(await findByRole("button", { name: "检查" })).toBeInTheDocument();
     expect(queryByRole("button", { name: "Agents" })).not.toBeInTheDocument();
   });
 
   it("switches between Chinese and English", async () => {
-    const { findByPlaceholderText, findByRole, getByRole } = renderFixtureApp();
+    const { findByPlaceholderText, findByRole, getByRole, queryByRole } = renderFixtureApp();
 
     expect(await findByRole("heading", { name: "Codex 目前这样理解你" })).toBeInTheDocument();
+    expect(queryByRole("button", { name: "English" })).not.toBeInTheDocument();
 
+    fireEvent.click(getByRole("button", { name: "设置" }));
     fireEvent.click(await findByRole("button", { name: "English" }));
-    expect(await findByRole("heading", { name: "How Codex currently understands you" })).toBeInTheDocument();
+    expect(await findByRole("heading", { name: "Settings" })).toBeInTheDocument();
     fireEvent.click(getByRole("button", { name: /Memory/ }));
     expect(await findByPlaceholderText("Search current view...")).toBeInTheDocument();
     expect(ensureLocalStorage().getItem("agent-memory-manager.locale")).toBe("en-US");
 
+    expect(queryByRole("button", { name: "中文" })).not.toBeInTheDocument();
+    fireEvent.click(getByRole("button", { name: "Settings" }));
     fireEvent.click(getByRole("button", { name: "中文" }));
-    expect(await findByRole("heading", { name: "记忆" })).toBeInTheDocument();
-    expect(await findByPlaceholderText("搜索当前视图...")).toBeInTheDocument();
+    expect(await findByRole("heading", { name: "设置" })).toBeInTheDocument();
     expect(ensureLocalStorage().getItem("agent-memory-manager.locale")).toBe("zh-CN");
   });
 
-  it("opens global update settings without invoking native updater APIs", async () => {
-    const { findByRole, findByText, getByRole } = renderFixtureApp();
+  it("opens global update settings as a page without invoking native updater APIs", async () => {
+    const { findByRole, findByText, getByRole, queryByRole } = renderFixtureApp();
 
     fireEvent.click(await findByRole("button", { name: "设置" }));
 
-    expect(await findByRole("dialog", { name: "设置" })).toBeInTheDocument();
+    expect(await findByRole("main")).toHaveClass("settings-page");
+    expect(await findByRole("heading", { name: "设置" })).toBeInTheDocument();
+    expect(queryByRole("dialog", { name: "设置" })).not.toBeInTheDocument();
     expect(await findByText("应用更新")).toBeInTheDocument();
+    expect(getByRole("group", { name: "语言" })).toBeInTheDocument();
     expect(await findByText("更新检查仅在安装后的桌面应用中可用。")).toBeInTheDocument();
     expect(getByRole("checkbox", { name: /启动时自动检查/ })).toBeDisabled();
-    fireEvent.click(getByRole("button", { name: "关闭设置" }));
-    expect(getByRole("button", { name: "设置" })).toBeInTheDocument();
+    expect(getByRole("button", { name: "设置" })).toHaveAttribute("aria-current", "page");
   });
 
   it("browses and filters the managed skill inventory", async () => {
     const {
-      findAllByText,
       findByPlaceholderText,
       findByRole,
-      findByText,
       getAllByText,
       container,
       queryByRole,
@@ -117,11 +122,20 @@ describe("App browser fixture mode", () => {
     fireEvent.click(await findByRole("button", { name: "Skills" }));
 
     expect(await findByRole("heading", { name: "Codex · Skills" })).toBeInTheDocument();
-    expect((await findAllByText("find-skills")).length).toBeGreaterThan(0);
+    expect(await findByRole("button", { name: "查看 find-skills 详情" })).toBeInTheDocument();
+    expect(queryByRole("heading", { name: "Skill 文档" })).not.toBeInTheDocument();
     expect(getAllByText("2 份副本").length).toBeGreaterThan(0);
     expect(getAllByText("Codex").length).toBeGreaterThan(0);
-    fireEvent.click(await findByText("broken-skill"));
+
+    fireEvent.click(await findByRole("button", { name: "查看 find-skills 详情" }));
+    expect(await findByRole("heading", { name: "find-skills" })).toBeInTheDocument();
+    expect(await findByRole("heading", { name: "Skill 文档" })).toBeInTheDocument();
+    expect(await findByRole("heading", { name: "Find Skills" })).toBeInTheDocument();
+    fireEvent.click(await findByRole("button", { name: "返回全部 Skills" }));
+
+    fireEvent.click(await findByRole("button", { name: "查看 broken-skill 详情" }));
     expect(getAllByText("清单异常").length).toBeGreaterThan(0);
+    fireEvent.click(await findByRole("button", { name: "返回全部 Skills" }));
     expect(queryByText(/SkillManager/)).not.toBeInTheDocument();
     expect(queryByRole("separator", { name: "调整依据栏宽度" })).not.toBeInTheDocument();
     expect(container.querySelector(".app-shell")).toHaveClass("skills-mode");
@@ -130,7 +144,7 @@ describe("App browser fixture mode", () => {
       target: { value: "diagnose" },
     });
 
-    expect(await findByRole("heading", { name: "diagnose" })).toBeInTheDocument();
+    expect(await findByRole("button", { name: "查看 diagnose 详情" })).toBeInTheDocument();
     expect(queryByText("find-skills")).not.toBeInTheDocument();
   });
 

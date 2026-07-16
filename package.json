@@ -3,7 +3,7 @@
   "description": "Desktop control plane for Agent memory, skills, MCP, and provider profiles.",
   "author": "linc77",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "main": "out/main/index.js",
   "scripts": {
@@ -27,6 +27,8 @@
     "lucide-react": "^0.555.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
     "smol-toml": "^1.7.0",
     "yaml": "^2.9.0",
     "zod": "^4.4.3"

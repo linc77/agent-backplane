@@ -1,16 +1,18 @@
-import { RefreshCw, Settings2, X } from "lucide-react";
+import { Languages, RefreshCw, Settings2 } from "lucide-react";
 import type { AppUpdaterController } from "../hooks/useAppUpdater";
-import type { UiText } from "../lib/i18n";
+import { localeOptions, type Locale, type UiText } from "../lib/i18n";
 
-export function SettingsDialog({
+export function SettingsPage({
   controller,
+  locale,
   nativeEnabled,
-  onClose,
+  onLocaleChange,
   uiText,
 }: {
   controller: AppUpdaterController;
+  locale: Locale;
   nativeEnabled: boolean;
-  onClose: () => void;
+  onLocaleChange: (locale: Locale) => void;
   uiText: UiText;
 }) {
   const { autoCheck, checkForUpdates, downloadUpdate, setAutoCheck, state } = controller;
@@ -19,37 +21,47 @@ export function SettingsDialog({
     Boolean(state.update) && (state.phase === "available" || state.phase === "error");
 
   return (
-    <div
-      className="dialog-backdrop"
-      onMouseDown={(event) => {
-        if (event.currentTarget === event.target && !busy) {
-          onClose();
-        }
-      }}
-      role="presentation"
-    >
-      <section
-        aria-labelledby="settings-dialog-title"
-        aria-modal="true"
-        className="dialog settings-dialog"
-        role="dialog"
-      >
-        <div className="dialog-heading">
-          <div>
-            <p className="eyebrow">{uiText.settings.eyebrow}</p>
-            <h2 id="settings-dialog-title">{uiText.settings.title}</h2>
-            <p>{uiText.settings.subtitle}</p>
+    <main className="settings-page">
+      <header className="settings-page-heading">
+        <p className="eyebrow">{uiText.settings.eyebrow}</p>
+        <h1>{uiText.settings.title}</h1>
+        <p>{uiText.settings.subtitle}</p>
+      </header>
+
+      <div className="settings-page-content">
+        <section className="settings-section">
+          <div className="settings-section-heading">
+            <span className="settings-section-icon">
+              <Languages aria-hidden="true" size={18} />
+            </span>
+            <div>
+              <h2>{uiText.settings.language}</h2>
+              <p>{uiText.settings.languageHint}</p>
+            </div>
           </div>
-          <button
-            aria-label={uiText.settings.close}
-            className="icon-button"
-            disabled={busy}
-            onClick={onClose}
-            type="button"
+
+          <div
+            className="settings-language-switch"
+            role="group"
+            aria-label={uiText.sidebar.languageLabel}
           >
-            <X aria-hidden="true" size={17} />
-          </button>
-        </div>
+            {localeOptions.map((option) => (
+              <button
+                aria-pressed={option.locale === locale}
+                className={
+                  option.locale === locale
+                    ? "settings-language-option active"
+                    : "settings-language-option"
+                }
+                key={option.locale}
+                onClick={() => onLocaleChange(option.locale)}
+                type="button"
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </section>
 
         <section className="settings-section">
           <div className="settings-section-heading">
@@ -57,7 +69,7 @@ export function SettingsDialog({
               <Settings2 aria-hidden="true" size={18} />
             </span>
             <div>
-              <h3>{uiText.settings.appUpdate}</h3>
+              <h2>{uiText.settings.appUpdate}</h2>
               <p>{uiText.settings.appUpdateHint}</p>
             </div>
           </div>
@@ -128,7 +140,7 @@ export function SettingsDialog({
             </>
           )}
         </section>
-      </section>
-    </div>
+      </div>
+    </main>
   );
 }

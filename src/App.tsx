@@ -58,7 +58,7 @@ import { KnowledgeBoard } from "./components/KnowledgeBoard";
 import { McpManager } from "./components/McpManager";
 import { Sidebar } from "./components/Sidebar";
 import { SkillManager } from "./components/SkillManager";
-import { SettingsDialog } from "./components/SettingsDialog";
+import { SettingsPage } from "./components/SettingsPage";
 import { useAppUpdater } from "./hooks/useAppUpdater";
 import "./App.css";
 
@@ -74,7 +74,6 @@ function App() {
   const [locale, setLocale] = useState<Locale>(() => readStoredLocale());
   const uiText = useMemo(() => getUiText(locale), [locale]);
   const [selectedAgent, setSelectedAgent] = useState<AgentKind>(() => readStoredAgent());
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [activeTopic, setActiveTopic] = useState<MemoryView>("overview");
   const [query, setQuery] = useState("");
   const [selectedEntryId, setSelectedEntryId] = useState<string | undefined>();
@@ -450,21 +449,24 @@ function App() {
         activeTopic === "agentManager" ? " agent-mode" : ""
       }${
         activeTopic === "mcpManager" ? " mcp-mode" : ""
+      }${
+        activeTopic === "settings" ? " settings-mode" : ""
       }`}
       style={{ gridTemplateColumns: paneGridTemplate(paneLayout) }}
     >
       {fixtureMode && <div className="fixture-banner">{uiText.app.fixtureBanner}</div>}
       <Sidebar
         activeTopic={activeTopic}
-        locale={locale}
         selectedAgent={selectedAgent}
         uiText={uiText}
-        onLocaleChange={changeLocale}
         onManageAgent={() => {
           setActiveTopic("agentManager");
           setSelectedEntryId(undefined);
         }}
-        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenSettings={() => {
+          setActiveTopic("settings");
+          setSelectedEntryId(undefined);
+        }}
         onSelectAgent={changeAgent}
         onSelectTopic={(topic) => {
           setActiveTopic(topic);
@@ -481,6 +483,14 @@ function App() {
         <McpManager selectedAgent={selectedAgent} uiText={uiText} />
       ) : activeTopic === "agentManager" ? (
         <AgentConfigManager selectedAgent={selectedAgent} uiText={uiText} />
+      ) : activeTopic === "settings" ? (
+        <SettingsPage
+          controller={appUpdater}
+          locale={locale}
+          nativeEnabled={nativeUpdaterEnabled}
+          onLocaleChange={changeLocale}
+          uiText={uiText}
+        />
       ) : (
         <KnowledgeBoard
           activeTopic={activeTopic}
@@ -509,6 +519,10 @@ function App() {
             suggestedCorrectionMutation.mutate(correction)
           }
           onOpenSource={(path) => openSourceMutation.mutate(path)}
+          onSelectTopic={(topic) => {
+            setActiveTopic(topic);
+            setSelectedEntryId(undefined);
+          }}
           onRunCodexAudit={runOrCancelCodexAudit}
           onCancelProfileGeneration={cancelProfileGeneration}
           onRegenerateProfile={regenerateProfile}
@@ -530,7 +544,8 @@ function App() {
 
       {activeTopic !== "skillManager" &&
         activeTopic !== "agentManager" &&
-        activeTopic !== "mcpManager" && (
+        activeTopic !== "mcpManager" &&
+        activeTopic !== "settings" && (
         <>
           {renderPaneResizer("right")}
           <Inspector
@@ -591,14 +606,6 @@ function App() {
           onCancel={() => setDraft(null)}
           onContentChange={(content) => setDraft({ ...draft, content })}
           onConfirm={() => writeMutation.mutate(draft)}
-        />
-      )}
-      {isSettingsOpen && (
-        <SettingsDialog
-          controller={appUpdater}
-          nativeEnabled={nativeUpdaterEnabled}
-          onClose={() => setIsSettingsOpen(false)}
-          uiText={uiText}
         />
       )}
     </div>

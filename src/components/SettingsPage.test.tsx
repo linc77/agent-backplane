@@ -4,11 +4,12 @@ import { fireEvent, render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { AppUpdaterController } from "../hooks/useAppUpdater";
 import { getUiText } from "../lib/i18n";
-import { SettingsDialog } from "./SettingsDialog";
+import { SettingsPage } from "./SettingsPage";
 
-describe("SettingsDialog", () => {
-  it("shows an available release and opens GitHub only after confirmation", () => {
+describe("SettingsPage", () => {
+  it("shows language controls and opens an available release only after confirmation", () => {
     const downloadUpdate = vi.fn().mockResolvedValue(undefined);
+    const onLocaleChange = vi.fn();
     const controller: AppUpdaterController = {
       autoCheck: true,
       checkForUpdates: vi.fn().mockResolvedValue(undefined),
@@ -26,13 +27,20 @@ describe("SettingsDialog", () => {
       },
     };
     const { getByRole, getByText } = render(
-      <SettingsDialog
+      <SettingsPage
         controller={controller}
+        locale="zh-CN"
         nativeEnabled
-        onClose={vi.fn()}
+        onLocaleChange={onLocaleChange}
         uiText={getUiText("zh-CN")}
       />,
     );
+
+    expect(getByRole("main")).toBeInTheDocument();
+    expect(getByRole("group", { name: "语言" })).toBeInTheDocument();
+    expect(getByRole("button", { name: "中文" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(getByRole("button", { name: "English" }));
+    expect(onLocaleChange).toHaveBeenCalledWith("en-US");
 
     expect(getByText("0.1.2")).toBeInTheDocument();
     expect(getByText("发现新版本 v0.1.3")).toBeInTheDocument();

@@ -77,6 +77,10 @@ export interface UiText {
     snapshot: string;
     scanRoots: string;
     noDescription: string;
+    backToAll: string;
+    documentation: string;
+    noDocumentation: string;
+    openDetails: (name: string) => string;
     copyCount: (count: number) => string;
   };
   mcp: {
@@ -141,7 +145,8 @@ export interface UiText {
     eyebrow: string;
     title: string;
     subtitle: string;
-    close: string;
+    language: string;
+    languageHint: string;
     appUpdate: string;
     appUpdateHint: string;
     currentVersion: string;
@@ -170,6 +175,7 @@ export interface UiText {
     runAudit: string;
     cancelAudit: string;
     rescanMemory: string;
+    memoryNavigation: string;
     noAuditReport: string;
     currentClaims: string;
     staleClaims: string;
@@ -268,6 +274,7 @@ const zhCN: UiText = {
     skillManager: "Skills",
     agentManager: "Agents",
     mcpManager: "MCP",
+    settings: "设置",
     allSources: "全部来源",
     audit: "检查",
   },
@@ -382,6 +389,10 @@ const zhCN: UiText = {
     snapshot: "AMM 清单快照",
     scanRoots: "扫描来源",
     noDescription: "暂无说明",
+    backToAll: "返回全部 Skills",
+    documentation: "Skill 文档",
+    noDocumentation: "这个 Skill 暂无可显示的 Markdown 内容。",
+    openDetails: (name) => `查看 ${name} 详情`,
     copyCount: (count) => `${count} 份副本`,
   },
   mcp: {
@@ -451,7 +462,8 @@ const zhCN: UiText = {
     eyebrow: "应用设置",
     title: "设置",
     subtitle: "管理 Agent Memory Manager 的全局行为。",
-    close: "关闭设置",
+    language: "界面语言",
+    languageHint: "选择 Agent Memory Manager 的显示语言。",
     appUpdate: "应用更新",
     appUpdateHint: "检查 GitHub Releases，并前往发布页下载新版本。",
     currentVersion: "当前版本",
@@ -481,6 +493,7 @@ const zhCN: UiText = {
     runAudit: "开始检查",
     cancelAudit: "取消",
     rescanMemory: "重新扫描记忆",
+    memoryNavigation: "记忆页面",
     noAuditReport: "还没有检查结果",
     currentClaims: "当前",
     staleClaims: "历史",
@@ -562,6 +575,7 @@ const enUS: UiText = {
     skillManager: "Skills",
     agentManager: "Agents",
     mcpManager: "MCP",
+    settings: "Settings",
     allSources: "All Sources",
     audit: "Check",
   },
@@ -676,6 +690,10 @@ const enUS: UiText = {
     snapshot: "AMM inventory snapshot",
     scanRoots: "Scan roots",
     noDescription: "No description",
+    backToAll: "Back to all Skills",
+    documentation: "Skill documentation",
+    noDocumentation: "This Skill has no Markdown content to display.",
+    openDetails: (name) => `View ${name} details`,
     copyCount: (count) => `${count} copies`,
   },
   mcp: {
@@ -745,7 +763,8 @@ const enUS: UiText = {
     eyebrow: "Application settings",
     title: "Settings",
     subtitle: "Manage global Agent Memory Manager behavior.",
-    close: "Close settings",
+    language: "Interface language",
+    languageHint: "Choose the display language for Agent Memory Manager.",
     appUpdate: "Application update",
     appUpdateHint: "Check GitHub Releases and open the release page to download updates.",
     currentVersion: "Current version",
@@ -775,6 +794,7 @@ const enUS: UiText = {
     runAudit: "Start check",
     cancelAudit: "Cancel",
     rescanMemory: "Rescan memory",
+    memoryNavigation: "Memory workspace",
     noAuditReport: "No check result yet",
     currentClaims: "Current",
     staleClaims: "History",

@@ -1,5 +1,6 @@
 import {
   AlertCircle,
+  BookOpen,
   Bot,
   CheckCircle2,
   Clock,
@@ -8,6 +9,7 @@ import {
   PencilLine,
   RefreshCw,
   Search,
+  SearchCheck,
 } from "lucide-react";
 import { useState } from "react";
 import { agentMeta } from "../lib/agentScope";
@@ -410,6 +412,7 @@ export function KnowledgeBoard({
   onDraftProfileCorrection,
   onDraftSuggestedCorrection,
   onOpenSource,
+  onSelectTopic,
   onSelectEntry,
   uiText,
   writable,
@@ -438,6 +441,7 @@ export function KnowledgeBoard({
   onDraftProfileCorrection: (section: MemoryProfileSection) => void;
   onDraftSuggestedCorrection: (correction: SuggestedCorrection) => void;
   onOpenSource: (path: string) => void;
+  onSelectTopic: (topic: "effective" | "audit") => void;
   onSelectEntry: (entry: MemoryEntry) => void;
 }) {
   const lowerQuery = query.trim().toLowerCase();
@@ -467,6 +471,37 @@ export function KnowledgeBoard({
 
   return (
     <main className="board">
+      {selectedAgent === "codex" && (activeTopic === "effective" || isAuditView) && (
+        <nav className="memory-workspace-nav" aria-label={uiText.board.memoryNavigation}>
+          <button
+            aria-current={activeTopic === "effective" ? "page" : undefined}
+            className={
+              activeTopic === "effective"
+                ? "memory-workspace-nav-item active"
+                : "memory-workspace-nav-item"
+            }
+            onClick={() => onSelectTopic("effective")}
+            type="button"
+          >
+            <BookOpen aria-hidden="true" size={15} />
+            {uiText.views.effective}
+          </button>
+          <button
+            aria-current={isAuditView ? "page" : undefined}
+            className={
+              isAuditView
+                ? "memory-workspace-nav-item active"
+                : "memory-workspace-nav-item"
+            }
+            onClick={() => onSelectTopic("audit")}
+            type="button"
+          >
+            <SearchCheck aria-hidden="true" size={15} />
+            {uiText.views.audit}
+          </button>
+        </nav>
+      )}
+
       {!isOverview && (
         <header className="toolbar">
           <div>

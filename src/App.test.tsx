@@ -393,13 +393,13 @@ describe("App memory clarity", () => {
   });
 
   it("shows a calm overview and minimal sidebar", async () => {
-    const { findByText, getByRole, queryByText } = renderApp();
+    const { findByText, getByRole, queryByRole, queryByText } = renderApp();
 
     await waitFor(() =>
       expect(getByRole("heading", { name: "Codex 目前这样理解你" })).toBeInTheDocument(),
     );
     expect(getByRole("button", { name: "记忆" })).toBeInTheDocument();
-    expect(getByRole("button", { name: "检查" })).toBeInTheDocument();
+    expect(queryByRole("button", { name: "检查" })).not.toBeInTheDocument();
     expect(queryByText("复核队列")).not.toBeInTheDocument();
     expect(queryByText("已加载摘要")).not.toBeInTheDocument();
     expect(queryByText("记忆注册表")).not.toBeInTheDocument();
@@ -915,6 +915,7 @@ describe("App Codex audit", () => {
     await waitFor(() =>
       expect(getByRole("heading", { name: "Codex 目前这样理解你" })).toBeInTheDocument(),
     );
+    fireEvent.click(getByRole("button", { name: "记忆" }));
     fireEvent.click(getByRole("button", { name: "检查" }));
     await waitFor(() =>
       expect(getByRole("heading", { name: "检查" })).toBeInTheDocument(),
@@ -1006,6 +1007,7 @@ describe("App Codex audit", () => {
     await waitFor(() =>
       expect(getByRole("heading", { name: "Codex 目前这样理解你" })).toBeInTheDocument(),
     );
+    fireEvent.click(getByRole("button", { name: "记忆" }));
     fireEvent.click(getByRole("button", { name: "检查" }));
     fireEvent.click(getByRole("button", { name: /开始检查/ }));
     expect(await findByText("Primary stack mismatch")).toBeInTheDocument();
@@ -1054,6 +1056,7 @@ describe("App Codex audit", () => {
     await waitFor(() =>
       expect(getByRole("heading", { name: "Codex 目前这样理解你" })).toBeInTheDocument(),
     );
+    fireEvent.click(getByRole("button", { name: "记忆" }));
     fireEvent.click(getByRole("button", { name: "检查" }));
     fireEvent.click(getByRole("button", { name: /开始检查/ }));
     await waitFor(() =>
@@ -1091,6 +1094,7 @@ describe("App Codex audit", () => {
     await waitFor(() =>
       expect(getByRole("heading", { name: "Codex 目前这样理解你" })).toBeInTheDocument(),
     );
+    fireEvent.click(getByRole("button", { name: "记忆" }));
     fireEvent.click(getByRole("button", { name: "检查" }));
     await waitFor(() =>
       expect(getByRole("heading", { name: "检查" })).toBeInTheDocument(),

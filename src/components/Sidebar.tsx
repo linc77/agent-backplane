@@ -5,14 +5,13 @@ import {
   ChevronDown,
   Cable,
   Home,
-  SearchCheck,
   Settings2,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ComponentType } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { agentKinds, agentMeta } from "../lib/agentScope";
 import { loadAgentConfigInventory } from "../lib/api";
-import { localeOptions, type Locale, type UiText } from "../lib/i18n";
+import type { UiText } from "../lib/i18n";
 import type { MemoryView } from "../lib/memoryViews";
 import type { AgentKind } from "../lib/types";
 
@@ -22,25 +21,19 @@ interface TopicDef {
   icon: ComponentType<{ size?: number }>;
 }
 
-function navItems(uiText: UiText, selectedAgent: AgentKind): TopicDef[] {
-  const items: TopicDef[] = [
+function navItems(uiText: UiText): TopicDef[] {
+  return [
     { id: "overview", label: uiText.views.overview, icon: Home },
     { id: "effective", label: uiText.views.effective, icon: BookOpen },
     { id: "skillManager", label: uiText.views.skillManager, icon: Blocks },
     { id: "mcpManager", label: uiText.views.mcpManager, icon: Cable },
   ];
-  if (selectedAgent === "codex") {
-    items.push({ id: "audit", label: uiText.views.audit, icon: SearchCheck });
-  }
-  return items;
 }
 
 export function Sidebar({
   activeTopic,
-  locale,
   selectedAgent,
   uiText,
-  onLocaleChange,
   onManageAgent,
   onOpenSettings,
   onSelectAgent,
@@ -48,17 +41,15 @@ export function Sidebar({
   updateAvailable,
 }: {
   activeTopic: MemoryView;
-  locale: Locale;
   selectedAgent: AgentKind;
   uiText: UiText;
-  onLocaleChange: (locale: Locale) => void;
   onManageAgent: () => void;
   onOpenSettings: () => void;
   onSelectAgent: (agent: AgentKind) => void;
   onSelectTopic: (topic: MemoryView) => void;
   updateAvailable: boolean;
 }) {
-  const topics = navItems(uiText, selectedAgent);
+  const topics = navItems(uiText);
   const [isAgentMenuOpen, setIsAgentMenuOpen] = useState(false);
   const selectorRef = useRef<HTMLDivElement>(null);
   const inventoryQuery = useQuery({
@@ -178,7 +169,11 @@ export function Sidebar({
           const Icon = topic.icon;
           return (
             <button
-              className={topic.id === activeTopic ? "topic-item active" : "topic-item"}
+              className={
+                topic.id === activeTopic || (topic.id === "effective" && activeTopic === "audit")
+                  ? "topic-item active"
+                  : "topic-item"
+              }
               key={topic.id}
               onClick={() => onSelectTopic(topic.id)}
               type="button"
@@ -191,26 +186,18 @@ export function Sidebar({
       </nav>
 
       <div className="sidebar-footer">
-        <button className="settings-button" onClick={onOpenSettings} type="button">
+        <button
+          aria-current={activeTopic === "settings" ? "page" : undefined}
+          className={activeTopic === "settings" ? "settings-button active" : "settings-button"}
+          onClick={onOpenSettings}
+          type="button"
+        >
           <Settings2 aria-hidden="true" size={16} />
           <span>{uiText.sidebar.settings}</span>
           {updateAvailable && (
             <span className="settings-update-badge">{uiText.sidebar.updateAvailable}</span>
           )}
         </button>
-        <div className="language-switch" role="group" aria-label={uiText.sidebar.languageLabel}>
-          {localeOptions.map((option) => (
-            <button
-              aria-pressed={option.locale === locale}
-              className={option.locale === locale ? "language-option active" : "language-option"}
-              key={option.locale}
-              onClick={() => onLocaleChange(option.locale)}
-              type="button"
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
       </div>
     </aside>
   );

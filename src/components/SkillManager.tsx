@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, FolderOpen, RefreshCw, Search } from "lucide-react";
+import { ArrowLeft, ChevronRight, FolderOpen, RefreshCw, Search } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { loadSkillInventory, openSourceFile } from "../lib/api";
 import { agentMeta } from "../lib/agentScope";
 import type { UiText } from "../lib/i18n";
@@ -76,8 +78,9 @@ export function SkillManager({
       ),
     [inventory?.capabilities, query, tool],
   );
-  const selectedCapability =
-    capabilities.find((capability) => capability.id === selectedId) ?? capabilities[0];
+  const selectedCapability = inventory?.capabilities.find(
+    (capability) => capability.id === selectedId,
+  );
   const activeRoots = inventory?.roots.filter((root) => root.exists) ?? [];
 
   return (
@@ -102,7 +105,7 @@ export function SkillManager({
       {inventoryQuery.error && <div className="audit-error">{String(inventoryQuery.error)}</div>}
       {inventoryQuery.isLoading && <div className="skill-state">{uiText.skills.loading}</div>}
 
-      {inventory && (
+      {inventory && !selectedCapability && (
         <>
           <section className="skill-stats" aria-label={uiText.skills.title}>
             <article>
@@ -164,99 +167,125 @@ export function SkillManager({
               {uiText.skills.snapshot}: {inventory.snapshotPath}
             </span>
           </div>
-          {inventory.snapshotError && (
-            <div className="audit-error">{inventory.snapshotError}</div>
-          )}
+          {inventory.snapshotError && <div className="audit-error">{inventory.snapshotError}</div>}
 
-          <section className="skill-workspace">
-            <div className="skill-list">
-              {capabilities.map((capability) => (
-                <button
-                  className={
-                    capability.id === selectedCapability?.id ? "skill-row active" : "skill-row"
-                  }
-                  key={capability.id}
-                  onClick={() => setSelectedId(capability.id)}
-                  type="button"
-                >
-                  <span className="skill-row-heading">
-                    <strong>{capability.name}</strong>
-                    <span className="skill-row-badges">
-                      {capability.health === "invalid" && <AlertTriangle size={14} />}
-                      <em>{uiText.skills.copyCount(capability.copyCount)}</em>
-                    </span>
-                  </span>
-                  <span>{capability.description || uiText.skills.noDescription}</span>
-                  <small>{capability.tools.join(" · ")}</small>
-                </button>
-              ))}
-              {!capabilities.length && <div className="skill-state">{uiText.skills.empty}</div>}
-            </div>
-
-            <aside className="skill-detail">
-              {selectedCapability && (
-                <>
-                  <div className="skill-detail-heading">
-                    <div>
-                      <span
-                        className={
-                          selectedCapability.health === "invalid"
-                            ? "status-pill invalid"
-                            : "status-pill"
-                        }
-                      >
-                        {selectedCapability.health === "invalid"
-                          ? uiText.skills.invalid
-                          : uiText.skills.ready}
-                      </span>
-                      <h2>{selectedCapability.name}</h2>
-                    </div>
-                  </div>
-                  <p>{selectedCapability.description || uiText.skills.noDescription}</p>
-                  <dl>
-                    <div>
-                      <dt>{uiText.skills.tools}</dt>
-                      <dd>{selectedCapability.tools.join(", ")}</dd>
-                    </div>
-                    <div>
-                      <dt>{uiText.skills.copyLocations}</dt>
-                      <dd>{uiText.skills.copyCount(selectedCapability.copyCount)}</dd>
-                    </div>
-                  </dl>
-
-                  <div className="skill-copy-list">
-                    {selectedCapability.copies.map((copy) => (
-                      <article className={copy.valid ? "skill-copy" : "skill-copy invalid"} key={copy.id}>
-                        <header>
-                          <div>
-                            <strong>{copy.tool}</strong>
-                            <span>{copyScope(copy, uiText)}</span>
-                            <span>{filesystemKind(copy, uiText)}</span>
-                          </div>
-                          <button
-                            aria-label={`${uiText.skills.reveal}: ${copy.path}`}
-                            className="icon-button"
-                            onClick={() => void openSourceFile(copy.path)}
-                            type="button"
-                          >
-                            <FolderOpen size={15} />
-                          </button>
-                        </header>
-                        <code>{copy.path}</code>
-                        {copy.filesystemKind === "symlink" && copy.resolvedPath !== copy.path && (
-                          <small>
-                            {uiText.skills.resolvedPath}: {copy.resolvedPath}
-                          </small>
-                        )}
-                        {copy.issue && <small className="skill-copy-issue">{copy.issue}</small>}
-                      </article>
-                    ))}
-                  </div>
-                </>
-              )}
-            </aside>
+          <section className="skill-grid">
+            {capabilities.map((capability) => (
+              <button
+                aria-label={uiText.skills.openDetails(capability.name)}
+                className="skill-card"
+                key={capability.id}
+                onClick={() => setSelectedId(capability.id)}
+                type="button"
+              >
+                <span className="skill-card-heading">
+                  <strong>{capability.name}</strong>
+                  <ChevronRight size={17} />
+                </span>
+                <span className="skill-card-description">
+                  {capability.description || uiText.skills.noDescription}
+                </span>
+                <span className="skill-card-footer">
+                  <span>{capability.tools.join(" · ")}</span>
+                  <em className={capability.health === "invalid" ? "invalid" : ""}>
+                    {capability.health === "invalid"
+                      ? uiText.skills.invalid
+                      : uiText.skills.copyCount(capability.copyCount)}
+                  </em>
+                </span>
+              </button>
+            ))}
+            {!capabilities.length && <div className="skill-state">{uiText.skills.empty}</div>}
           </section>
         </>
+      )}
+
+      {selectedCapability && (
+        <section className="skill-detail-page">
+          <button className="skill-detail-back" onClick={() => setSelectedId(undefined)} type="button">
+            <ArrowLeft size={16} />
+            {uiText.skills.backToAll}
+          </button>
+
+          <header className="skill-detail-header">
+            <div>
+              <span
+                className={
+                  selectedCapability.health === "invalid"
+                    ? "status-pill invalid"
+                    : "status-pill"
+                }
+              >
+                {selectedCapability.health === "invalid"
+                  ? uiText.skills.invalid
+                  : uiText.skills.ready}
+              </span>
+              <h2>{selectedCapability.name}</h2>
+              <p>{selectedCapability.description || uiText.skills.noDescription}</p>
+            </div>
+            <dl>
+              <div>
+                <dt>{uiText.skills.tools}</dt>
+                <dd>{selectedCapability.tools.join(", ")}</dd>
+              </div>
+              <div>
+                <dt>{uiText.skills.copyLocations}</dt>
+                <dd>{uiText.skills.copyCount(selectedCapability.copyCount)}</dd>
+              </div>
+            </dl>
+          </header>
+
+          <article className="skill-markdown-panel">
+            <h3>{uiText.skills.documentation}</h3>
+            {selectedCapability.markdown ? (
+              <div className="skill-markdown">
+                <ReactMarkdown
+                  components={{
+                    a: ({ children, href }) => (
+                      <span className="skill-markdown-link" title={href}>{children}</span>
+                    ),
+                    img: ({ alt }) => alt ? <span className="skill-markdown-image">{alt}</span> : null,
+                  }}
+                  remarkPlugins={[remarkGfm]}
+                >
+                  {selectedCapability.markdown}
+                </ReactMarkdown>
+              </div>
+            ) : (
+              <div className="skill-state">{uiText.skills.noDocumentation}</div>
+            )}
+          </article>
+
+          <section className="skill-locations" aria-label={uiText.skills.copyLocations}>
+            <h3>{uiText.skills.copyLocations}</h3>
+            <div className="skill-copy-list">
+              {selectedCapability.copies.map((copy) => (
+                <article className={copy.valid ? "skill-copy" : "skill-copy invalid"} key={copy.id}>
+                  <header>
+                    <div>
+                      <strong>{copy.tool}</strong>
+                      <span>{copyScope(copy, uiText)}</span>
+                      <span>{filesystemKind(copy, uiText)}</span>
+                    </div>
+                    <button
+                      aria-label={`${uiText.skills.reveal}: ${copy.path}`}
+                      className="icon-button"
+                      onClick={() => void openSourceFile(copy.path)}
+                      type="button"
+                    >
+                      <FolderOpen size={15} />
+                    </button>
+                  </header>
+                  <code>{copy.path}</code>
+                  {copy.filesystemKind === "symlink" && copy.resolvedPath !== copy.path && (
+                    <small>{uiText.skills.resolvedPath}: {copy.resolvedPath}</small>
+                  )}
+                  {copy.issue && <small className="skill-copy-issue">{copy.issue}</small>}
+                </article>
+              ))}
+            </div>
+          </section>
+        </section>
       )}
     </main>
   );

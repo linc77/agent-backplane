@@ -14,6 +14,7 @@ export type MemoryView =
   | "skillManager"
   | "agentManager"
   | "mcpManager"
+  | "settings"
   | "allSources"
   | "audit";
 
