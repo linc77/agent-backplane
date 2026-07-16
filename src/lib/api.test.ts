@@ -75,8 +75,8 @@ describe("fixture API mode", () => {
   it("serves deterministic skill inventory without calling Electron IPC", async () => {
     const inventory = await loadSkillInventory();
 
-    expect(inventory.capabilityCount).toBe(5);
-    expect(inventory.copyCount).toBe(6);
+    expect(inventory.capabilityCount).toBe(6);
+    expect(inventory.copyCount).toBe(7);
     expect(inventory.invalidCount).toBe(1);
     expect(inventory.capabilities.map((capability) => capability.name)).toContain("find-skills");
     expect(inventory.capabilities.find((capability) => capability.name === "find-skills")?.copyCount).toBe(2);

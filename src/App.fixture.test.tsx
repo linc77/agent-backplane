@@ -129,8 +129,17 @@ describe("App browser fixture mode", () => {
 
     fireEvent.click(await findByRole("button", { name: "查看 find-skills 详情" }));
     expect(await findByRole("heading", { name: "find-skills" })).toBeInTheDocument();
+    expect(queryByText("名称")).toBeInTheDocument();
+    expect(queryByText("说明")).toBeInTheDocument();
+    expect(queryByText("Discover installable agent skills.")).toBeInTheDocument();
     expect(await findByRole("heading", { name: "Skill 文档" })).toBeInTheDocument();
     expect(await findByRole("heading", { name: "Find Skills" })).toBeInTheDocument();
+    fireEvent.click(await findByRole("button", { name: "返回全部 Skills" }));
+
+    fireEvent.click(await findByRole("button", { name: "查看 metadata-only 详情" }));
+    expect(await findByRole("heading", { name: "metadata-only" })).toBeInTheDocument();
+    expect(queryByText("A Skill with required metadata and no Markdown body.")).toBeInTheDocument();
+    expect(queryByText("这个 Skill 暂无可显示的 Markdown 内容。")).toBeInTheDocument();
     fireEvent.click(await findByRole("button", { name: "返回全部 Skills" }));
 
     fireEvent.click(await findByRole("button", { name: "查看 broken-skill 详情" }));

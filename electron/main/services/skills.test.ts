@@ -8,7 +8,7 @@ const roots: string[] = [];
 afterEach(async () => Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true }))));
 
 describe("native Skill discovery parity", () => {
-  it("parses scalar and folded frontmatter", () => {
+  it("parses scalar, folded, and literal frontmatter", () => {
     expect(parseSkillManifest('---\nname: demo\ndescription: "A useful skill"\n---\n# Demo\n\nUse it.')).toEqual({
       name: "demo",
       description: "A useful skill",
@@ -16,7 +16,15 @@ describe("native Skill discovery parity", () => {
     });
     expect(parseSkillManifest("---\nname: folded\ndescription: >\n  First line.\n  Second line.\n---").description)
       .toBe("First line. Second line.");
+    expect(parseSkillManifest("---\nname: literal\ndescription: |\n  First line.\n  Second line.\n---").description)
+      .toBe("First line.\nSecond line.");
     expect(() => parseSkillManifest("# Demo")).toThrow("Missing YAML frontmatter");
+    expect(() => parseSkillManifest("---\nname: [broken\ndescription: broken\n---"))
+      .toThrow();
+    expect(() => parseSkillManifest("---\nname: 42\ndescription: valid\n---"))
+      .toThrow("Missing frontmatter name");
+    expect(() => parseSkillManifest("---\nname: demo\ndescription: false\n---"))
+      .toThrow("Missing frontmatter description");
   });
 
   it("groups identical copies and writes a snapshot", async () => {

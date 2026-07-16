@@ -1312,14 +1312,23 @@ h2 {
   gap: 7px;
   align-items: center;
   justify-self: start;
-  padding: 6px 0;
+  margin-left: -8px;
+  padding: 6px 8px;
   color: #4b5563;
   font-size: 12px;
+  border: 0;
+  border-radius: 7px;
   background: transparent;
 }
 
 .skill-detail-back:hover {
   color: #111827;
+  background: #e7eaf0;
+}
+
+.skill-detail-back:focus-visible {
+  outline: 2px solid #4f6fdc;
+  outline-offset: 2px;
 }
 
 .skill-detail-header,
@@ -1332,16 +1341,27 @@ h2 {
 }
 
 .skill-detail-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(190px, 260px);
   gap: 28px;
   align-items: flex-start;
-  justify-content: space-between;
 }
 
-.skill-detail-header > div {
+.skill-detail-content {
   display: grid;
-  gap: 8px;
+  gap: 20px;
   min-width: 0;
+}
+
+.skill-detail-field {
+  display: grid;
+  gap: 6px;
+}
+
+.skill-detail-field > span {
+  color: #7a8494;
+  font-size: 10px;
+  font-weight: 600;
 }
 
 .skill-detail-header h2 {
@@ -1357,10 +1377,20 @@ h2 {
   line-height: 1.55;
 }
 
-.skill-detail-header dl {
+.skill-detail-facts {
   display: grid;
-  flex: 0 0 min(260px, 35%);
-  gap: 12px;
+  gap: 16px;
+  padding-left: 20px;
+  border-left: 1px solid #e5e7eb;
+}
+
+.skill-detail-facts > .status-pill {
+  justify-self: start;
+}
+
+.skill-detail-facts dl {
+  display: grid;
+  gap: 14px;
   margin: 0;
 }
 
@@ -1387,6 +1417,11 @@ h2 {
 .skill-locations {
   display: grid;
   gap: 14px;
+}
+
+.skill-markdown-panel > .skill-state {
+  padding: 14px;
+  text-align: left;
 }
 
 .skill-markdown-panel > h3,
@@ -2335,10 +2370,13 @@ h2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .skill-controls,
-  .skill-detail-header {
+  .skill-controls {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .skill-detail-header {
+    grid-template-columns: 1fr;
   }
 
   .skill-controls .search-box,
@@ -2350,7 +2388,14 @@ h2 {
     grid-template-columns: 1fr;
   }
 
-  .skill-detail-header dl {
+  .skill-detail-facts {
+    padding-top: 16px;
+    padding-left: 0;
+    border-top: 1px solid #e5e7eb;
+    border-left: 0;
+  }
+
+  .skill-detail-facts dl {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     width: 100%;

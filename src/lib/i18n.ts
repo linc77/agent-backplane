@@ -76,6 +76,8 @@ export interface UiText {
     symlink: string;
     snapshot: string;
     scanRoots: string;
+    nameLabel: string;
+    descriptionLabel: string;
     noDescription: string;
     backToAll: string;
     documentation: string;
@@ -389,6 +391,8 @@ const zhCN: UiText = {
     symlink: "软链接",
     snapshot: "AMM 清单快照",
     scanRoots: "扫描来源",
+    nameLabel: "名称",
+    descriptionLabel: "说明",
     noDescription: "暂无说明",
     backToAll: "返回全部 Skills",
     documentation: "Skill 文档",
@@ -691,6 +695,8 @@ const enUS: UiText = {
     symlink: "Symlink",
     snapshot: "AMM inventory snapshot",
     scanRoots: "Scan roots",
+    nameLabel: "Name",
+    descriptionLabel: "Description",
     noDescription: "No description",
     backToAll: "Back to all Skills",
     documentation: "Skill documentation",

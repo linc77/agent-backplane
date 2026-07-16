@@ -1,6 +1,7 @@
 import { readFile, readdir, realpath, stat, lstat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
+import { parse } from "yaml";
 import type {
   SkillCapability,
   SkillCopy,
@@ -102,40 +103,24 @@ export function parseSkillManifest(text: string) {
   if (lines[0]?.trim() !== "---") throw new Error("Missing YAML frontmatter");
   const end = lines.findIndex((line, index) => index > 0 && line.trim() === "---");
   if (end < 0) throw new Error("Unclosed YAML frontmatter");
-  const frontmatter = lines.slice(1, end);
-  if (frontmatter.length === 0) throw new Error("Empty YAML frontmatter");
-  const scalar = (key: string) => {
-    const prefix = `${key}:`;
-    for (const [index, line] of frontmatter.entries()) {
-      const trimmed = line.trim();
-      if (!trimmed.startsWith(prefix)) continue;
-      const value = trimmed.slice(prefix.length).trim();
-      if ([">", ">-", ">+", "|", "|-", "|+"].includes(value)) {
-        const block: string[] = [];
-        for (const continuation of frontmatter.slice(index + 1)) {
-          if (continuation.trim() && !/^\s/.test(continuation)) break;
-          if (continuation.trim()) block.push(continuation.trim());
-        }
-        return value.startsWith(">") ? block.join(" ") : block.join("\n");
-      }
-      if (
-        value.length >= 2 &&
-        ((value.startsWith('"') && value.endsWith('"')) ||
-          (value.startsWith("'") && value.endsWith("'")))
-      ) {
-        return value.slice(1, -1);
-      }
-      return value;
-    }
-    return "";
-  };
-  const name = scalar("name");
-  const description = scalar("description");
-  if (!name.trim()) throw new Error("Missing frontmatter name");
-  if (!description.trim()) throw new Error("Missing frontmatter description");
+  const source = lines.slice(1, end).join("\n");
+  if (!source.trim()) throw new Error("Empty YAML frontmatter");
+  const frontmatter: unknown = parse(source);
+  if (!frontmatter || typeof frontmatter !== "object" || Array.isArray(frontmatter)) {
+    throw new Error("YAML frontmatter must be a mapping");
+  }
+  const values = frontmatter as Record<string, unknown>;
+  const name = values.name;
+  const description = values.description;
+  if (typeof name !== "string" || !name.trim()) {
+    throw new Error("Missing frontmatter name");
+  }
+  if (typeof description !== "string" || !description.trim()) {
+    throw new Error("Missing frontmatter description");
+  }
   return {
-    name,
-    description,
+    name: name.trim(),
+    description: description.trim(),
     markdown: lines.slice(end + 1).join("\n").trim(),
   };
 }

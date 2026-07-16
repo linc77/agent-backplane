@@ -208,7 +208,17 @@ export function SkillManager({
           </button>
 
           <header className="skill-detail-header">
-            <div>
+            <div className="skill-detail-content">
+              <div className="skill-detail-field">
+                <span>{uiText.skills.nameLabel}</span>
+                <h2>{selectedCapability.name}</h2>
+              </div>
+              <div className="skill-detail-field">
+                <span>{uiText.skills.descriptionLabel}</span>
+                <p>{selectedCapability.description || uiText.skills.noDescription}</p>
+              </div>
+            </div>
+            <aside className="skill-detail-facts">
               <span
                 className={
                   selectedCapability.health === "invalid"
@@ -220,19 +230,17 @@ export function SkillManager({
                   ? uiText.skills.invalid
                   : uiText.skills.ready}
               </span>
-              <h2>{selectedCapability.name}</h2>
-              <p>{selectedCapability.description || uiText.skills.noDescription}</p>
-            </div>
-            <dl>
-              <div>
-                <dt>{uiText.skills.tools}</dt>
-                <dd>{selectedCapability.tools.join(", ")}</dd>
-              </div>
-              <div>
-                <dt>{uiText.skills.copyLocations}</dt>
-                <dd>{uiText.skills.copyCount(selectedCapability.copyCount)}</dd>
-              </div>
-            </dl>
+              <dl>
+                <div>
+                  <dt>{uiText.skills.tools}</dt>
+                  <dd>{selectedCapability.tools.join(", ")}</dd>
+                </div>
+                <div>
+                  <dt>{uiText.skills.copyLocations}</dt>
+                  <dd>{uiText.skills.copyCount(selectedCapability.copyCount)}</dd>
+                </div>
+              </dl>
+            </aside>
           </header>
 
           <article className="skill-markdown-panel">
