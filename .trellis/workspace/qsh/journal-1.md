@@ -103,3 +103,37 @@ Replaced the top-left brand with a persistent Codex, Claude Code, and Hermes con
 ### Next Steps
 
 - None - task complete
+
+
+## Session 4: Signed in-app updates
+
+**Date**: 2026-07-16
+**Task**: Signed in-app updates
+**Branch**: `main`
+
+### Summary
+
+Added global update settings, signed Tauri updater support, dual-platform release automation, and verified draft artifacts for macOS ARM64 and Windows x64.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a53d37e` | (see git log) |
+| `40ab6dd` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
