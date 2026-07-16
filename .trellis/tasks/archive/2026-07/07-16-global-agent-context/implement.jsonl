@@ -1,5 +1,0 @@
-{"file":".trellis/spec/frontend/agent-context.md","reason":"Global Agent ownership, query keys, navigation, and async isolation"}
-{"file":".trellis/spec/backend/agent-memory-scope.md","reason":"Agent-specific memory roots and read-only snapshot boundary"}
-{"file":".trellis/spec/backend/skill-inventory.md","reason":"Hermes roots and Agent projection rules"}
-{"file":".trellis/spec/backend/mcp-inventory.md","reason":"Native MCP formats, enabled state, and redaction boundary"}
-{"file":".trellis/spec/backend/agent-configuration.md","reason":"Preserve provider activation and credential safety guarantees"}

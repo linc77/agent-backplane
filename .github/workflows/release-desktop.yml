@@ -6,29 +6,37 @@ on:
       tag:
         description: Existing draft release tag
         required: true
-        default: v0.1.2
+        default: v0.2.0
 
 permissions:
   contents: write
 
 jobs:
+  prepare-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure draft release exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view "${{ inputs.tag }}" --repo "${{ github.repository }}" || \
+            gh release create "${{ inputs.tag }}" --repo "${{ github.repository }}" --draft --title "Agent Memory Manager ${{ inputs.tag }}" --notes "Electron desktop release."
+
   desktop:
+    needs: prepare-release
     strategy:
       fail-fast: false
       matrix:
         include:
           - platform: macos-latest
-            target: aarch64-apple-darwin
-            bundles: app,dmg
+            command: pnpm exec electron-builder --mac dmg zip --arm64 --publish never
           - platform: windows-latest
-            target: x86_64-pc-windows-msvc
-            bundles: nsis,msi
+            command: pnpm exec electron-builder --win nsis --x64 --publish never
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
 
@@ -38,38 +46,22 @@ jobs:
           corepack enable
           corepack install
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-
-      - name: Install frontend dependencies
+      - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build and upload signed installers
-        uses: tauri-apps/tauri-action@v1
+      - name: Verify
+        run: pnpm verify
+
+      - name: Build installer
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        with:
-          tagName: ${{ inputs.tag }}
-          releaseName: Agent Memory Manager v__VERSION__
-          releaseDraft: true
-          prerelease: false
-          updaterJsonPreferNsis: true
-          args: --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: ${{ matrix.command }}
 
-  verify-updater-metadata:
-    needs: desktop
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download updater metadata
+      - name: Upload release assets
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release download "${{ inputs.tag }}" --pattern latest.json --dir updater-metadata
-
-      - name: Verify supported updater targets
-        run: node scripts/verify-updater-json.mjs updater-metadata/latest.json
+        run: |
+          while IFS= read -r -d '' asset; do
+            gh release upload "${{ inputs.tag }}" "$asset" --clobber
+          done < <(find release -maxdepth 1 -type f \( -name '*.dmg' -o -name '*.zip' -o -name '*.exe' \) -print0)

@@ -16,13 +16,22 @@ import {
 const invokeMock = vi.hoisted(() => vi.fn());
 const revealItemInDirMock = vi.hoisted(() => vi.fn());
 
-vi.mock("@tauri-apps/api/core", () => ({
-  invoke: invokeMock,
-}));
-
-vi.mock("@tauri-apps/plugin-opener", () => ({
-  revealItemInDir: revealItemInDirMock,
-}));
+Object.defineProperty(window, "amm", {
+  configurable: true,
+  value: {
+    memory: {
+      scan: (rootOverride: string | null) => invokeMock("scan_memories", { rootOverride }),
+      loadAgentSnapshot: (agent: string) => invokeMock("load_agent_memory_snapshot", { agent }),
+    },
+    skills: { load: (projectRootOverride: string | null) => invokeMock("load_skill_inventory", { projectRootOverride }) },
+    agentConfig: {
+      load: () => invokeMock("load_agent_config_inventory"),
+      activate: (agent: string, profileId: string) => invokeMock("activate_agent_provider_profile", { agent, profileId }),
+    },
+    mcp: { load: (agent: string) => invokeMock("load_mcp_inventory", { agent }) },
+    shell: { revealSource: (path: string) => revealItemInDirMock(path) },
+  },
+});
 
 describe("fixture API mode", () => {
   beforeEach(() => {
@@ -35,7 +44,7 @@ describe("fixture API mode", () => {
     revealItemInDirMock.mockReset();
   });
 
-  it("serves scan data without calling Tauri", async () => {
+  it("serves scan data without calling Electron IPC", async () => {
     const scan = await scanMemories("/tmp/demo-memory");
 
     expect(scan.root).toBe("/tmp/demo-memory");
@@ -44,7 +53,7 @@ describe("fixture API mode", () => {
     expect(invokeMock).not.toHaveBeenCalled();
   });
 
-  it("serves audit and correction commands without calling Tauri", async () => {
+  it("serves audit and correction commands without calling Electron IPC", async () => {
     const audit = await runCodexAudit("/tmp/demo-memory", "full");
     const draft = await draftCorrectionFromContent(
       "/tmp/demo-memory",
@@ -63,7 +72,7 @@ describe("fixture API mode", () => {
     expect(revealItemInDirMock).not.toHaveBeenCalled();
   });
 
-  it("serves deterministic skill inventory without calling Tauri", async () => {
+  it("serves deterministic skill inventory without calling Electron IPC", async () => {
     const inventory = await loadSkillInventory();
 
     expect(inventory.capabilityCount).toBe(5);

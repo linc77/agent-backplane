@@ -7,7 +7,6 @@ import {
   type PointerEvent,
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { isTauri } from "@tauri-apps/api/core";
 import {
   cancelCodexAudit,
   cancelMemoryProfileGeneration,
@@ -70,7 +69,7 @@ interface AuditRequest {
 function App() {
   const queryClient = useQueryClient();
   const fixtureMode = isFixtureMode();
-  const nativeUpdaterEnabled = !fixtureMode && isTauri();
+  const nativeUpdaterEnabled = !fixtureMode && Boolean(window.amm);
   const appUpdater = useAppUpdater({ enabled: nativeUpdaterEnabled });
   const [locale, setLocale] = useState<Locale>(() => readStoredLocale());
   const uiText = useMemo(() => getUiText(locale), [locale]);
@@ -471,9 +470,7 @@ function App() {
           setActiveTopic(topic);
           setSelectedEntryId(undefined);
         }}
-        updateAvailable={
-          Boolean(appUpdater.state.update) && appUpdater.state.phase !== "installed"
-        }
+        updateAvailable={Boolean(appUpdater.state.update)}
       />
 
       {renderPaneResizer("left")}

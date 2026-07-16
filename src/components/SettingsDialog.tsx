@@ -1,5 +1,4 @@
 import { RefreshCw, Settings2, X } from "lucide-react";
-import { appUpdateProgress } from "../lib/appUpdate";
 import type { AppUpdaterController } from "../hooks/useAppUpdater";
 import type { UiText } from "../lib/i18n";
 
@@ -14,12 +13,8 @@ export function SettingsDialog({
   onClose: () => void;
   uiText: UiText;
 }) {
-  const { autoCheck, checkForUpdates, installUpdate, setAutoCheck, state } = controller;
-  const progress = appUpdateProgress(state);
-  const busy =
-    state.phase === "checking" ||
-    state.phase === "downloading" ||
-    state.phase === "installing";
+  const { autoCheck, checkForUpdates, downloadUpdate, setAutoCheck, state } = controller;
+  const busy = state.phase === "checking";
   const canInstall =
     Boolean(state.update) && (state.phase === "available" || state.phase === "error");
 
@@ -103,18 +98,6 @@ export function SettingsDialog({
                   )}
                 </div>
               )}
-              {state.phase === "downloading" && (
-                <div className="settings-progress">
-                  <span>{uiText.settings.downloading(progress)}</span>
-                  <progress max={100} value={progress ?? undefined} />
-                </div>
-              )}
-              {state.phase === "installing" && (
-                <p className="settings-status">{uiText.settings.installing}</p>
-              )}
-              {state.phase === "installed" && (
-                <p className="settings-status success">{uiText.settings.installed}</p>
-              )}
               {state.error && (
                 <div className="settings-error" role="alert">
                   <strong>{uiText.settings.error}</strong>
@@ -135,7 +118,7 @@ export function SettingsDialog({
                 {canInstall && (
                   <button
                     className="primary-button"
-                    onClick={() => void installUpdate()}
+                    onClick={() => void downloadUpdate()}
                     type="button"
                   >
                     {uiText.settings.install}

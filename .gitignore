@@ -7,9 +7,14 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Local Trellis task plans
+.trellis/tasks/
+
 node_modules
 dist
 dist-ssr
+out
+release
 *.local
 
 # Editor directories and files

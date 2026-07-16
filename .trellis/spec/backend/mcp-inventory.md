@@ -3,31 +3,14 @@
 ## 1. Scope / Trigger
 
 Use this contract when changing MCP discovery, native config parsing, transport
-or enabled-state detection, Tauri payloads, or the MCP UI. This inventory is
+or enabled-state detection, Electron payloads, or the MCP UI. This inventory is
 read-only and must be redacted before serialization.
 
 ## 2. Signatures
 
-```rust
-#[tauri::command]
-pub fn load_mcp_inventory(agent: AgentKind) -> Result<McpInventory, String>;
-
-McpInventory {
-    generated_at,
-    agent,
-    config_paths,
-    servers: Vec<McpServer>,
-}
-
-McpServer {
-    id,
-    name,
-    scope,
-    scope_label,
-    transport,
-    endpoint,
-    enabled,
-}
+```ts
+loadMcpInventory(agent: AgentKind): Promise<McpInventory>
+window.amm.mcp.load(agent: AgentKind): Promise<McpInventory>
 ```
 
 Frontend:
@@ -80,8 +63,7 @@ loadMcpInventory(agent: AgentKind): Promise<McpInventory>
 - Assert Claude `.mcp.json` paths and servers are included.
 - Serialize fixtures containing args, env, headers, user info, path, query, and
   tokens; assert every secret marker is absent.
-- Verify the TypeScript wrapper sends the exact `load_mcp_inventory` command and
-  `agent` argument.
+- Verify the renderer calls the named `window.amm.mcp.load(agent)` method.
 - Fixture UI switching changes server rows without stale rows from another
   Agent.
 
@@ -89,16 +71,14 @@ loadMcpInventory(agent: AgentKind): Promise<McpInventory>
 
 ### Wrong
 
-```rust
-endpoint: config.get("url").unwrap().to_string(),
-args: config.get("args").cloned(),
+```ts
+return { endpoint: config.url, args: config.args };
 ```
 
 ### Correct
 
-```rust
-endpoint: safe_endpoint(command.as_deref(), url.as_deref()),
-enabled: enabled(native_enabled, legacy_disabled),
+```ts
+return { endpoint: safeEndpoint(command, url), enabled: enabled(config) };
 ```
 
-Redaction happens in Rust, before any value crosses the Tauri boundary.
+Redaction happens in Electron main, before any value crosses IPC.

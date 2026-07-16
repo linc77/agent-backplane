@@ -3,20 +3,14 @@
 ## 1. Scope / Trigger
 
 Use this contract when changing native Skill roots, manifest parsing, logical
-identity, copy evidence, AMM snapshots, or the Tauri/frontend payload. External
+identity, copy evidence, AMM snapshots, or the Electron/frontend payload. External
 providers must adapt into this contract and must not become the source of truth.
 
 ## 2. Signatures
 
-```rust
-#[tauri::command]
-pub fn load_skill_inventory(
-    project_root_override: Option<String>,
-) -> Result<SkillInventory, String>;
-
-trait SkillProvider {
-    fn discover(&self) -> Result<ProviderDiscovery, String>;
-}
+```ts
+loadSkillInventory(projectRootOverride?: string | null): Promise<SkillInventory>
+window.amm.skills.load(projectRootOverride?: string | null): Promise<SkillInventory>
 ```
 
 Frontend:
@@ -36,7 +30,7 @@ loadSkillInventory(projectRootOverride: string | null = null): Promise<SkillInve
 - `SkillInventory`: generated time, provider id, snapshot metadata, summary
   counts, roots, and capabilities.
 - Snapshot: `~/.agent-memory-manager/skill-inventory.json`.
-- Serialization: Rust fields cross Tauri as camelCase.
+- Serialization: TypeScript payload fields cross Electron IPC unchanged.
 - Native Hermes roots: `~/.hermes/skills` and project `.hermes/skills`.
 - Frontend Agent projections are derived from copies, never by relabeling the
   aggregate inventory:
@@ -74,7 +68,7 @@ loadSkillInventory(projectRootOverride: string | null = null): Promise<SkillInve
 - Keep invalid manifests separate rather than grouping all broken files.
 - Write the AMM snapshot and preserve live results on snapshot failure.
 - Exercise real-machine discovery without a competitor CLI.
-- Verify TypeScript fixture capability/copy counts and Tauri invocation args.
+- Verify TypeScript fixture capability/copy counts and named preload calls.
 - Verify Agent projection removes foreign roots/copies and recomputes every
   aggregate count.
 - Verify real discovery declares global and project Hermes roots.
@@ -83,17 +77,17 @@ loadSkillInventory(projectRootOverride: string | null = null): Promise<SkillInve
 
 ### Wrong
 
-```rust
-Command::new("skills-manager-cli").args(["skills", "list"])
+```ts
+spawn("skills-manager-cli", ["skills", "list"])
 ```
 
 This makes a competitor schema and installation part of AMM's runtime.
 
 ### Correct
 
-```rust
-let discovery = FilesystemSkillProvider { roots }.discover()?;
-let capabilities = group_capabilities(discovery.copies);
+```ts
+const copies = await discoverNativeSkillCopies(roots);
+const capabilities = groupCapabilities(copies);
 ```
 
 AMM owns discovery identity and lets future providers adapt to the same model.

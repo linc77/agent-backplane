@@ -15,14 +15,47 @@ import type {
 const invokeMock = vi.hoisted(() => vi.fn());
 const revealItemInDirMock = vi.hoisted(() => vi.fn());
 
-vi.mock("@tauri-apps/api/core", () => ({
-  invoke: invokeMock,
-  isTauri: () => false,
-}));
-
-vi.mock("@tauri-apps/plugin-opener", () => ({
-  revealItemInDir: revealItemInDirMock,
-}));
+Object.defineProperty(window, "amm", {
+  configurable: true,
+  value: {
+    app: {
+      getVersion: () => Promise.resolve("0.2.0"),
+      checkForUpdates: () => Promise.resolve(null),
+      openReleasePage: () => Promise.resolve(),
+    },
+    memory: {
+      scan: (rootOverride: string | null) => invokeMock("scan_memories", { rootOverride }),
+      generateProfile: (rootOverride: string | null) => invokeMock("generate_memory_profile", { rootOverride }),
+      startProfileGeneration: (rootOverride: string | null) => invokeMock("start_memory_profile_generation", { rootOverride }),
+      getProfileGeneration: () => invokeMock("get_memory_profile_generation"),
+      cancelProfileGeneration: () => invokeMock("cancel_memory_profile_generation"),
+      loadProfile: (rootOverride: string | null) => invokeMock("load_memory_profile", { rootOverride }),
+      loadAgentSnapshot: (agent: string) => invokeMock("load_agent_memory_snapshot", { agent }),
+      getSourceExcerpt: (rootOverride: string | null, path: string, startLine: number, endLine: number) =>
+        invokeMock("get_source_excerpt", { rootOverride, path, startLine, endLine }),
+      draftCorrection: (rootOverride: string | null, slug: string, bulletLines: string[]) =>
+        invokeMock("draft_correction", { rootOverride, slug, bulletLines }),
+      draftCorrectionFromContent: (rootOverride: string | null, slug: string, content: string) =>
+        invokeMock("draft_correction_from_content", { rootOverride, slug, content }),
+      writeCorrection: (rootOverride: string | null, draft: unknown) => invokeMock("write_correction", { rootOverride, draft }),
+    },
+    audit: {
+      start: (rootOverride: string | null, mode: string) => invokeMock("start_codex_audit", { rootOverride, mode }),
+      get: () => invokeMock("get_codex_audit"),
+      cancel: () => invokeMock("cancel_codex_audit"),
+      run: (rootOverride: string | null, mode: string) => invokeMock("run_codex_audit", { rootOverride, mode }),
+    },
+    skills: { load: (projectRootOverride: string | null) => invokeMock("load_skill_inventory", { projectRootOverride }) },
+    agentConfig: {
+      load: () => invokeMock("load_agent_config_inventory"),
+      save: (input: unknown) => invokeMock("save_agent_provider_profile", { input }),
+      delete: (agent: string, profileId: string) => invokeMock("delete_agent_provider_profile", { agent, profileId }),
+      activate: (agent: string, profileId: string) => invokeMock("activate_agent_provider_profile", { agent, profileId }),
+    },
+    mcp: { load: (agent: string) => invokeMock("load_mcp_inventory", { agent }) },
+    shell: { revealSource: (path: string) => revealItemInDirMock(path) },
+  },
+});
 
 const scanResult: ScanResult = {
   root: "/Users/qsh/.codex/memories",

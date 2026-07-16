@@ -1,5 +1,0 @@
-{"file":".trellis/spec/frontend/agent-context.md","reason":"Verify persistence and cross-workspace isolation"}
-{"file":".trellis/spec/backend/agent-memory-scope.md","reason":"Verify Claude/Hermes discovery does not fall back to Codex"}
-{"file":".trellis/spec/backend/skill-inventory.md","reason":"Verify projected counts and Hermes roots"}
-{"file":".trellis/spec/backend/mcp-inventory.md","reason":"Verify real formats and serialized secret redaction"}
-{"file":"docs/loop/verification/2026-07-16-global-agent-context.md","reason":"Record automated, browser, desktop, and safety evidence"}

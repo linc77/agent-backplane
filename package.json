@@ -1,51 +1,61 @@
 {
   "name": "agent-memory-manager",
+  "description": "Desktop control plane for Agent memory, skills, MCP, and provider profiles.",
+  "author": "linc77",
   "private": true,
-  "version": "0.1.2",
+  "version": "0.2.0",
   "type": "module",
+  "main": "out/main/index.js",
   "scripts": {
-    "dev": "vite",
-    "dev:desktop": "bash scripts/dev-desktop.sh",
-    "build:desktop:debug": "tauri build --debug --bundles app --config src-tauri/tauri.dev.conf.json",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
-    "profile:generate": "cargo run --manifest-path src-tauri/Cargo.toml --bin amm-profile-generate --",
-    "profile:generate:codex": "cargo run --manifest-path src-tauri/Cargo.toml --bin amm-profile-generate -- --require-codex",
+    "postinstall": "install-electron",
+    "dev": "electron-vite dev",
+    "dev:desktop": "electron-vite dev",
+    "build:desktop:debug": "electron-vite build && electron-builder --dir",
+    "build:desktop": "electron-vite build && electron-builder --publish never",
+    "build": "tsc --noEmit && tsc -p tsconfig.electron.json --noEmit && electron-vite build",
+    "preview": "electron-vite preview",
     "profile:verify": "node scripts/verify-profile-cache.mjs",
     "profile:verify:optional": "node scripts/verify-profile-cache.mjs --optional",
-    "updater:verify": "node scripts/verify-updater-json.mjs",
-    "tauri": "tauri",
     "verify": "bash scripts/verify.sh"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-opener": "^2",
-    "@tauri-apps/plugin-process": "^2.3.1",
-    "@tauri-apps/plugin-updater": "^2.10.1",
-    "@tanstack/react-query": "^5.90.12",
-    "codemirror": "^6.0.2",
     "@codemirror/lang-markdown": "^6.5.0",
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.38.8",
+    "@tanstack/react-query": "^5.90.12",
+    "codemirror": "^6.0.2",
     "lucide-react": "^0.555.0",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "smol-toml": "^1.7.0",
+    "yaml": "^2.9.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^26.1.1",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
     "autoprefixer": "^10.4.22",
+    "electron": "43.1.1",
+    "electron-builder": "26.15.3",
+    "electron-vite": "5.0.0",
     "jsdom": "^27.3.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.18",
     "typescript": "~5.8.3",
     "vite": "^7.0.4",
-    "vitest": "^4.0.15",
-    "@tauri-apps/cli": "^2"
+    "vitest": "^4.0.15"
   },
-  "packageManager": "pnpm@10.28.2+sha512.41872f037ad22f7348e3b1debbaf7e867cfd448f2726d9cf74c08f19507c31d2c8e7a11525b983febc2df640b5438dee6023ebb1f84ed43cc2d654d2bc326264"
+  "packageManager": "pnpm@10.28.2+sha512.41872f037ad22f7348e3b1debbaf7e867cfd448f2726d9cf74c08f19507c31d2c8e7a11525b983febc2df640b5438dee6023ebb1f84ed43cc2d654d2bc326264",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron",
+      "electron-winstaller",
+      "esbuild"
+    ]
+  }
 }

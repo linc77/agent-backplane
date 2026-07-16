@@ -205,7 +205,7 @@ describe("App browser fixture mode", () => {
     expect(await findByText(/原配置已备份/)).toBeInTheDocument();
   });
 
-  it("drives the core memory review flow without Tauri commands", async () => {
+  it("drives the core memory review flow without desktop IPC", async () => {
     const {
       findAllByText,
       findByPlaceholderText,

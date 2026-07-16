@@ -1,5 +1,3 @@
-import { invoke } from "@tauri-apps/api/core";
-import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import type {
   AgentActivationResult,
   AgentConfigInventory,
@@ -18,12 +16,17 @@ import type {
 } from "./types";
 import { demoAuditRun, demoMemoryProfile, demoScanResult } from "./demoData";
 
+function desktopApi() {
+  if (!window.amm) throw new Error("Electron desktop API is unavailable");
+  return window.amm;
+}
+
 export function scanMemories(rootOverride: string | null = null) {
   if (isFixtureMode()) {
     return Promise.resolve(withFixtureRoot(rootOverride));
   }
 
-  return invoke<ScanResult>("scan_memories", { rootOverride });
+  return desktopApi().memory.scan(rootOverride);
 }
 
 export function generateMemoryProfile(rootOverride: string | null = null) {
@@ -31,7 +34,7 @@ export function generateMemoryProfile(rootOverride: string | null = null) {
     return Promise.resolve(fixtureMemoryProfile(rootOverride));
   }
 
-  return invoke<MemoryProfile>("generate_memory_profile", { rootOverride });
+  return desktopApi().memory.generateProfile(rootOverride);
 }
 
 export function startMemoryProfileGeneration(rootOverride: string | null = null) {
@@ -39,7 +42,7 @@ export function startMemoryProfileGeneration(rootOverride: string | null = null)
     return Promise.resolve(fixtureProfileGenerationTask(rootOverride, "succeeded"));
   }
 
-  return invoke<MemoryProfileGenerationTask>("start_memory_profile_generation", { rootOverride });
+  return desktopApi().memory.startProfileGeneration(rootOverride);
 }
 
 export function getMemoryProfileGeneration() {
@@ -47,7 +50,7 @@ export function getMemoryProfileGeneration() {
     return Promise.resolve(fixtureProfileGenerationTask(null, "idle"));
   }
 
-  return invoke<MemoryProfileGenerationTask>("get_memory_profile_generation");
+  return desktopApi().memory.getProfileGeneration();
 }
 
 export function cancelMemoryProfileGeneration() {
@@ -55,7 +58,7 @@ export function cancelMemoryProfileGeneration() {
     return Promise.resolve(fixtureProfileGenerationTask(null, "cancelled"));
   }
 
-  return invoke<MemoryProfileGenerationTask>("cancel_memory_profile_generation");
+  return desktopApi().memory.cancelProfileGeneration();
 }
 
 export function startCodexAudit(rootOverride: string | null, mode: CodexAuditMode) {
@@ -63,7 +66,7 @@ export function startCodexAudit(rootOverride: string | null, mode: CodexAuditMod
     return Promise.resolve(fixtureCodexAuditTask(rootOverride, mode, "succeeded"));
   }
 
-  return invoke<CodexAuditTask>("start_codex_audit", { rootOverride, mode });
+  return desktopApi().audit.start(rootOverride, mode);
 }
 
 export function getCodexAudit() {
@@ -71,7 +74,7 @@ export function getCodexAudit() {
     return Promise.resolve(fixtureCodexAuditTask(null, "curated", "idle"));
   }
 
-  return invoke<CodexAuditTask>("get_codex_audit");
+  return desktopApi().audit.get();
 }
 
 export function cancelCodexAudit() {
@@ -79,7 +82,7 @@ export function cancelCodexAudit() {
     return Promise.resolve(fixtureCodexAuditTask(null, "curated", "cancelled"));
   }
 
-  return invoke<CodexAuditTask>("cancel_codex_audit");
+  return desktopApi().audit.cancel();
 }
 
 export function loadMemoryProfile(rootOverride: string | null = null) {
@@ -87,7 +90,7 @@ export function loadMemoryProfile(rootOverride: string | null = null) {
     return Promise.resolve(fixtureMemoryProfile(rootOverride));
   }
 
-  return invoke<MemoryProfile>("load_memory_profile", { rootOverride });
+  return desktopApi().memory.loadProfile(rootOverride);
 }
 
 export function getSourceExcerpt(
@@ -105,12 +108,7 @@ export function getSourceExcerpt(
     );
   }
 
-  return invoke<string>("get_source_excerpt", {
-    rootOverride,
-    path,
-    startLine,
-    endLine,
-  });
+  return desktopApi().memory.getSourceExcerpt(rootOverride, path, startLine, endLine);
 }
 
 export function draftCorrection(
@@ -126,11 +124,7 @@ export function draftCorrection(
     return Promise.resolve(buildFixtureDraft(rootOverride, slug, content));
   }
 
-  return invoke<CorrectionDraft>("draft_correction", {
-    rootOverride,
-    slug,
-    bulletLines,
-  });
+  return desktopApi().memory.draftCorrection(rootOverride, slug, bulletLines);
 }
 
 export function draftCorrectionFromContent(
@@ -145,11 +139,7 @@ export function draftCorrectionFromContent(
     return Promise.resolve(buildFixtureDraft(rootOverride, slug, normalized));
   }
 
-  return invoke<CorrectionDraft>("draft_correction_from_content", {
-    rootOverride,
-    slug,
-    content,
-  });
+  return desktopApi().memory.draftCorrectionFromContent(rootOverride, slug, content);
 }
 
 export function writeCorrection(rootOverride: string | null, draft: CorrectionDraft) {
@@ -157,7 +147,7 @@ export function writeCorrection(rootOverride: string | null, draft: CorrectionDr
     return Promise.resolve(draft.targetPath);
   }
 
-  return invoke<string>("write_correction", { rootOverride, draft });
+  return desktopApi().memory.writeCorrection(rootOverride, draft);
 }
 
 export function runCodexAudit(rootOverride: string | null, mode: CodexAuditMode) {
@@ -165,7 +155,7 @@ export function runCodexAudit(rootOverride: string | null, mode: CodexAuditMode)
     return Promise.resolve(fixtureCodexAuditRun(rootOverride, mode));
   }
 
-  return invoke<CodexAuditRun>("run_codex_audit", { rootOverride, mode });
+  return desktopApi().audit.run(rootOverride, mode);
 }
 
 export function openSourceFile(path: string) {
@@ -174,7 +164,7 @@ export function openSourceFile(path: string) {
     return Promise.resolve();
   }
 
-  return revealItemInDir(path);
+  return desktopApi().shell.revealSource(path);
 }
 
 export function loadSkillInventory(projectRootOverride: string | null = null) {
@@ -182,7 +172,7 @@ export function loadSkillInventory(projectRootOverride: string | null = null) {
     return Promise.resolve(fixtureSkillInventory);
   }
 
-  return invoke<SkillInventory>("load_skill_inventory", { projectRootOverride });
+  return desktopApi().skills.load(projectRootOverride);
 }
 
 export function loadAgentConfigInventory() {
@@ -190,7 +180,7 @@ export function loadAgentConfigInventory() {
     return Promise.resolve(cloneFixtureAgentInventory());
   }
 
-  return invoke<AgentConfigInventory>("load_agent_config_inventory");
+  return desktopApi().agentConfig.load();
 }
 
 export function loadAgentMemorySnapshot(agent: AgentKind) {
@@ -198,7 +188,7 @@ export function loadAgentMemorySnapshot(agent: AgentKind) {
     return Promise.resolve(fixtureAgentMemorySnapshot(agent));
   }
 
-  return invoke<AgentMemorySnapshot>("load_agent_memory_snapshot", { agent });
+  return desktopApi().memory.loadAgentSnapshot(agent);
 }
 
 export function loadMcpInventory(agent: AgentKind) {
@@ -206,7 +196,7 @@ export function loadMcpInventory(agent: AgentKind) {
     return Promise.resolve(structuredClone(fixtureMcpInventories[agent]));
   }
 
-  return invoke<McpInventory>("load_mcp_inventory", { agent });
+  return desktopApi().mcp.load(agent);
 }
 
 export function saveAgentProviderProfile(input: SaveAgentProfileInput) {
@@ -238,7 +228,7 @@ export function saveAgentProviderProfile(input: SaveAgentProfileInput) {
     return Promise.resolve(inventory);
   }
 
-  return invoke<AgentConfigInventory>("save_agent_provider_profile", { input });
+  return desktopApi().agentConfig.save(input);
 }
 
 export function deleteAgentProviderProfile(agent: AgentKind, profileId: string) {
@@ -251,7 +241,7 @@ export function deleteAgentProviderProfile(agent: AgentKind, profileId: string) 
     return Promise.resolve(inventory);
   }
 
-  return invoke<AgentConfigInventory>("delete_agent_provider_profile", { agent, profileId });
+  return desktopApi().agentConfig.delete(agent, profileId);
 }
 
 export function activateAgentProviderProfile(agent: AgentKind, profileId: string) {
@@ -275,7 +265,7 @@ export function activateAgentProviderProfile(agent: AgentKind, profileId: string
     } satisfies AgentActivationResult);
   }
 
-  return invoke<AgentActivationResult>("activate_agent_provider_profile", { agent, profileId });
+  return desktopApi().agentConfig.activate(agent, profileId);
 }
 
 export function isFixtureMode() {

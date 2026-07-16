@@ -4,32 +4,21 @@
 
 Use this contract when adding an Agent memory adapter, changing native memory
 paths, scanning sources, building read-only profiles, or exposing Memory through
-Tauri. The primary safety rule is that one Agent's sources are never labeled as
+Electron. The primary safety rule is that one Agent's sources are never labeled as
 another Agent's memory.
 
 ## 2. Signatures
 
-```rust
-pub fn default_agent_memory_root(agent: AgentKind) -> PathBuf;
-pub fn resolve_agent_memory_root(
-    agent: AgentKind,
-    override_path: Option<String>,
-) -> PathBuf;
-pub fn scan_agent_sources(
-    agent: AgentKind,
-    root: &Path,
-) -> std::io::Result<Vec<MemorySource>>;
-
-#[tauri::command]
-pub fn load_agent_memory_snapshot(
-    agent: AgentKind,
-) -> Result<AgentMemorySnapshot, String>;
+```ts
+defaultAgentMemoryRoot(agent: AgentKind): string
+scanAgentSources(agent: AgentKind, root: string): Promise<MemorySource[]>
+window.amm.memory.loadAgentSnapshot(agent: AgentKind): Promise<AgentMemorySnapshot>
 ```
 
 Response:
 
-```rust
-AgentMemorySnapshot { agent, writable, scan, profile }
+```ts
+type AgentMemorySnapshot = { agent: AgentKind; writable: boolean; scan: ScanResult; profile: MemoryProfile };
 ```
 
 ## 3. Contracts
@@ -80,14 +69,14 @@ AgentMemorySnapshot { agent, writable, scan, profile }
 
 ### Wrong
 
-```rust
-let sources = scan_sources(&default_memory_root())?;
+```ts
+const sources = await scanSources(defaultMemoryRoot());
 ```
 
 ### Correct
 
-```rust
-let root = resolve_agent_memory_root(agent, None);
-let sources = scan_agent_sources(agent, &root)?;
-let profile = build_memory_profile_without_cache(&root, &sources, &entries, &risks);
+```ts
+const root = defaultAgentMemoryRoot(agent);
+const sources = await scanAgentSources(agent, root);
+const profile = buildMemoryProfileWithoutCache(root, sources, entries, risks);
 ```

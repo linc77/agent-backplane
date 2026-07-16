@@ -5,9 +5,6 @@ export type AppUpdatePhase =
   | "checking"
   | "upToDate"
   | "available"
-  | "downloading"
-  | "installing"
-  | "installed"
   | "error";
 
 export interface AppUpdateInfo {
@@ -21,8 +18,6 @@ export interface AppUpdateState {
   phase: AppUpdatePhase;
   currentVersion: string | null;
   update: AppUpdateInfo | null;
-  downloadedBytes: number;
-  contentLength: number | null;
   error: string | null;
 }
 
@@ -31,18 +26,12 @@ export type AppUpdateAction =
   | { type: "checkStarted" }
   | { type: "upToDate" }
   | { type: "updateAvailable"; update: AppUpdateInfo }
-  | { type: "downloadStarted"; contentLength?: number }
-  | { type: "downloadProgress"; chunkLength: number }
-  | { type: "downloadFinished" }
-  | { type: "installed" }
   | { type: "failed"; error: string };
 
 export const initialAppUpdateState: AppUpdateState = {
   phase: "idle",
   currentVersion: null,
   update: null,
-  downloadedBytes: 0,
-  contentLength: null,
   error: null,
 };
 
@@ -58,8 +47,6 @@ export function appUpdateReducer(
         ...state,
         phase: "checking",
         update: null,
-        downloadedBytes: 0,
-        contentLength: null,
         error: null,
       };
     case "upToDate":
@@ -70,38 +57,11 @@ export function appUpdateReducer(
         phase: "available",
         currentVersion: action.update.currentVersion,
         update: action.update,
-        downloadedBytes: 0,
-        contentLength: null,
         error: null,
       };
-    case "downloadStarted":
-      return {
-        ...state,
-        phase: "downloading",
-        downloadedBytes: 0,
-        contentLength: action.contentLength ?? null,
-        error: null,
-      };
-    case "downloadProgress":
-      return {
-        ...state,
-        phase: "downloading",
-        downloadedBytes: state.downloadedBytes + action.chunkLength,
-      };
-    case "downloadFinished":
-      return { ...state, phase: "installing" };
-    case "installed":
-      return { ...state, phase: "installed", error: null };
     case "failed":
       return { ...state, phase: "error", error: action.error };
   }
-}
-
-export function appUpdateProgress(state: AppUpdateState) {
-  if (!state.contentLength || state.contentLength <= 0) {
-    return null;
-  }
-  return Math.min(100, Math.round((state.downloadedBytes / state.contentLength) * 100));
 }
 
 export function readAutoCheckUpdates(storage: Storage = window.localStorage) {

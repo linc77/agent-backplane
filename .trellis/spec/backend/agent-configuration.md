@@ -4,83 +4,86 @@
 
 ### 1. Scope / Trigger
 
-- Applies to Codex, Claude Code, and Hermes provider profiles exposed by AMM.
-- Read and follow this contract before changing profile persistence, native config adapters, Keychain access, Tauri commands, or the Agent manager UI.
-- AMM owns its catalog, credentials, backups, and managed native fields. It must preserve unrelated native configuration.
+Read this contract before changing Codex, Claude Code, or Hermes profile
+persistence, native adapters, `safeStorage`, backups, IPC, or the Agent manager
+UI. AMM owns managed fields but preserves unrelated native configuration.
 
 ### 2. Signatures
 
-```rust
-load_agent_config_inventory() -> Result<AgentConfigInventory, String>
-save_agent_provider_profile(input: SaveAgentProfileInput) -> Result<AgentConfigInventory, String>
-delete_agent_provider_profile(agent: AgentKind, profile_id: String) -> Result<AgentConfigInventory, String>
-activate_agent_provider_profile(agent: AgentKind, profile_id: String) -> Result<AgentActivationResult, String>
+```ts
+window.amm.agentConfig.load(): Promise<AgentConfigInventory>
+window.amm.agentConfig.save(input: SaveAgentProfileInput): Promise<AgentConfigInventory>
+window.amm.agentConfig.delete(agent: AgentKind, profileId: string): Promise<AgentConfigInventory>
+window.amm.agentConfig.activate(agent: AgentKind, profileId: string): Promise<AgentActivationResult>
 ```
-
-Frontend wrappers use the same command names and camelCase fields. Tauri maps `profileId` to `profile_id`.
 
 ### 3. Contracts
 
 - `AgentKind`: `codex | claudeCode | hermes`.
 - `AgentProtocol`: `responses | anthropicMessages | chatCompletions`.
-- `SaveAgentProfileInput`: `id`, `agent`, `name`, `providerKey`, `baseUrl`, `model`, `protocol`, `official`, `apiKey`, `clearSecret`.
-- `AgentConfigInventory.targets[]` includes installation state, executable/config paths, detected active fields, and redacted profiles.
-- `AgentActivationResult` includes refreshed inventory, optional `backupPath`, and `reloadHint`.
-- AMM catalog: `~/.agent-memory-manager/agent-config-profiles.json`, mode `0600`, no API key fields.
-- Credentials: the native system credential store under service `com.linc.agent-memory-manager.agent-provider`, account is the profile id. This maps to macOS Keychain and Windows Credential Manager.
-- The AMM catalog and frontend never receive plaintext credentials. Activation may materialize a credential in an Agent's native config when that Agent's supported format requires it.
-- Native files: Codex `~/.codex/config.toml`, Claude Code `~/.claude/settings.json`, Hermes `~/.hermes/config.yaml`. Respect `CODEX_HOME`, `CLAUDE_CONFIG_DIR`, and `HERMES_HOME` overrides.
-- Before activation, copy an existing native file below `~/.agent-memory-manager/backups/agent-config/<agent>/` and replace the native file atomically.
+- Catalog: `~/.agent-memory-manager/agent-config-profiles.json`, mode 0600,
+  metadata only.
+- New credentials: Electron `safeStorage` ciphertext in
+  `~/.agent-memory-manager/agent-config-secrets.json`, mode 0600.
+- Rust keyring credentials are intentionally not migrated. Existing profiles
+  stay visible with `hasSecret=false` until the user enters a new key.
+- Secrets never cross IPC. Activation may write a key into an Agent-native
+  format only when that format requires it.
+- Native files: Codex `${CODEX_HOME:-~/.codex}/config.toml`, Claude Code
+  `${CLAUDE_CONFIG_DIR:-~/.claude}/settings.json`, Hermes
+  `${HERMES_HOME:-~/.hermes}/config.yaml`.
+- Activation creates a timestamped backup below
+  `~/.agent-memory-manager/backups/agent-config/<agent>/` and atomically
+  replaces the native file.
 
 ### 4. Validation & Error Matrix
 
 | Condition | Required result |
 |---|---|
-| Empty name/model/provider key | Reject without writing |
-| Custom profile URL lacks `http://` or `https://` | Reject without writing |
-| Codex protocol is not Responses | Reject |
-| Claude Code protocol is not Anthropic Messages | Reject |
-| Codex custom key is `openai`, `ollama`, or `lmstudio` | Reject reserved key |
-| Profile id belongs to another Agent | Reject Agent change |
-| Delete profile matching live native config | Reject until another profile is active |
-| Native JSON/TOML/YAML is invalid | Return parse error; do not overwrite |
-| Keychain operation fails | Return error; never downgrade to catalog plaintext |
+| Empty name/model/provider key | Reject before writing |
+| Custom URL lacks HTTP(S) | Reject before writing |
+| Codex is not Responses | Reject |
+| Claude Code is not Anthropic Messages | Reject |
+| Codex custom key is reserved | Reject |
+| Profile belongs to another Agent | Reject Agent change |
+| Delete profile matching live config | Reject until another profile is active |
+| Native JSON/TOML/YAML is invalid | Parse error; do not overwrite |
+| `safeStorage` unavailable | Reject key save; never downgrade to plaintext |
 
 ### 5. Good / Base / Bad Cases
 
-- Good: Activate a managed Codex gateway; preserve unrelated TOML tables, create a backup, atomically write managed fields, and return a redacted inventory.
-- Base: On first load, import one profile per Agent from existing native files; move discovered native credentials to Keychain and store only `hasSecret` in the response.
-- Bad: Serialize `apiKey` into the AMM catalog or return it to React.
-- Bad: Regenerate an entire Claude/Hermes config and erase hooks, permissions, tools, or unrelated provider entries.
+- Good: activating a managed gateway preserves unrelated fields, backs up the
+  file, atomically writes managed fields, and returns redacted inventory.
+- Base: first load imports metadata for each current native config without
+  importing its embedded API key.
+- Bad: serialize `apiKey` into catalog/inventory or read a legacy key into the
+  new encrypted store automatically.
 
 ### 6. Tests Required
 
-- Rust adapter tests with temporary home directories:
-  - Claude activation preserves unrelated JSON and changes only managed `env` keys.
-  - Codex activation preserves unrelated TOML tables and writes `wire_api = "responses"`.
-  - Hermes activation preserves unrelated YAML/comments and updates `model` plus the selected custom provider.
-  - Catalog text and serialized inventory do not contain fixture secrets.
-  - Invalid profile inputs fail before native writes.
-- Frontend/API tests:
-  - All three Agent targets render and switch.
-  - Activation updates active profile and displays backup/reload feedback.
-  - Desktop wrappers pass exact Tauri command names and arguments.
-  - UI never renders an API key value.
+- Temporary-home tests for all three adapters and unrelated field preservation.
+- Catalog and serialized inventory contain no fixture secrets.
+- Legacy native secrets do not set `hasSecret` in a new Electron store.
+- Invalid profile input fails before native writes.
+- Activation returns backup/reload feedback and updates active state.
+- UI never renders an API key value.
 
 ### 7. Wrong vs Correct
 
 #### Wrong
 
-```rust
-fs::write(config_path, generated_from_profile)?; // destroys unrelated settings; no backup
+```ts
+await writeFile(configPath, generatedFromProfile);
+await writeFile(catalogPath, JSON.stringify({ ...profile, apiKey }));
 ```
 
 #### Correct
 
-```rust
-let next = build_native_config(agent, config_path, profile, secret)?;
-let backup = create_backup(paths, agent, config_path)?;
-atomic_write(config_path, next.as_bytes(), 0o600)?;
+```ts
+const next = await buildNativeConfig(agent, configPath, profile, await secrets.get(profile.id));
+const backupPath = await createBackup(paths, agent, configPath);
+await atomicWrite(configPath, next);
 ```
 
-The adapter must parse the current native document first and mutate only the fields AMM owns.
+Parse the current document first, mutate owned fields only, and keep plaintext
+inside the main process.

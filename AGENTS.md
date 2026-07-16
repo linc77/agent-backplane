@@ -34,10 +34,9 @@ pnpm verify
 ```bash
 pnpm exec vitest run
 pnpm build
-cargo test --manifest-path src-tauri/Cargo.toml -- --nocapture
-cargo check --manifest-path src-tauri/Cargo.toml
+node scripts/verify-profile-cache.mjs --optional
 bash scripts/verify-loop.sh
 git diff --check
 ```
 
-Use `pnpm tauri dev` or a debug bundle for live desktop verification.
+Use `pnpm dev` or `pnpm build:desktop:debug` for live desktop verification.

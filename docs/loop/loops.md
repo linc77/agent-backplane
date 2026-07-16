@@ -4,13 +4,14 @@ Use this index before opening individual loop files. Prefer active records; trea
 
 ## Active
 
-- `docs/loop/issues/2026-06-27-dev-debug-window-visibility.md` — Dev debug app has unique identity but still exposes an abnormal small window, blocking live desktop click verification.
 - `docs/loop/goals/2026-06-09-overnight-optimization.md` — overnight AMM usability optimization goal.
 - `docs/loop/goals/agent-first-harness.md` — repository-level agent-first harness goal.
 
 ## Recent Completed
 
-- `docs/loop/verification/2026-07-16-in-app-updates.md` — added signed in-app updates through global Settings, with startup checks, explicit installation, macOS ARM64 and Windows x64 artifacts, and verified draft metadata.
+- `docs/loop/verification/2026-07-16-electron-migration.md` — replaced Rust/Tauri with a sandboxed TypeScript/Electron runtime, preserved Agent features, added manual GitHub updates, and verified a packaged macOS ARM64 app.
+- `docs/loop/issues/2026-06-27-dev-debug-window-visibility.md` — historical Tauri dev-window issue superseded by the Electron runtime and packaged `app://renderer` verification.
+- `docs/loop/verification/2026-07-16-in-app-updates.md` — historical signed Tauri updater slice, superseded by the Electron 0.2.0 manual-download transition.
 - `docs/loop/verification/2026-07-16-global-agent-context.md` — replaced the top-left brand with one global Codex / Claude Code / Hermes context and scoped Memory, Skills, MCP, and provider configuration to it.
 - `docs/loop/verification/2026-07-16-agent-configuration-console.md` — added a native Codex / Claude Code / Hermes configuration console with Keychain credentials, backups, atomic writes, preservation tests, and browser verification.
 - `docs/loop/verification/2026-07-13-native-skill-discovery.md` — replaced the initial competitor CLI adapter with AMM-owned native Skill discovery, capability/copy identity, snapshot, UI, tests, and live desktop verification.
