@@ -222,7 +222,7 @@ export function buildMemoryProfileWithoutCache(
     generatedAt: isoNow(),
     sourceHash: sourceHash(sources),
     generator: "deterministic-profile-v3",
-    cachePath: join(root, ".amm", "profile.json"),
+    cachePath: join(root, ".backplane", "profile.json"),
     sections: buildSections(current),
     metadata: { memoryRoot: root, inputEntries: entries.length, currentEntries: current.length },
   };
@@ -238,7 +238,7 @@ export async function buildMemoryProfile(root: string, sources: MemorySource[], 
 export async function loadMemoryProfileForRoot(root: string, sources: MemorySource[], entries: MemoryEntry[], risks: RiskFlag[]) {
   const current = currentEntries(sources, entries, risks);
   const hash = sourceHash(sources);
-  const cachePath = join(root, ".amm", "profile.json");
+  const cachePath = join(root, ".backplane", "profile.json");
   try {
     const cached = JSON.parse(await readFile(cachePath, "utf8")) as MemoryProfile;
     const uniqueTitles = new Set(cached.sections?.map((section) => section.title));

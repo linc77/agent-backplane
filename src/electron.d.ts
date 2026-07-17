@@ -1,8 +1,8 @@
-import type { AmmDesktopApi } from "../electron/shared/api";
+import type { BackplaneDesktopApi } from "../electron/shared/api";
 
 declare global {
   interface Window {
-    amm: AmmDesktopApi;
+    backplane: BackplaneDesktopApi;
   }
 }
 

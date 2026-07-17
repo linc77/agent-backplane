@@ -81,7 +81,7 @@ export const demoScanResult: ScanResult = {
 };
 
 export const demoAuditRun: CodexAuditRun = {
-  cachePath: "/demo/.codex/memories/.amm/codex-runs/demo-curated.json",
+  cachePath: "/demo/.codex/memories/.backplane/codex-runs/demo-curated.json",
   report: {
     schemaVersion: "1",
     mode: "curated",
@@ -195,12 +195,12 @@ export const demoMemoryProfile: MemoryProfile = {
   generatedAt: "2026-06-09T00:00:00Z",
   sourceHash: "demo-profile-source-hash",
   generator: "deterministic-profile-v1",
-  cachePath: "/demo/.codex/memories/.amm/profile.json",
+  cachePath: "/demo/.codex/memories/.backplane/profile.json",
   sections: [
     {
       id: "python-rust-is-current-stack",
       title: "你把 Python/Rust 作为当前主栈",
-      body: "当前修正记忆显示，你希望 AMM 优先相信 Python/Rust 是现在的主技术栈。",
+      body: "当前修正记忆显示，你希望 Backplane 优先相信 Python/Rust 是现在的主技术栈。",
       confidence: "high",
       stability: "stable",
       evidence: [

@@ -84,13 +84,13 @@ describe("App browser fixture mode", () => {
     expect(await findByRole("heading", { name: "Settings" })).toBeInTheDocument();
     fireEvent.click(getByRole("button", { name: /Memory/ }));
     expect(await findByPlaceholderText("Search current view...")).toBeInTheDocument();
-    expect(ensureLocalStorage().getItem("agent-memory-manager.locale")).toBe("en-US");
+    expect(ensureLocalStorage().getItem("agent-backplane.locale")).toBe("en-US");
 
     expect(queryByRole("button", { name: "中文" })).not.toBeInTheDocument();
     fireEvent.click(getByRole("button", { name: "Settings" }));
     fireEvent.click(getByRole("button", { name: "中文" }));
     expect(await findByRole("heading", { name: "设置" })).toBeInTheDocument();
-    expect(ensureLocalStorage().getItem("agent-memory-manager.locale")).toBe("zh-CN");
+    expect(ensureLocalStorage().getItem("agent-backplane.locale")).toBe("zh-CN");
   });
 
   it("opens global update settings as a page without invoking native updater APIs", async () => {
@@ -174,7 +174,7 @@ describe("App browser fixture mode", () => {
     expect(await findByText("Claude Code fixture memory is isolated from Codex.")).toBeInTheDocument();
     expect(queryByRole("button", { name: "这不对" })).not.toBeInTheDocument();
     expect(queryByRole("button", { name: "检查" })).not.toBeInTheDocument();
-    expect(ensureLocalStorage().getItem("agent-memory-manager.selected-agent")).toBe(
+    expect(ensureLocalStorage().getItem("agent-backplane.selected-agent")).toBe(
       "claudeCode",
     );
 
@@ -205,7 +205,7 @@ describe("App browser fixture mode", () => {
   });
 
   it("restores the last selected Agent", async () => {
-    ensureLocalStorage().setItem("agent-memory-manager.selected-agent", "hermes");
+    ensureLocalStorage().setItem("agent-backplane.selected-agent", "hermes");
 
     const { findByRole, findByText, queryByRole } = renderFixtureApp();
 

@@ -86,6 +86,6 @@ export async function writeCorrection(root: string, draft: CorrectionDraft) {
     await rm(temporary, { force: true });
     throw error;
   }
-  await rm(join(root, ".amm", "profile.json"), { force: true });
+  await rm(join(root, ".backplane", "profile.json"), { force: true });
   return target;
 }

@@ -5,7 +5,7 @@ export const mainWindowOptions = {
   minHeight: 640,
   center: true,
   show: false,
-  title: "Agent Memory Manager",
+  title: "Agent Backplane",
   webPreferences: {
     contextIsolation: true,
     nodeIntegration: false,

@@ -1,8 +1,8 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { AmmDesktopApi } from "../shared/api";
+import type { BackplaneDesktopApi } from "../shared/api";
 import { channels } from "../shared/channels";
 
-const api: AmmDesktopApi = {
+const api: BackplaneDesktopApi = {
   app: {
     getUpdateState: () => ipcRenderer.invoke(channels.getAppUpdateState),
     checkForUpdates: () => ipcRenderer.invoke(channels.checkAppUpdate),
@@ -61,4 +61,4 @@ const api: AmmDesktopApi = {
   },
 };
 
-contextBridge.exposeInMainWorld("amm", api);
+contextBridge.exposeInMainWorld("backplane", api);

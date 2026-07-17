@@ -17,8 +17,8 @@ import type {
 import { demoAuditRun, demoMemoryProfile, demoScanResult } from "./demoData";
 
 function desktopApi() {
-  if (!window.amm) throw new Error("Electron desktop API is unavailable");
-  return window.amm;
+  if (!window.backplane) throw new Error("Electron desktop API is unavailable");
+  return window.backplane;
 }
 
 export function scanMemories(rootOverride: string | null = null) {
@@ -260,7 +260,7 @@ export function activateAgentProviderProfile(agent: AgentKind, profileId: string
     }
     return Promise.resolve({
       inventory,
-      backupPath: `/Users/demo/.agent-memory-manager/backups/agent-config/${agent}/config.bak`,
+      backupPath: `/Users/demo/.agent-backplane/backups/agent-config/${agent}/config.bak`,
       reloadHint: target?.reloadHint ?? "",
     } satisfies AgentActivationResult);
   }
@@ -283,7 +283,7 @@ function fixtureMemoryProfile(rootOverride: string | null) {
   const root = fixtureRoot(rootOverride);
   return {
     ...demoMemoryProfile,
-    cachePath: `${root}/.amm/profile.json`,
+    cachePath: `${root}/.backplane/profile.json`,
     metadata: {
       ...demoMemoryProfile.metadata,
       memoryRoot: root,
@@ -327,7 +327,7 @@ function fixtureCodexAuditRun(rootOverride: string | null, mode: CodexAuditMode)
   const root = fixtureRoot(rootOverride);
   return {
     ...demoAuditRun,
-    cachePath: `${root}/.amm/codex-runs/demo-${mode}.json`,
+    cachePath: `${root}/.backplane/codex-runs/demo-${mode}.json`,
     report: {
       ...demoAuditRun.report,
       mode,
@@ -404,7 +404,7 @@ function fixtureAgentMemorySnapshot(agent: AgentKind): AgentMemorySnapshot {
       generatedAt: "2026-07-16T02:00:00Z",
       sourceHash: `fixture-${agent}-profile`,
       generator: "deterministic-profile-v3",
-      cachePath: `${root}/.amm/profile.json`,
+      cachePath: `${root}/.backplane/profile.json`,
       sections: [
         {
           id: `fixture-${agent}-section`,
@@ -451,7 +451,7 @@ function buildFixtureDraft(
 const fixtureSkillInventory: SkillInventory = {
   generatedAt: "2026-07-13T00:00:00Z",
   provider: "native-filesystem",
-  snapshotPath: "/Users/demo/.agent-memory-manager/skill-inventory.json",
+  snapshotPath: "/Users/demo/.agent-backplane/skill-inventory.json",
   snapshotError: null,
   capabilityCount: 6,
   copyCount: 7,
@@ -729,7 +729,7 @@ const fixtureMcpInventories: Record<AgentKind, McpInventory> = {
 
 const fixtureAgentInventory: AgentConfigInventory = {
   generatedAt: "2026-07-16T01:20:47Z",
-  catalogPath: "/Users/demo/.agent-memory-manager/agent-config-profiles.json",
+  catalogPath: "/Users/demo/.agent-backplane/agent-config-profiles.json",
   targets: [
     {
       agent: "codex",

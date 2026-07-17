@@ -168,7 +168,7 @@ function inferContentTopics(title: string, body: string) {
   }
   if (
     text.includes("project") ||
-    text.includes("agent-memory-manager") ||
+    text.includes("agent-backplane") ||
     text.includes("beebotos") ||
     text.includes("sub2api") ||
     text.includes("dilidili")

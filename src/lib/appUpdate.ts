@@ -1,4 +1,4 @@
-export const autoCheckUpdatesStorageKey = "agent-memory-manager.auto-check-updates";
+export const autoCheckUpdatesStorageKey = "agent-backplane.auto-check-updates";
 
 export type AppUpdatePhase =
   | "idle"

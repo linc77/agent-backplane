@@ -69,7 +69,7 @@ interface AuditRequest {
 function App() {
   const queryClient = useQueryClient();
   const fixtureMode = isFixtureMode();
-  const nativeUpdaterEnabled = !fixtureMode && Boolean(window.amm);
+  const nativeUpdaterEnabled = !fixtureMode && Boolean(window.backplane);
   const appUpdater = useAppUpdater({ enabled: nativeUpdaterEnabled });
   const [locale, setLocale] = useState<Locale>(() => readStoredLocale());
   const uiText = useMemo(() => getUiText(locale), [locale]);

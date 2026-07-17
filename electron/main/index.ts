@@ -35,8 +35,8 @@ function createMainWindow() {
   }
 }
 
-app.setName("Agent Memory Manager");
-app.setAppUserModelId("com.linc.agent-memory-manager");
+app.setName("Agent Backplane");
+app.setAppUserModelId("com.linc.agent-backplane");
 
 void app.whenReady().then(() => {
   handleAppScheme(join(import.meta.dirname, "../renderer"));

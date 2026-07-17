@@ -8,7 +8,7 @@ const args = process.argv.slice(2);
 const optional = args.includes("--optional");
 const explicitPath = args.find((arg) => !arg.startsWith("--"));
 const cachePath =
-  explicitPath ?? path.join(os.homedir(), ".codex/memories/.amm/profile.json");
+  explicitPath ?? path.join(os.homedir(), ".codex/memories/.backplane/profile.json");
 
 const allowedGenerators = new Set([
   "codex-profile-v1",

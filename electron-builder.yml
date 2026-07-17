@@ -1,6 +1,6 @@
-appId: com.linc.agent-memory-manager
-productName: Agent Memory Manager
-artifactName: Agent-Memory-Manager_${version}_${arch}.${ext}
+appId: com.linc.agent-backplane
+productName: Agent Backplane
+artifactName: Agent-Backplane_${version}_${arch}.${ext}
 directories:
   output: release
 files:

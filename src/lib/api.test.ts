@@ -16,7 +16,7 @@ import {
 const invokeMock = vi.hoisted(() => vi.fn());
 const revealItemInDirMock = vi.hoisted(() => vi.fn());
 
-Object.defineProperty(window, "amm", {
+Object.defineProperty(window, "backplane", {
   configurable: true,
   value: {
     memory: {

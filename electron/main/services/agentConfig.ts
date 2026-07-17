@@ -77,7 +77,7 @@ function string(value: unknown, fallback = "") {
 }
 
 export function defaultAgentConfigPaths(home = homedir()): AgentConfigPaths {
-  const appHome = join(home, ".agent-memory-manager");
+  const appHome = join(home, ".agent-backplane");
   return {
     home,
     catalog: join(appHome, "agent-config-profiles.json"),

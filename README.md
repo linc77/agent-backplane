@@ -1,8 +1,8 @@
-# Agent Memory Manager
+# Agent Backplane
 
-Electron desktop app for understanding and controlling what local Agents know and can do. It keeps Codex, Claude Code, and Hermes contexts separate, inspects Memory, discovers Skills and MCP servers, and manages each Agent's provider profiles.
+**Backplane** is the desktop control plane for understanding and controlling what local Agents know and can do. Agent Backplane keeps Codex, Claude Code, and Hermes contexts separate, inspects Memory, discovers Skills and MCP servers, and manages each Agent's provider profiles.
 
-Skills are discovered directly from native global and project directories. The app groups identical filesystem copies into logical capabilities and writes only a derived snapshot to `~/.agent-memory-manager/skill-inventory.json`.
+Skills are discovered directly from native global and project directories. The app groups identical filesystem copies into logical capabilities and writes only a derived snapshot to `~/.agent-backplane/skill-inventory.json`.
 
 ## Downloads
 

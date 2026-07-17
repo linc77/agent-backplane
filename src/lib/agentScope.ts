@@ -31,7 +31,7 @@ export const agentMeta: Record<
   },
 };
 
-const storageKey = "agent-memory-manager.selected-agent";
+const storageKey = "agent-backplane.selected-agent";
 
 export function isAgentKind(value: unknown): value is AgentKind {
   return typeof value === "string" && agentKinds.includes(value as AgentKind);

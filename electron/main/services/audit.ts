@@ -67,7 +67,7 @@ export async function runCodexAudit(
   const scan = await scanMemories(root);
   const curated = mode === "curated";
   const prompt = curated
-    ? "Analyze this AMM curated memory bundle from stdin. Return only the required current-memory report. Set mode exactly to curated, metadata.memoryRoot exactly to the bundle memoryRoot, and use only supplied evidence references."
+    ? "Analyze this Agent Backplane curated memory bundle from stdin. Return only the required current-memory report. Set mode exactly to curated, metadata.memoryRoot exactly to the bundle memoryRoot, and use only supplied evidence references."
     : `Analyze the Codex memory root in the current working directory. Return only the required current-memory report. Set mode exactly to full and metadata.memoryRoot exactly to ${root}. Cite inspected files and do not write files.`;
   const output = await runCodexExec({
     cwd: curated ? tmpdir() : root,
@@ -87,7 +87,7 @@ export async function runCodexAudit(
   });
   const report = JSON.parse(output) as CodexAuditReport;
   validateReport(report, mode, root, scan.sources);
-  const cachePath = join(root, ".amm", "codex-runs", cacheName(mode));
+  const cachePath = join(root, ".backplane", "codex-runs", cacheName(mode));
   await atomicWrite(cachePath, `${JSON.stringify(report, null, 2)}\n`);
   return { report, cachePath };
 }

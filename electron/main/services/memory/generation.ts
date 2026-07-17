@@ -66,7 +66,7 @@ export async function generateMemoryProfile(rootOverride?: string | null, signal
       schemaPath: schemaPath(),
       signal,
       stdin: JSON.stringify(bundle),
-      prompt: "Analyze this Agent Memory Manager bundle from stdin and return only the Memory Profile JSON. Write natural Chinese, discover durable themes from evidence, use specific observation titles, and never invent evidence paths or line ranges.",
+      prompt: "Analyze this Agent Backplane bundle from stdin and return only the Memory Profile JSON. Write natural Chinese, discover durable themes from evidence, use specific observation titles, and never invent evidence paths or line ranges.",
     });
     const profile = normalizeProfile(JSON.parse(output) as MemoryProfile, base);
     validateProfile(profile, new Set(scan.sources.map((source) => source.relativePath)));

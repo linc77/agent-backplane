@@ -9,7 +9,7 @@ const checkForUpdates = vi.fn();
 const downloadUpdate = vi.fn();
 const installUpdate = vi.fn();
 
-Object.defineProperty(window, "amm", {
+Object.defineProperty(window, "backplane", {
   configurable: true,
   value: { app: { getUpdateState, checkForUpdates, downloadUpdate, installUpdate } },
 });

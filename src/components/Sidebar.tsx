@@ -84,6 +84,14 @@ export function Sidebar({
 
   return (
     <aside className="sidebar">
+      <div aria-label="Agent Backplane" className="brand-lockup">
+        <img alt="" className="brand-logo" src="/agent-backplane-logo.png" />
+        <span className="brand-copy">
+          <small>Agent</small>
+          <strong>Backplane</strong>
+        </span>
+      </div>
+
       <div className="agent-context" ref={selectorRef}>
         <button
           aria-expanded={isAgentMenuOpen}

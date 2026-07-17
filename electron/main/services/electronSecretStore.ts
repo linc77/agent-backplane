@@ -4,7 +4,7 @@ import { safeStorage } from "electron";
 import { EncryptedFileSecretStore } from "./encryptedSecretStore";
 
 export class ElectronSecretStore extends EncryptedFileSecretStore {
-  constructor(path = join(homedir(), ".agent-memory-manager", "agent-config-secrets.json")) {
+  constructor(path = join(homedir(), ".agent-backplane", "agent-config-secrets.json")) {
     super(path, {
       isAvailable: () => safeStorage.isEncryptionAvailable(),
       encrypt: (value) => safeStorage.encryptString(value),

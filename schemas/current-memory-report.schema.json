@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://agent-memory-manager.local/schemas/current-memory-report.schema.json",
+  "$id": "https://agent-backplane.local/schemas/current-memory-report.schema.json",
   "title": "Current Memory Report",
   "type": "object",
   "additionalProperties": false,

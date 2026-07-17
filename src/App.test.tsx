@@ -15,7 +15,7 @@ import type {
 const invokeMock = vi.hoisted(() => vi.fn());
 const revealItemInDirMock = vi.hoisted(() => vi.fn());
 
-Object.defineProperty(window, "amm", {
+Object.defineProperty(window, "backplane", {
   configurable: true,
   value: {
     app: {
@@ -166,7 +166,7 @@ const clarityMemoryProfile: MemoryProfile = {
   generatedAt: "2026-06-09T00:00:00Z",
   sourceHash: "clarity-profile-hash",
   generator: "deterministic-profile-v1",
-  cachePath: "/Users/qsh/.codex/memories/.amm/profile.json",
+  cachePath: "/Users/qsh/.codex/memories/.backplane/profile.json",
   sections: [
     {
       id: "python-rust-current-stack",
@@ -198,7 +198,7 @@ const clarityMemoryProfile: MemoryProfile = {
 };
 
 const auditRun: CodexAuditRun = {
-  cachePath: "/Users/qsh/.codex/memories/.amm/codex-runs/20260608-curated.json",
+  cachePath: "/Users/qsh/.codex/memories/.backplane/codex-runs/20260608-curated.json",
   report: {
     schemaVersion: "1",
     mode: "curated",
@@ -414,6 +414,7 @@ describe("App memory clarity", () => {
       expect(getByRole("heading", { name: "Codex 目前这样理解你" })).toBeInTheDocument(),
     );
     expect(getByRole("button", { name: "记忆" })).toBeInTheDocument();
+    expect(queryByText("Backplane")).toBeInTheDocument();
     expect(queryByRole("button", { name: "检查" })).not.toBeInTheDocument();
     expect(queryByText("复核队列")).not.toBeInTheDocument();
     expect(queryByText("已加载摘要")).not.toBeInTheDocument();
@@ -792,7 +793,7 @@ describe("App memory clarity", () => {
         {
           id: "python-rust-correction-is-current",
           title: "你明确把 Python/Rust 作为当前主栈",
-          body: "修正后画像显示：你希望 AMM 优先相信 Python/Rust，而不是旧的 Java/Spring Boot 描述。",
+          body: "修正后画像显示：你希望 Backplane 优先相信 Python/Rust，而不是旧的 Java/Spring Boot 描述。",
           confidence: "high",
           stability: "stable",
           evidence: [

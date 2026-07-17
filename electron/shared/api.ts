@@ -16,7 +16,7 @@ import type {
 } from "../../src/lib/types";
 import type { AppUpdateState } from "../../src/lib/appUpdate";
 
-export interface AmmDesktopApi {
+export interface BackplaneDesktopApi {
   app: {
     getUpdateState(): Promise<AppUpdateState>;
     checkForUpdates(): Promise<AppUpdateState>;

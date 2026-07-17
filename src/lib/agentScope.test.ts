@@ -10,7 +10,7 @@ describe("Agent scope persistence", () => {
   it("falls back to Codex for missing or invalid values", () => {
     expect(readStoredAgent()).toBe("codex");
 
-    window.localStorage.setItem("agent-memory-manager.selected-agent", "unknown");
+    window.localStorage.setItem("agent-backplane.selected-agent", "unknown");
     expect(readStoredAgent()).toBe("codex");
     expect(isAgentKind("unknown")).toBe(false);
   });

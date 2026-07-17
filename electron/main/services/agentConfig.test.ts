@@ -27,8 +27,8 @@ async function fixture() {
   const home = join(root, "home");
   const paths: AgentConfigPaths = {
     home,
-    catalog: join(home, ".agent-memory-manager", "agent-config-profiles.json"),
-    backupRoot: join(home, ".agent-memory-manager", "backups", "agent-config"),
+    catalog: join(home, ".agent-backplane", "agent-config-profiles.json"),
+    backupRoot: join(home, ".agent-backplane", "backups", "agent-config"),
     codex: join(home, ".codex", "config.toml"),
     claude: join(home, ".claude", "settings.json"),
     hermes: join(home, ".hermes", "config.yaml"),

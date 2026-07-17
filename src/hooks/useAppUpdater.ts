@@ -22,7 +22,7 @@ export function useAppUpdater({ enabled }: { enabled: boolean }) {
   }, []);
 
   const syncState = useCallback(async () => {
-    const state = await window.amm.app.getUpdateState();
+    const state = await window.backplane.app.getUpdateState();
     dispatch({ type: "stateReceived", state });
     return state;
   }, []);
@@ -32,7 +32,7 @@ export function useAppUpdater({ enabled }: { enabled: boolean }) {
     const sequence = ++checkSequenceRef.current;
     dispatch({ type: "checkStarted" });
     try {
-      const state = await window.amm.app.checkForUpdates();
+      const state = await window.backplane.app.checkForUpdates();
       if (sequence !== checkSequenceRef.current) return;
       dispatch({ type: "stateReceived", state });
     } catch (error) {
@@ -45,7 +45,7 @@ export function useAppUpdater({ enabled }: { enabled: boolean }) {
     stopPolling();
     const pollingSequence = ++pollingSequenceRef.current;
     pollingRef.current = window.setInterval(() => {
-      void window.amm.app.getUpdateState()
+      void window.backplane.app.getUpdateState()
         .then((nextState) => {
           if (pollingSequence === pollingSequenceRef.current) {
             dispatch({ type: "stateReceived", state: nextState });
@@ -54,7 +54,7 @@ export function useAppUpdater({ enabled }: { enabled: boolean }) {
         .catch(() => undefined);
     }, 250);
     try {
-      const nextState = await window.amm.app.downloadUpdate();
+      const nextState = await window.backplane.app.downloadUpdate();
       dispatch({ type: "stateReceived", state: nextState });
     } catch (error) {
       dispatch({ type: "failed", error: String(error) });
@@ -67,7 +67,7 @@ export function useAppUpdater({ enabled }: { enabled: boolean }) {
   const installUpdate = useCallback(async () => {
     dispatch({ type: "installStarted" });
     try {
-      await window.amm.app.installUpdate();
+      await window.backplane.app.installUpdate();
     } catch (error) {
       dispatch({ type: "failed", error: String(error) });
     }

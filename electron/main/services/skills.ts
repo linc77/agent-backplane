@@ -226,6 +226,6 @@ export async function buildSkillInventory(roots: SkillRoot[], snapshotPath: stri
 export async function loadSkillInventory(projectRootOverride?: string | null) {
   return buildSkillInventory(
     await defaultSkillRoots(projectRootOverride),
-    join(homedir(), ".agent-memory-manager", "skill-inventory.json"),
+    join(homedir(), ".agent-backplane", "skill-inventory.json"),
   );
 }
