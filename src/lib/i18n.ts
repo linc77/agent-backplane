@@ -1,5 +1,6 @@
 import type { MemoryView } from "./memoryViews";
 import type { MemoryTruthStatus } from "./memoryTruth";
+import type { SkillSemanticCategory } from "./skillCategories";
 import type { CodexAuditMode, MemorySourceKind, MemoryTopic, RiskKind } from "./types";
 
 export type Locale = "zh-CN" | "en-US";
@@ -59,6 +60,10 @@ export interface UiText {
     invalidCopies: string;
     searchPlaceholder: string;
     allTools: string;
+    categoryFilter: string;
+    allCategories: string;
+    categoryNames: Record<SkillSemanticCategory, string>;
+    namespaceNames: Record<string, string>;
     refresh: string;
     loading: string;
     empty: string;
@@ -68,7 +73,6 @@ export interface UiText {
     path: string;
     resolvedPath: string;
     reveal: string;
-    ready: string;
     invalid: string;
     globalScope: string;
     projectScope: string;
@@ -76,8 +80,6 @@ export interface UiText {
     symlink: string;
     snapshot: string;
     scanRoots: string;
-    nameLabel: string;
-    descriptionLabel: string;
     noDescription: string;
     backToAll: string;
     documentation: string;
@@ -92,6 +94,10 @@ export interface UiText {
     saveFailed: (error: string) => string;
     openDetails: (name: string) => string;
     copyCount: (count: number) => string;
+    usageCount: (count: number) => string;
+    usageSummary: (count: number, lastUsed: string, agents: string) => string;
+    todayAt: (time: string) => string;
+    noUsage: string;
   };
   mcp: {
     eyebrow: string;
@@ -382,6 +388,26 @@ const zhCN: UiText = {
     invalidCopies: "异常副本",
     searchPlaceholder: "搜索能力、工具或路径...",
     allTools: "全部工具",
+    categoryFilter: "分类",
+    allCategories: "全部",
+    categoryNames: {
+      writing: "写作",
+      development: "开发",
+      design: "设计",
+      data: "数据处理",
+      automation: "自动化",
+      research: "研究",
+      uncategorized: "未分类",
+    },
+    namespaceNames: {
+      lark: "飞书",
+      github: "GitHub",
+      openai: "OpenAI",
+      notion: "Notion",
+      slack: "Slack",
+      gmail: "Gmail",
+      google: "Google",
+    },
     refresh: "刷新",
     loading: "正在原生扫描 Skill...",
     empty: "没有匹配的能力。",
@@ -391,7 +417,6 @@ const zhCN: UiText = {
     path: "本地路径",
     resolvedPath: "实际位置",
     reveal: "在 Finder 中显示",
-    ready: "正常",
     invalid: "清单异常",
     globalScope: "全局",
     projectScope: "项目",
@@ -399,8 +424,6 @@ const zhCN: UiText = {
     symlink: "软链接",
     snapshot: "Backplane 清单快照",
     scanRoots: "扫描来源",
-    nameLabel: "名称",
-    descriptionLabel: "说明",
     noDescription: "暂无说明",
     backToAll: "返回全部 Skills",
     documentation: "Skill 文档",
@@ -415,6 +438,11 @@ const zhCN: UiText = {
     saveFailed: (error) => `保存失败：${error}`,
     openDetails: (name) => `查看 ${name} 详情`,
     copyCount: (count) => `${count} 份副本`,
+    usageCount: (count) => `使用 ${count} 次`,
+    usageSummary: (count, lastUsed, agents) =>
+      `使用 ${count} 次 · 最近使用于 ${lastUsed} · ${agents}`,
+    todayAt: (time) => `今天 ${time}`,
+    noUsage: "暂无使用记录",
   },
   mcp: {
     eyebrow: "工具连接",
@@ -694,6 +722,26 @@ const enUS: UiText = {
     invalidCopies: "Invalid copies",
     searchPlaceholder: "Search capabilities, tools, or paths...",
     allTools: "All tools",
+    categoryFilter: "Categories",
+    allCategories: "All",
+    categoryNames: {
+      writing: "Writing",
+      development: "Development",
+      design: "Design",
+      data: "Data",
+      automation: "Automation",
+      research: "Research",
+      uncategorized: "Uncategorized",
+    },
+    namespaceNames: {
+      lark: "Lark",
+      github: "GitHub",
+      openai: "OpenAI",
+      notion: "Notion",
+      slack: "Slack",
+      gmail: "Gmail",
+      google: "Google",
+    },
     refresh: "Refresh",
     loading: "Scanning Skills natively...",
     empty: "No matching capabilities.",
@@ -703,7 +751,6 @@ const enUS: UiText = {
     path: "Local path",
     resolvedPath: "Resolved path",
     reveal: "Reveal in Finder",
-    ready: "Ready",
     invalid: "Invalid manifest",
     globalScope: "Global",
     projectScope: "Project",
@@ -711,8 +758,6 @@ const enUS: UiText = {
     symlink: "Symlink",
     snapshot: "Backplane inventory snapshot",
     scanRoots: "Scan roots",
-    nameLabel: "Name",
-    descriptionLabel: "Description",
     noDescription: "No description",
     backToAll: "Back to all Skills",
     documentation: "Skill documentation",
@@ -727,6 +772,11 @@ const enUS: UiText = {
     saveFailed: (error) => `Save failed: ${error}`,
     openDetails: (name) => `View ${name} details`,
     copyCount: (count) => `${count} copies`,
+    usageCount: (count) => `Used ${count} times`,
+    usageSummary: (count, lastUsed, agents) =>
+      `Used ${count} times · Last used ${lastUsed} · ${agents}`,
+    todayAt: (time) => `Today ${time}`,
+    noUsage: "No usage recorded",
   },
   mcp: {
     eyebrow: "Tool connections",

@@ -44,6 +44,7 @@ const api: BackplaneDesktopApi = {
   skills: {
     load: (projectRootOverride = null) =>
       ipcRenderer.invoke(channels.loadSkillInventory, { projectRootOverride }),
+    loadUsage: (targets) => ipcRenderer.invoke(channels.loadSkillUsage, { targets }),
     saveManifest: (input, projectRootOverride = null) =>
       ipcRenderer.invoke(channels.saveSkillManifest, { input, projectRootOverride }),
   },

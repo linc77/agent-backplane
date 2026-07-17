@@ -7,6 +7,7 @@ import {
   loadAgentMemorySnapshot,
   loadMcpInventory,
   loadSkillInventory,
+  loadSkillUsage,
   openSourceFile,
   runCodexAudit,
   scanMemories,
@@ -26,6 +27,7 @@ Object.defineProperty(window, "backplane", {
     },
     skills: {
       load: (projectRootOverride: string | null) => invokeMock("load_skill_inventory", { projectRootOverride }),
+      loadUsage: (targets: unknown) => invokeMock("load_skill_usage", { targets }),
       saveManifest: (input: unknown, projectRootOverride: string | null) =>
         invokeMock("save_skill_manifest", { input, projectRootOverride }),
     },
@@ -79,12 +81,19 @@ describe("fixture API mode", () => {
 
   it("serves deterministic skill inventory without calling Electron IPC", async () => {
     const inventory = await loadSkillInventory();
+    const usage = await loadSkillUsage([{
+      capabilityId: "hash-find-skills",
+      name: "find-skills",
+      manifestPaths: ["/Users/demo/.agents/skills/find-skills/SKILL.md"],
+    }]);
 
     expect(inventory.capabilityCount).toBe(6);
     expect(inventory.copyCount).toBe(7);
     expect(inventory.invalidCount).toBe(1);
     expect(inventory.capabilities.map((capability) => capability.name)).toContain("find-skills");
     expect(inventory.capabilities.find((capability) => capability.name === "find-skills")?.copyCount).toBe(2);
+    expect(usage.summaries[0].totalCount).toBe(3);
+    expect(usage.summaries[0].agentCounts).toEqual({ codex: 2, claudeCode: 1, hermes: 0 });
     expect(invokeMock).not.toHaveBeenCalled();
   });
 
@@ -137,6 +146,19 @@ describe("desktop skill API", () => {
     expect(invokeMock).toHaveBeenCalledWith("load_skill_inventory", {
       projectRootOverride: null,
     });
+  });
+
+  it("invokes the native Skill usage command", async () => {
+    const usage = { generatedAt: "now", scannedSessions: 1, summaries: [] };
+    const targets = [{
+      capabilityId: "demo",
+      name: "demo",
+      manifestPaths: ["/tmp/demo/SKILL.md"],
+    }];
+    invokeMock.mockResolvedValue(usage);
+
+    await expect(loadSkillUsage(targets)).resolves.toBe(usage);
+    expect(invokeMock).toHaveBeenCalledWith("load_skill_usage", { targets });
   });
 
   it("invokes the native Skill save command", async () => {

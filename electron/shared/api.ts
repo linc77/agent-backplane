@@ -14,6 +14,8 @@ import type {
   SaveSkillManifestInput,
   ScanResult,
   SkillInventory,
+  SkillUsageInventory,
+  SkillUsageTarget,
 } from "../../src/lib/types";
 import type { AppUpdateState } from "../../src/lib/appUpdate";
 
@@ -58,6 +60,7 @@ export interface BackplaneDesktopApi {
   };
   skills: {
     load(projectRootOverride?: string | null): Promise<SkillInventory>;
+    loadUsage(targets: SkillUsageTarget[]): Promise<SkillUsageInventory>;
     saveManifest(
       input: SaveSkillManifestInput,
       projectRootOverride?: string | null,

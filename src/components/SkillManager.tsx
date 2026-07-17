@@ -3,11 +3,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ChevronRight, FolderOpen, Pencil, RefreshCw, Save, Search } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { loadSkillInventory, openSourceFile, saveSkillManifest } from "../lib/api";
+import { loadSkillInventory, loadSkillUsage, openSourceFile, saveSkillManifest } from "../lib/api";
 import { agentMeta } from "../lib/agentScope";
 import type { UiText } from "../lib/i18n";
+import { categorizeSkills, type SkillCategory, type SkillSemanticCategory } from "../lib/skillCategories";
 import { projectSkillInventory } from "../lib/skillInventory";
-import type { AgentKind, SkillCapability, SkillCopy } from "../lib/types";
+import type { AgentKind, SkillCapability, SkillCopy, SkillUsageSummary } from "../lib/types";
 
 function matchesCapability(capability: SkillCapability, query: string, tool: string) {
   if (tool && !capability.tools.includes(tool)) {
@@ -36,6 +37,45 @@ function filesystemKind(copy: SkillCopy, uiText: UiText) {
   return copy.filesystemKind === "symlink" ? uiText.skills.symlink : uiText.skills.directory;
 }
 
+function compactSkillPath(path: string) {
+  const normalized = path.replace(/\\/g, "/");
+  const homeRelative = normalized.replace(/^\/Users\/[^/]+/, "~");
+  if (/^~\/\.[^/]+\/skills\//.test(homeRelative)) {
+    return homeRelative;
+  }
+  const segments = homeRelative.split("/").filter(Boolean);
+  return segments.length > 4 ? `…/${segments.slice(-3).join("/")}` : homeRelative;
+}
+
+function categoryLabel(category: SkillCategory, uiText: UiText) {
+  if (category.kind === "namespace") {
+    return uiText.skills.namespaceNames[category.key]
+      ?? category.key.charAt(0).toUpperCase() + category.key.slice(1);
+  }
+  return uiText.skills.categoryNames[category.key as SkillSemanticCategory];
+}
+
+function formatLastUsedAt(value: string, todayAt: (time: string) => string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const today = new Date();
+  const time = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(date);
+  if (date.toDateString() === today.toDateString()) return todayAt(time);
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function formatAgentUsage(usage: SkillUsageSummary) {
+  return (["codex", "claudeCode", "hermes"] as AgentKind[])
+    .filter((agent) => usage.agentCounts[agent] > 0)
+    .map((agent) => `${agentMeta[agent].label} ${usage.agentCounts[agent]}`)
+    .join(" / ");
+}
+
 export function SkillManager({
   selectedAgent,
   uiText,
@@ -45,6 +85,7 @@ export function SkillManager({
 }) {
   const [query, setQuery] = useState("");
   const [tool, setTool] = useState("");
+  const [category, setCategory] = useState("");
   const [selectedId, setSelectedId] = useState<string>();
   const [selectedCopyId, setSelectedCopyId] = useState<string>();
   const [isEditing, setIsEditing] = useState(false);
@@ -64,10 +105,32 @@ export function SkillManager({
         : undefined,
     [inventoryQuery.data, selectedAgent],
   );
+  const usageTargets = useMemo(
+    () => (inventory?.capabilities ?? []).map((capability) => ({
+      capabilityId: capability.id,
+      name: capability.name,
+      manifestPaths: Array.from(new Set(capability.copies.flatMap((copy) => [
+        copy.manifestPath,
+        `${copy.resolvedPath.replace(/[\\/]$/, "")}/SKILL.md`,
+      ]))),
+    })),
+    [inventory?.capabilities],
+  );
+  const usageQuery = useQuery({
+    queryKey: ["skill-usage", selectedAgent, usageTargets],
+    queryFn: () => loadSkillUsage(usageTargets),
+    enabled: usageTargets.length > 0,
+    refetchInterval: 30_000,
+  });
+  const usageByCapability = useMemo(
+    () => new Map(usageQuery.data?.summaries.map((usage) => [usage.capabilityId, usage]) ?? []),
+    [usageQuery.data?.summaries],
+  );
 
   useEffect(() => {
     setQuery("");
     setTool("");
+    setCategory("");
     setSelectedId(undefined);
     setSelectedCopyId(undefined);
     setIsEditing(false);
@@ -83,18 +146,28 @@ export function SkillManager({
       ).sort(),
     [inventory?.capabilities],
   );
+  const categoryIndex = useMemo(
+    () => categorizeSkills(inventory?.capabilities ?? []),
+    [inventory?.capabilities],
+  );
   const capabilities = useMemo(
     () =>
-      (inventory?.capabilities ?? []).filter((capability) =>
-        matchesCapability(capability, query, tool),
-      ),
-    [inventory?.capabilities, query, tool],
+      (inventory?.capabilities ?? []).filter((capability) => {
+        if (category && categoryIndex.categoryByCapability.get(capability.id) !== category) {
+          return false;
+        }
+        return matchesCapability(capability, query, tool);
+      }),
+    [category, categoryIndex, inventory?.capabilities, query, tool],
   );
   const selectedCapability = inventory?.capabilities.find(
     (capability) => capability.id === selectedId,
   );
   const selectedCopy = selectedCapability?.copies.find((copy) => copy.id === selectedCopyId)
     ?? selectedCapability?.copies[0];
+  const selectedUsage = selectedCapability
+    ? usageByCapability.get(selectedCapability.id)
+    : undefined;
   const activeRoots = inventory?.roots.filter((root) => root.exists) ?? [];
 
   function openCapability(id: string) {
@@ -209,11 +282,42 @@ export function SkillManager({
             </select>
           </div>
 
+          <nav className="skill-category-list" aria-label={uiText.skills.categoryFilter}>
+            <button
+              aria-label={`${uiText.skills.allCategories} ${inventory.capabilityCount}`}
+              aria-pressed={!category}
+              className={!category ? "active" : ""}
+              onClick={() => setCategory("")}
+              type="button"
+            >
+              {uiText.skills.allCategories}
+              <span>{inventory.capabilityCount}</span>
+            </button>
+            {categoryIndex.categories.map((item) => {
+              const label = categoryLabel(item, uiText);
+              return (
+                <button
+                  aria-label={`${label} ${item.count}`}
+                  aria-pressed={category === item.id}
+                  className={category === item.id ? "active" : ""}
+                  key={item.id}
+                  onClick={() => setCategory(item.id)}
+                  type="button"
+                >
+                  {label}
+                  <span>{item.count}</span>
+                </button>
+              );
+            })}
+          </nav>
+
           {inventory.snapshotError && <div className="audit-error">{inventory.snapshotError}</div>}
 
           <section className="skill-grid">
-            {capabilities.map((capability) => (
-              <button
+            {capabilities.map((capability) => {
+              const usage = usageByCapability.get(capability.id);
+              return (
+                <button
                 aria-label={uiText.skills.openDetails(capability.name)}
                 className="skill-card"
                 key={capability.id}
@@ -228,15 +332,25 @@ export function SkillManager({
                   {capability.description || uiText.skills.noDescription}
                 </span>
                 <span className="skill-card-footer">
-                  <span>{capability.tools.join(" · ")}</span>
-                  <em className={capability.health === "invalid" ? "invalid" : ""}>
-                    {capability.health === "invalid"
-                      ? uiText.skills.invalid
-                      : uiText.skills.copyCount(capability.copyCount)}
-                  </em>
+                  <span title={capability.copies[0].path}>
+                    {compactSkillPath(capability.copies[0].path)}
+                  </span>
+                  <span className="skill-card-footer-meta">
+                    {usage && usage.totalCount > 0 && (
+                      <span>{uiText.skills.usageCount(usage.totalCount)}</span>
+                    )}
+                    {(capability.health === "invalid" || capability.copyCount > 1) && (
+                      <em className={capability.health === "invalid" ? "invalid" : ""}>
+                        {capability.health === "invalid"
+                          ? uiText.skills.invalid
+                          : uiText.skills.copyCount(capability.copyCount)}
+                      </em>
+                    )}
+                  </span>
                 </span>
-              </button>
-            ))}
+                </button>
+              );
+            })}
             {!capabilities.length && <div className="skill-state">{uiText.skills.empty}</div>}
           </section>
         </>
@@ -283,42 +397,6 @@ export function SkillManager({
               ))}
             </div>
           </section>
-
-          <header className="skill-detail-header">
-            <div className="skill-detail-content">
-              <div className="skill-detail-field">
-                <span>{uiText.skills.nameLabel}</span>
-                <h2>{selectedCapability.name}</h2>
-              </div>
-              <div className="skill-detail-field">
-                <span>{uiText.skills.descriptionLabel}</span>
-                <p>{selectedCapability.description || uiText.skills.noDescription}</p>
-              </div>
-            </div>
-            <aside className="skill-detail-facts">
-              <span
-                className={
-                  selectedCapability.health === "invalid"
-                    ? "status-pill invalid"
-                    : "status-pill"
-                }
-              >
-                {selectedCapability.health === "invalid"
-                  ? uiText.skills.invalid
-                  : uiText.skills.ready}
-              </span>
-              <dl>
-                <div>
-                  <dt>{uiText.skills.tools}</dt>
-                  <dd>{selectedCapability.tools.join(", ")}</dd>
-                </div>
-                <div>
-                  <dt>{uiText.skills.copyLocations}</dt>
-                  <dd>{uiText.skills.copyCount(selectedCapability.copyCount)}</dd>
-                </div>
-              </dl>
-            </aside>
-          </header>
 
           <article className="skill-markdown-panel">
             <header className="skill-markdown-toolbar">
@@ -384,22 +462,37 @@ export function SkillManager({
                 spellCheck={false}
                 value={draftSource}
               />
-            ) : selectedCapability.markdown ? (
-              <div className="skill-markdown">
-                <ReactMarkdown
-                  components={{
-                    a: ({ children, href }) => (
-                      <span className="skill-markdown-link" title={href}>{children}</span>
-                    ),
-                    img: ({ alt }) => alt ? <span className="skill-markdown-image">{alt}</span> : null,
-                  }}
-                  remarkPlugins={[remarkGfm]}
-                >
-                  {selectedCapability.markdown}
-                </ReactMarkdown>
-              </div>
             ) : (
-              <div className="skill-state">{uiText.skills.noDocumentation}</div>
+              <div className="skill-markdown">
+                <h1 className="skill-document-name">{selectedCapability.name}</h1>
+                <p className="skill-document-description">
+                  {selectedCapability.description || uiText.skills.noDescription}
+                </p>
+                <p className="skill-usage-summary">
+                  {selectedUsage && selectedUsage.totalCount > 0 && selectedUsage.lastUsedAt
+                    ? uiText.skills.usageSummary(
+                        selectedUsage.totalCount,
+                        formatLastUsedAt(selectedUsage.lastUsedAt, uiText.skills.todayAt),
+                        formatAgentUsage(selectedUsage),
+                      )
+                    : uiText.skills.noUsage}
+                </p>
+                {selectedCapability.markdown ? (
+                  <ReactMarkdown
+                    components={{
+                      a: ({ children, href }) => (
+                        <span className="skill-markdown-link" title={href}>{children}</span>
+                      ),
+                      img: ({ alt }) => alt ? <span className="skill-markdown-image">{alt}</span> : null,
+                    }}
+                    remarkPlugins={[remarkGfm]}
+                  >
+                    {selectedCapability.markdown}
+                  </ReactMarkdown>
+                ) : (
+                  <div className="skill-state">{uiText.skills.noDocumentation}</div>
+                )}
+              </div>
             )}
             {saveError && <p className="skill-save-status error">{saveError}</p>}
             {saveMessage && <p className="skill-save-status success">{saveMessage}</p>}

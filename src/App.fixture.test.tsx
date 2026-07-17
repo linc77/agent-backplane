@@ -126,23 +126,34 @@ describe("App browser fixture mode", () => {
     expect(await findByRole("button", { name: "查看 find-skills 详情" })).toBeInTheDocument();
     expect(queryByRole("heading", { name: "Skill 文档" })).not.toBeInTheDocument();
     expect(getAllByText("2 份副本").length).toBeGreaterThan(0);
+    expect(queryByText("1 份副本")).not.toBeInTheDocument();
+    expect(getAllByText("~/.agents/skills/find-skills").length).toBeGreaterThan(0);
+    expect(await findByText("使用 3 次")).toBeInTheDocument();
     expect(getAllByText("Codex").length).toBeGreaterThan(0);
+    expect(await findByRole("navigation", { name: "分类" })).toBeInTheDocument();
+    fireEvent.click(await findByRole("button", { name: "研究 1" }));
+    expect(await findByRole("button", { name: "查看 find-skills 详情" })).toBeInTheDocument();
+    expect(queryByRole("button", { name: "查看 diagnose 详情" })).not.toBeInTheDocument();
+    fireEvent.click(await findByRole("button", { name: "全部 4" }));
 
     fireEvent.click(await findByRole("button", { name: "查看 find-skills 详情" }));
     expect(await findByRole("heading", { name: "find-skills" })).toBeInTheDocument();
     const locations = container.querySelector(".skill-locations");
-    const detailHeader = container.querySelector(".skill-detail-header");
+    const markdownPanel = container.querySelector(".skill-markdown-panel");
     expect(locations).not.toBeNull();
-    expect(detailHeader).not.toBeNull();
-    if (!locations || !detailHeader) {
+    expect(markdownPanel).not.toBeNull();
+    if (!locations || !markdownPanel) {
       throw new Error("Expected Skill detail sections");
     }
     expect(
-      locations.compareDocumentPosition(detailHeader) & Node.DOCUMENT_POSITION_FOLLOWING,
+      locations.compareDocumentPosition(markdownPanel) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    expect(queryByText("名称")).toBeInTheDocument();
-    expect(queryByText("说明")).toBeInTheDocument();
+    expect(queryByText("名称")).not.toBeInTheDocument();
+    expect(queryByText("说明")).not.toBeInTheDocument();
+    expect(queryByText("正常")).not.toBeInTheDocument();
+    expect(queryByText("可见工具")).not.toBeInTheDocument();
     expect(queryByText("Discover installable agent skills.")).toBeInTheDocument();
+    expect(queryByText(/使用 3 次.*Codex 2.*Claude Code 1/)).toBeInTheDocument();
     expect(await findByRole("heading", { name: "Skill 文档" })).toBeInTheDocument();
     expect(await findByRole("heading", { name: "Find Skills" })).toBeInTheDocument();
     expect(await findByRole("combobox", { name: "编辑副本" })).toBeInTheDocument();
@@ -162,7 +173,7 @@ describe("App browser fixture mode", () => {
     fireEvent.click(await findByRole("button", { name: "返回全部 Skills" }));
 
     fireEvent.click(await findByRole("button", { name: "查看 broken-skill 详情" }));
-    expect(getAllByText("清单异常").length).toBeGreaterThan(0);
+    expect(await findByText("Missing YAML frontmatter")).toBeInTheDocument();
     fireEvent.click(await findByRole("button", { name: "返回全部 Skills" }));
     expect(queryByText(/SkillManager/)).not.toBeInTheDocument();
     expect(queryByRole("separator", { name: "调整依据栏宽度" })).not.toBeInTheDocument();

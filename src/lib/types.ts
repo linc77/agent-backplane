@@ -259,6 +259,26 @@ export interface SaveSkillManifestInput {
 }
 
 export type AgentKind = "codex" | "claudeCode" | "hermes";
+
+export interface SkillUsageTarget {
+  capabilityId: string;
+  name: string;
+  manifestPaths: string[];
+}
+
+export interface SkillUsageSummary {
+  capabilityId: string;
+  totalCount: number;
+  lastUsedAt: string | null;
+  agentCounts: Record<AgentKind, number>;
+}
+
+export interface SkillUsageInventory {
+  generatedAt: string;
+  scannedSessions: number;
+  summaries: SkillUsageSummary[];
+}
+
 export type AgentProtocol = "responses" | "anthropicMessages" | "chatCompletions";
 export type AgentProfileSource = "imported" | "managed";
 

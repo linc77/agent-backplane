@@ -14,6 +14,8 @@ import type {
   SaveAgentProfileInput,
   SaveSkillManifestInput,
   SkillInventory,
+  SkillUsageInventory,
+  SkillUsageTarget,
 } from "./types";
 import { demoAuditRun, demoMemoryProfile, demoScanResult } from "./demoData";
 
@@ -174,6 +176,22 @@ export function loadSkillInventory(projectRootOverride: string | null = null) {
   }
 
   return desktopApi().skills.load(projectRootOverride);
+}
+
+export function loadSkillUsage(targets: SkillUsageTarget[]) {
+  if (isFixtureMode()) {
+    const summaries = targets.map((target) => fixtureSkillUsage.summaries.find(
+      (summary) => summary.capabilityId === target.capabilityId,
+    ) ?? {
+      capabilityId: target.capabilityId,
+      totalCount: 0,
+      lastUsedAt: null,
+      agentCounts: { codex: 0, claudeCode: 0, hermes: 0 },
+    });
+    return Promise.resolve({ ...structuredClone(fixtureSkillUsage), summaries });
+  }
+
+  return desktopApi().skills.loadUsage(targets);
 }
 
 export function saveSkillManifest(
@@ -691,6 +709,31 @@ const fixtureSkillInventory: SkillInventory = {
           contentHash: "hash-hermes-helper",
         },
       ],
+    },
+  ],
+};
+
+const fixtureSkillUsage: SkillUsageInventory = {
+  generatedAt: "2026-07-17T02:42:00Z",
+  scannedSessions: 12,
+  summaries: [
+    {
+      capabilityId: "hash-find-skills",
+      totalCount: 3,
+      lastUsedAt: "2026-07-17T02:42:00Z",
+      agentCounts: { codex: 2, claudeCode: 1, hermes: 0 },
+    },
+    {
+      capabilityId: "hash-claude-helper",
+      totalCount: 1,
+      lastUsedAt: "2026-07-16T08:20:00Z",
+      agentCounts: { codex: 0, claudeCode: 1, hermes: 0 },
+    },
+    {
+      capabilityId: "hash-hermes-helper",
+      totalCount: 2,
+      lastUsedAt: "2026-07-15T05:10:00Z",
+      agentCounts: { codex: 0, claudeCode: 0, hermes: 2 },
     },
   ],
 };
