@@ -1,6 +1,6 @@
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { draftCorrection, draftRevert, getSourceExcerpt, writeCorrection } from "./correction";
 import { parseEntries } from "./parser";
@@ -14,6 +14,10 @@ async function temporaryRoot() {
   return root;
 }
 
+function relativeMemoryPath(root: string, path: string) {
+  return relative(root, path).split(sep).join("/");
+}
+
 describe("memory changes", () => {
   it("writes a targeted Codex change that remains machine-readable", async () => {
     const root = await temporaryRoot();
@@ -22,7 +26,7 @@ describe("memory changes", () => {
     ]);
     const result = await writeCorrection(root, draft);
     const text = await readFile(result.path, "utf8");
-    const [entry] = parseEntries(result.path.split(`${root}/`)[1], text);
+    const [entry] = parseEntries(relativeMemoryPath(root, result.path), text);
 
     expect(dirname(result.path)).toBe(join(root, "extensions", "ad_hoc", "notes"));
     expect(entry.change).toMatchObject({ operation: "replace", targetEntryIds: ["profile-old"] });
@@ -57,7 +61,12 @@ describe("memory changes", () => {
       { entryId: "old", sourcePath: "MEMORY.md" },
     ]);
     await writeCorrection(root, correction);
-    const revert = await draftRevert("codex", root, correction.change, correction.targetPath.split(`${root}/`)[1]);
+    const revert = await draftRevert(
+      "codex",
+      root,
+      correction.change,
+      relativeMemoryPath(root, correction.targetPath),
+    );
     const result = await writeCorrection(root, revert);
     expect((await readFile(result.path, "utf8"))).toContain(`"revertsChangeId":"${correction.change.id}"`);
   });
