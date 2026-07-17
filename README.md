@@ -6,7 +6,7 @@ Skills are discovered directly from native global and project directories. The a
 
 ## Downloads
 
-Installers are published on [GitHub Releases](https://github.com/linc77/agent-memory-manager/releases/latest):
+Installers are published on [GitHub Releases](https://github.com/linc77/agent-backplane/releases/latest):
 
 - macOS Apple Silicon: `.dmg`
 - Windows x64: NSIS `.exe`

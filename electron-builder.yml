@@ -36,4 +36,4 @@ nsis:
 publish:
   provider: github
   owner: linc77
-  repo: agent-memory-manager
+  repo: agent-backplane
