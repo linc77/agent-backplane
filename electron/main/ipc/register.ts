@@ -5,10 +5,10 @@ import type { ZodType } from "zod";
 import { channels } from "../../shared/channels";
 import {
   agentInputSchema,
-  auditInputSchema,
   draftCorrectionFromContentSchema,
   draftCorrectionSchema,
   draftRevertSchema,
+  memoryProfileInputSchema,
   profileIdInputSchema,
   revealSourceSchema,
   rootOverrideSchema,
@@ -21,13 +21,11 @@ import {
 } from "../../shared/validation";
 import { createAgentConfigService, defaultAgentConfigPaths } from "../services/agentConfig";
 import { createAppUpdaterService, type AppUpdaterService } from "../services/appUpdater";
-import { cancelCodexAudit, getCodexAudit, runCodexAudit, startCodexAudit } from "../services/audit";
 import { ElectronSecretStore } from "../services/electronSecretStore";
-import { loadAgentMemorySnapshot, loadMemoryProfile, scanMemories } from "../services/memory";
+import { loadAgentMemorySnapshot, scanMemories } from "../services/memory";
 import { draftCorrection, draftCorrectionFromContent, draftRevert, getSourceExcerpt, writeCorrection } from "../services/memory/correction";
 import {
   cancelProfileGeneration,
-  generateMemoryProfile,
   getProfileGeneration,
   startProfileGeneration,
 } from "../services/memory/generation";
@@ -96,10 +94,8 @@ export function registerIpcHandlers(window: BrowserWindow, developmentOrigin?: s
   });
   handle(channels.scanMemories, rootOverrideSchema, window, developmentOrigin, ({ rootOverride }) =>
     scanMemories(rootOverride));
-  handle(channels.loadMemoryProfile, rootOverrideSchema, window, developmentOrigin, ({ rootOverride }) =>
-    loadMemoryProfile(rootOverride));
-  handle(channels.loadAgentMemorySnapshot, agentInputSchema, window, developmentOrigin, ({ agent }) =>
-    loadAgentMemorySnapshot(agent));
+  handle(channels.loadAgentMemorySnapshot, memoryProfileInputSchema, window, developmentOrigin, ({ agent, locale }) =>
+    loadAgentMemorySnapshot(agent, locale));
   handle(channels.loadSkillInventory, skillInputSchema, window, developmentOrigin, ({ projectRootOverride }) =>
     loadSkillInventory(projectRootOverride));
   handle(channels.loadSkillUsage, skillUsageInputSchema, window, developmentOrigin, ({ targets }) =>
@@ -108,10 +104,8 @@ export function registerIpcHandlers(window: BrowserWindow, developmentOrigin?: s
     saveSkillManifest(input, projectRootOverride));
   handle(channels.loadMcpInventory, agentInputSchema, window, developmentOrigin, ({ agent }) =>
     loadMcpInventory(agent));
-  handle(channels.generateMemoryProfile, rootOverrideSchema, window, developmentOrigin, ({ rootOverride }) =>
-    generateMemoryProfile(rootOverride));
-  handle(channels.startMemoryProfileGeneration, rootOverrideSchema, window, developmentOrigin, ({ rootOverride }) =>
-    startProfileGeneration(rootOverride));
+  handle(channels.startMemoryProfileGeneration, memoryProfileInputSchema, window, developmentOrigin, ({ agent, locale }) =>
+    startProfileGeneration(agent, locale));
   ipcMain.handle(channels.getMemoryProfileGeneration, (event) => {
     assertTrustedSender(event, window, developmentOrigin);
     return getProfileGeneration();
@@ -130,18 +124,6 @@ export function registerIpcHandlers(window: BrowserWindow, developmentOrigin?: s
     draftRevert(input.agent, resolveAgentMemoryRoot(input.agent, input.rootOverride), input.change, input.sourcePath));
   handle(channels.writeCorrection, writeCorrectionSchema, window, developmentOrigin, (input) =>
     writeCorrection(resolveAgentMemoryRoot(input.draft.agent, input.rootOverride), input.draft));
-  handle(channels.startCodexAudit, auditInputSchema, window, developmentOrigin, ({ rootOverride, mode }) =>
-    startCodexAudit(rootOverride, mode));
-  ipcMain.handle(channels.getCodexAudit, (event) => {
-    assertTrustedSender(event, window, developmentOrigin);
-    return getCodexAudit();
-  });
-  ipcMain.handle(channels.cancelCodexAudit, (event) => {
-    assertTrustedSender(event, window, developmentOrigin);
-    return cancelCodexAudit();
-  });
-  handle(channels.runCodexAudit, auditInputSchema, window, developmentOrigin, ({ rootOverride, mode }) =>
-    runCodexAudit(rootOverride, mode));
   ipcMain.handle(channels.loadAgentConfigInventory, (event) => {
     assertTrustedSender(event, window, developmentOrigin);
     return agentConfig.load();

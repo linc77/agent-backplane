@@ -9,7 +9,6 @@ import {
   loadSkillInventory,
   loadSkillUsage,
   openSourceFile,
-  runCodexAudit,
   scanMemories,
   saveSkillManifest,
   writeCorrection,
@@ -23,7 +22,8 @@ Object.defineProperty(window, "backplane", {
   value: {
     memory: {
       scan: (rootOverride: string | null) => invokeMock("scan_memories", { rootOverride }),
-      loadAgentSnapshot: (agent: string) => invokeMock("load_agent_memory_snapshot", { agent }),
+      loadAgentSnapshot: (agent: string, locale: string) =>
+        invokeMock("load_agent_memory_snapshot", { agent, locale }),
     },
     skills: {
       load: (projectRootOverride: string | null) => invokeMock("load_skill_inventory", { projectRootOverride }),
@@ -60,8 +60,7 @@ describe("fixture API mode", () => {
     expect(invokeMock).not.toHaveBeenCalled();
   });
 
-  it("serves audit and correction commands without calling Electron IPC", async () => {
-    const audit = await runCodexAudit("/tmp/demo-memory", "full");
+  it("serves correction commands without calling Electron IPC", async () => {
     const draft = await draftCorrectionFromContent(
       "codex",
       "/tmp/demo-memory",
@@ -72,8 +71,6 @@ describe("fixture API mode", () => {
     const written = await writeCorrection("/tmp/demo-memory", draft);
     await openSourceFile("/tmp/demo-memory/MEMORY.md");
 
-    expect(audit.report.mode).toBe("full");
-    expect(audit.report.metadata.memoryRoot).toBe("/tmp/demo-memory");
     expect(draft.slug).toBe("clarify-stack");
     expect(draft.content).toContain("Memory update request:");
     expect(written.path).toBe(draft.targetPath);
@@ -115,15 +112,16 @@ describe("fixture API mode", () => {
   });
 
   it("keeps fixture memory and MCP inventories isolated by Agent", async () => {
-    const claudeMemory = await loadAgentMemorySnapshot("claudeCode");
-    const hermesMemory = await loadAgentMemorySnapshot("hermes");
+    const claudeMemory = await loadAgentMemorySnapshot("claudeCode", "zh-CN");
+    const hermesMemory = await loadAgentMemorySnapshot("hermes", "zh-CN");
     const codexMcp = await loadMcpInventory("codex");
     const claudeMcp = await loadMcpInventory("claudeCode");
 
     expect(claudeMemory.writable).toBe(true);
-    expect(claudeMemory.profile.sections[0].body).toContain("Claude Code");
-    expect(claudeMemory.profile.sections[0].body).not.toContain("Hermes");
-    expect(hermesMemory.profile.sections[0].body).toContain("Hermes");
+    expect(claudeMemory.profile?.sections[0].body).toContain("Claude Code");
+    expect(claudeMemory.profile?.sections[0].body).not.toContain("Hermes");
+    expect(hermesMemory.profile?.sections[0].body).toContain("Hermes");
+    expect(claudeMemory.profile?.generator).toBe("codex-profile-v3");
     expect(codexMcp.servers.map((server) => server.name)).toEqual(["context7"]);
     expect(claudeMcp.servers.map((server) => server.name)).toEqual(["drawio"]);
     expect(JSON.stringify([codexMcp, claudeMcp])).not.toContain("sk-");
@@ -198,10 +196,11 @@ describe("desktop skill API", () => {
     const mcp = { agent: "claudeCode", servers: [] };
     invokeMock.mockResolvedValueOnce(memory).mockResolvedValueOnce(mcp);
 
-    await expect(loadAgentMemorySnapshot("claudeCode")).resolves.toBe(memory);
+    await expect(loadAgentMemorySnapshot("claudeCode", "en-US")).resolves.toBe(memory);
     await expect(loadMcpInventory("claudeCode")).resolves.toBe(mcp);
     expect(invokeMock).toHaveBeenNthCalledWith(1, "load_agent_memory_snapshot", {
       agent: "claudeCode",
+      locale: "en-US",
     });
     expect(invokeMock).toHaveBeenNthCalledWith(2, "load_mcp_inventory", {
       agent: "claudeCode",

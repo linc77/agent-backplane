@@ -2,7 +2,6 @@ import { resolveMemoryTruth, truthSourcePriority } from "./memoryTruth";
 import type { MemoryEntry, MemorySource, MemorySourceKind, ScanResult } from "./types";
 
 export type MemoryView =
-  | "overview"
   | "effective"
   | "summary"
   | "registry"
@@ -15,8 +14,7 @@ export type MemoryView =
   | "agentManager"
   | "mcpManager"
   | "settings"
-  | "allSources"
-  | "audit";
+  | "allSources";
 
 export const sourcePriority: MemorySourceKind[] = truthSourcePriority;
 
@@ -58,14 +56,8 @@ export function memoryViewCount(view: MemoryView, scan?: ScanResult) {
   const sources = scan?.sources ?? [];
   const truth = resolveMemoryTruth(scan);
 
-  if (view === "overview") {
-    return undefined;
-  }
   if (view === "effective") {
     return truth.current.length;
-  }
-  if (view === "audit") {
-    return undefined;
   }
   if (isSourceView(view)) {
     const kinds = sourceKindsForView(view);

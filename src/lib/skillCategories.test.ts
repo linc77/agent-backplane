@@ -17,21 +17,20 @@ function capability(name: string, description = ""): SkillCapability {
 }
 
 describe("categorizeSkills", () => {
-  it("recognizes known namespaces and repeated prefixes", () => {
+  it("recognizes known and repeated prefixes", () => {
     const result = categorizeSkills([
       capability("lark-doc-create"),
       capability("lark-message-send"),
       capability("acme-read"),
       capability("acme-write"),
-      capability("acme-sync"),
     ]);
 
-    expect(result.categoryByCapability.get("lark-doc-create")).toBe("namespace:lark");
-    expect(result.categoryByCapability.get("acme-read")).toBe("namespace:acme");
-    expect(result.categories.find((category) => category.id === "namespace:acme")?.count).toBe(3);
+    expect(result.categoryByCapability.get("lark-doc-create")).toBe("prefix:lark");
+    expect(result.categoryByCapability.get("acme-read")).toBe("prefix:acme");
+    expect(result.categories.find((category) => category.id === "prefix:acme")?.count).toBe(2);
   });
 
-  it("keeps action prefixes semantic and leaves unknown skills uncategorized", () => {
+  it("does not infer semantic categories or group action prefixes", () => {
     const result = categorizeSkills([
       capability("write-thesis-references"),
       capability("write-blog-post"),
@@ -40,8 +39,7 @@ describe("categorizeSkills", () => {
       capability("custom-helper"),
     ]);
 
-    expect(result.categoryByCapability.get("write-thesis-references")).toBe("semantic:writing");
-    expect(result.categoryByCapability.get("diagnose")).toBe("semantic:development");
-    expect(result.categoryByCapability.get("custom-helper")).toBe("semantic:uncategorized");
+    expect(result.categoryByCapability.size).toBe(0);
+    expect(result.categories).toEqual([]);
   });
 });

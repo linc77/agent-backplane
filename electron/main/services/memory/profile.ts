@@ -1,32 +1,16 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import type {
   MemoryEntry,
   MemoryProfile,
-  MemoryProfileConfidence,
-  MemoryProfileSection,
-  MemoryProfileStability,
+  MemoryProfileLocale,
   MemorySource,
-  MemoryTopic,
   RiskFlag,
 } from "../../../../src/lib/types";
 import { resolveMemoryTruth } from "../../../../src/lib/memoryTruth";
-import { isoNow, sha256 } from "../shared";
+import { sha256 } from "../shared";
 
-const supportedGenerators = new Set([
-  "codex-profile-v2",
-  "deterministic-profile-v4",
-  "deterministic-profile-v4-fallback",
-]);
-
-const topicTitles: Partial<Record<MemoryTopic, string>> = {
-  profile: "个人画像",
-  projects: "项目与工作",
-  rules: "协作规则",
-  tools: "工具与工作方式",
-  writing: "写作与表达",
-  overrides: "近期修正",
-};
+const profileGenerator = "codex-profile-v3";
 
 export function currentMemoryEntries(
   sources: MemorySource[],
@@ -36,125 +20,68 @@ export function currentMemoryEntries(
   return resolveMemoryTruth({ root: "", sources, entries, risks }).current.map((item) => item.entry);
 }
 
-function sourceHash(sources: MemorySource[], entries: MemoryEntry[]) {
+export function memoryProfileSourceHash(sources: MemorySource[], entries: MemoryEntry[]) {
   const currentPaths = new Set(entries.map((entry) => entry.sourcePath));
   return sha256(
     sources
       .filter((source) => currentPaths.has(source.relativePath))
-      .map((source) => `${source.relativePath}${source.sha256}`)
-      .join(""),
+      .sort((left, right) => left.relativePath.localeCompare(right.relativePath))
+      .map((source) => `${source.relativePath}\0${source.sha256}`)
+      .join("\n"),
   );
 }
 
-function sectionId(topic: MemoryTopic, entries: MemoryEntry[]) {
-  return `${topic}-${sha256(entries.map((entry) => entry.id).join("\n")).slice(0, 12)}`;
+export function memoryProfileCachePath(root: string, locale: MemoryProfileLocale) {
+  return join(root, ".backplane", `profile.${locale}.json`);
 }
 
-function sectionConfidence(entries: MemoryEntry[]): MemoryProfileConfidence {
-  if (entries.some((entry) => entry.change?.operation === "replace")) return "high";
-  return entries.length > 1 ? "medium" : "low";
-}
-
-function sectionStability(entries: MemoryEntry[]): MemoryProfileStability {
-  if (entries.some((entry) => entry.change?.operation === "replace") || entries.length > 1) return "stable";
-  return "uncertain";
-}
-
-function buildSections(current: MemoryEntry[]) {
-  const grouped = new Map<MemoryTopic, MemoryEntry[]>();
-  for (const entry of current) {
-    const topic = entry.topic === "overrides"
-      ? entry.relatedTopics.find((candidate) => topicTitles[candidate]) ?? "overrides"
-      : entry.topic;
-    if (!topicTitles[topic]) continue;
-    const entries = grouped.get(topic) ?? [];
-    entries.push(entry);
-    grouped.set(topic, entries);
+function isCachedProfile(value: unknown): value is MemoryProfile {
+  if (!value || typeof value !== "object") return false;
+  const profile = value as Partial<MemoryProfile>;
+  if (
+    profile.schemaVersion !== "1" ||
+    profile.generator !== profileGenerator ||
+    typeof profile.generatedAt !== "string" ||
+    typeof profile.sourceHash !== "string" ||
+    !Array.isArray(profile.sections) ||
+    !profile.metadata
+  ) {
+    return false;
   }
-
-  const sections: MemoryProfileSection[] = [];
-  for (const [topic, entries] of grouped) {
-    if (sections.length >= 6) break;
-    const selected = entries.slice(0, 4);
-    const observations = [...new Set(selected.map((entry) => entry.summary.trim()).filter(Boolean))];
-    if (!observations.length) continue;
-    sections.push({
-      id: sectionId(topic, selected),
-      title: topicTitles[topic]!,
-      body: observations.join("；"),
-      evidence: selected.map((entry) => ({
-        sourcePath: entry.sourcePath,
-        startLine: entry.startLine,
-        endLine: entry.endLine,
-        summary: entry.summary,
-      })),
-      confidence: sectionConfidence(selected),
-      stability: sectionStability(selected),
-    });
-  }
-  return sections;
-}
-
-export function buildMemoryProfileWithoutCache(
-  root: string,
-  sources: MemorySource[],
-  entries: MemoryEntry[],
-  risks: RiskFlag[],
-): MemoryProfile {
-  const current = currentMemoryEntries(sources, entries, risks);
-  return {
-    schemaVersion: "1",
-    generatedAt: isoNow(),
-    sourceHash: sourceHash(sources, current),
-    generator: "deterministic-profile-v4",
-    cachePath: join(root, ".backplane", "profile.json"),
-    sections: buildSections(current),
-    metadata: { memoryRoot: root, inputEntries: entries.length, currentEntries: current.length },
-  };
-}
-
-export async function buildMemoryProfile(
-  root: string,
-  sources: MemorySource[],
-  entries: MemoryEntry[],
-  risks: RiskFlag[],
-) {
-  const profile = buildMemoryProfileWithoutCache(root, sources, entries, risks);
-  await mkdir(dirname(profile.cachePath), { recursive: true });
-  await writeFile(profile.cachePath, `${JSON.stringify(profile, null, 2)}\n`, { mode: 0o600 });
-  return profile;
+  const uniqueTitles = new Set(profile.sections.map((section) => section.title));
+  const uniqueIds = new Set(profile.sections.map((section) => section.id));
+  return (
+    uniqueTitles.size === profile.sections.length &&
+    uniqueIds.size === profile.sections.length &&
+    profile.sections.every(
+      (section) =>
+        Boolean(section.id && section.title && section.body) &&
+        Array.isArray(section.evidence),
+    )
+  );
 }
 
 export async function loadMemoryProfileForRoot(
   root: string,
+  locale: MemoryProfileLocale,
   sources: MemorySource[],
   entries: MemoryEntry[],
   risks: RiskFlag[],
 ) {
   const current = currentMemoryEntries(sources, entries, risks);
-  const hash = sourceHash(sources, current);
-  const cachePath = join(root, ".backplane", "profile.json");
+  const sourceHash = memoryProfileSourceHash(sources, current);
+  const cachePath = memoryProfileCachePath(root, locale);
   try {
-    const cached = JSON.parse(await readFile(cachePath, "utf8")) as MemoryProfile;
-    const uniqueTitles = new Set(cached.sections?.map((section) => section.title));
-    const uniqueIds = new Set(cached.sections?.map((section) => section.id));
-    if (
-      cached.schemaVersion === "1" &&
-      supportedGenerators.has(cached.generator) &&
-      cached.sourceHash === hash &&
-      Array.isArray(cached.sections) &&
-      uniqueTitles.size === cached.sections.length &&
-      uniqueIds.size === cached.sections.length
-    ) {
+    const cached = JSON.parse(await readFile(cachePath, "utf8")) as unknown;
+    if (isCachedProfile(cached)) {
       return {
-        ...cached,
-        cachePath,
-        sourceHash: hash,
-        metadata: { memoryRoot: root, inputEntries: entries.length, currentEntries: current.length },
+        profile: { ...cached, cachePath },
+        profileStale: cached.sourceHash !== sourceHash,
+        sourceHash,
       };
     }
   } catch {
-    // A missing or stale cache is regenerated from the effective memory claims.
+    // A missing or invalid cache leaves the previous profile unavailable.
   }
-  return buildMemoryProfile(root, sources, entries, risks);
+  return { profile: null, profileStale: false, sourceHash };
 }

@@ -11,16 +11,12 @@ const api: BackplaneDesktopApi = {
   },
   memory: {
     scan: (rootOverride = null) => ipcRenderer.invoke(channels.scanMemories, { rootOverride }),
-    generateProfile: (rootOverride = null) =>
-      ipcRenderer.invoke(channels.generateMemoryProfile, { rootOverride }),
-    startProfileGeneration: (rootOverride = null) =>
-      ipcRenderer.invoke(channels.startMemoryProfileGeneration, { rootOverride }),
+    startProfileGeneration: (agent, locale) =>
+      ipcRenderer.invoke(channels.startMemoryProfileGeneration, { agent, locale }),
     getProfileGeneration: () => ipcRenderer.invoke(channels.getMemoryProfileGeneration),
     cancelProfileGeneration: () => ipcRenderer.invoke(channels.cancelMemoryProfileGeneration),
-    loadProfile: (rootOverride = null) =>
-      ipcRenderer.invoke(channels.loadMemoryProfile, { rootOverride }),
-    loadAgentSnapshot: (agent) =>
-      ipcRenderer.invoke(channels.loadAgentMemorySnapshot, { agent }),
+    loadAgentSnapshot: (agent, locale) =>
+      ipcRenderer.invoke(channels.loadAgentMemorySnapshot, { agent, locale }),
     getSourceExcerpt: (rootOverride, path, startLine, endLine) =>
       ipcRenderer.invoke(channels.getSourceExcerpt, {
         rootOverride,
@@ -36,12 +32,6 @@ const api: BackplaneDesktopApi = {
       ipcRenderer.invoke(channels.draftRevert, { agent, rootOverride, change, sourcePath }),
     writeCorrection: (rootOverride, draft) =>
       ipcRenderer.invoke(channels.writeCorrection, { rootOverride, draft }),
-  },
-  audit: {
-    start: (rootOverride, mode) => ipcRenderer.invoke(channels.startCodexAudit, { rootOverride, mode }),
-    get: () => ipcRenderer.invoke(channels.getCodexAudit),
-    cancel: () => ipcRenderer.invoke(channels.cancelCodexAudit),
-    run: (rootOverride, mode) => ipcRenderer.invoke(channels.runCodexAudit, { rootOverride, mode }),
   },
   skills: {
     load: (projectRootOverride = null) =>

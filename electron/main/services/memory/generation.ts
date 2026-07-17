@@ -1,15 +1,22 @@
 import { existsSync } from "node:fs";
-import { mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import type { MemoryProfile, MemoryProfileGenerationTask } from "../../../../src/lib/types";
+import { join } from "node:path";
+import type {
+  AgentKind,
+  MemoryProfile,
+  MemoryProfileGenerationTask,
+  MemoryProfileLocale,
+} from "../../../../src/lib/types";
 import { BackgroundTaskManager } from "../backgroundTask";
 import { runCodexExec } from "../codex";
-import { isoNow } from "../shared";
-import { resolveMemoryRoot } from "./paths";
-import { buildMemoryProfileWithoutCache } from "./profile";
-import { currentMemoryEntries } from "./profile";
-import { scanMemories } from "./index";
+import { atomicWrite, isoNow } from "../shared";
+import { loadMemoryCatalog } from "./catalog";
+import { resolveAgentMemoryRoot } from "./paths";
+import {
+  currentMemoryEntries,
+  memoryProfileCachePath,
+  memoryProfileSourceHash,
+} from "./profile";
 
 function schemaPath() {
   const candidates = [
@@ -21,15 +28,22 @@ function schemaPath() {
   return path;
 }
 
-function normalizeProfile(profile: MemoryProfile, base: MemoryProfile): MemoryProfile {
+function normalizeProfile(
+  profile: MemoryProfile,
+  root: string,
+  cachePath: string,
+  sourceHash: string,
+  inputEntries: number,
+  currentEntries: number,
+): MemoryProfile {
   return {
     ...profile,
     schemaVersion: "1",
     generatedAt: isoNow(),
-    sourceHash: base.sourceHash,
-    generator: "codex-profile-v2",
-    cachePath: base.cachePath,
-    metadata: base.metadata,
+    sourceHash,
+    generator: "codex-profile-v3",
+    cachePath,
+    metadata: { memoryRoot: root, inputEntries, currentEntries },
   };
 }
 
@@ -37,69 +51,125 @@ function validateProfile(profile: MemoryProfile, sourceLines: Map<string, number
   if (!Array.isArray(profile.sections) || profile.sections.length > 8) {
     throw new Error("codex exec returned an invalid memory profile");
   }
+  const ids = new Set<string>();
+  const titles = new Set<string>();
   for (const section of profile.sections) {
-    if (!section.id || !section.title || !section.body || !section.evidence.length) {
+    if (
+      !section.id ||
+      !section.title ||
+      !section.body ||
+      !section.evidence.length ||
+      ids.has(section.id) ||
+      titles.has(section.title)
+    ) {
       throw new Error("codex exec returned an incomplete memory profile section");
     }
+    ids.add(section.id);
+    titles.add(section.title);
     for (const evidence of section.evidence) {
       const lines = sourceLines.get(evidence.sourcePath);
-      if (!lines || evidence.startLine < 1 || evidence.endLine < evidence.startLine || evidence.endLine > lines) {
+      if (
+        !lines ||
+        evidence.startLine < 1 ||
+        evidence.endLine < evidence.startLine ||
+        evidence.endLine > lines
+      ) {
         throw new Error("codex exec returned invalid memory profile evidence");
       }
     }
   }
 }
 
-export async function generateMemoryProfile(rootOverride?: string | null, signal?: AbortSignal) {
-  const root = resolveMemoryRoot(rootOverride);
-  const scan = await scanMemories(root);
-  const base = buildMemoryProfileWithoutCache(root, scan.sources, scan.entries, scan.risks);
+export async function generateMemoryProfile(
+  agent: AgentKind,
+  locale: MemoryProfileLocale,
+  rootOverride?: string | null,
+  signal?: AbortSignal,
+) {
+  const root = resolveAgentMemoryRoot(agent, rootOverride);
+  const scan = await loadMemoryCatalog(agent, root);
   const current = currentMemoryEntries(scan.sources, scan.entries, scan.risks);
+  if (!current.length) throw new Error("No current memory is available to generate a profile");
+
+  const sourceHash = memoryProfileSourceHash(scan.sources, current);
+  const cachePath = memoryProfileCachePath(root, locale);
   const bundle = {
     schemaVersion: "1",
+    agent,
+    locale,
     memoryRoot: root,
     generatedAt: isoNow(),
-    sourceHash: base.sourceHash,
+    sourceHash,
     risks: scan.risks,
-    entries: current.map((entry) => ({ ...entry, searchText: [...entry.searchText].slice(0, 12_000).join("") })),
+    entries: current.map((entry) => ({
+      id: entry.id,
+      topic: entry.topic,
+      relatedTopics: entry.relatedTopics,
+      title: entry.title,
+      summary: entry.summary,
+      sourcePath: entry.sourcePath,
+      startLine: entry.startLine,
+      endLine: entry.endLine,
+      change: entry.change,
+    })),
   };
-  try {
-    const output = await runCodexExec({
-      cwd: tmpdir(),
-      schemaPath: schemaPath(),
-      signal,
-      stdin: JSON.stringify(bundle),
-      prompt: "Analyze this Agent Backplane bundle from stdin and return only the Memory Profile JSON. Write natural Chinese, discover durable themes from evidence, use specific observation titles, and never invent evidence paths or line ranges.",
-    });
-    const profile = normalizeProfile(JSON.parse(output) as MemoryProfile, base);
-    validateProfile(profile, new Map(scan.sources.map((source) => [source.relativePath, source.lines])));
-    await mkdir(dirname(profile.cachePath), { recursive: true });
-    await writeFile(profile.cachePath, `${JSON.stringify(profile, null, 2)}\n`, { mode: 0o600 });
-    return profile;
-  } catch (error) {
-    if (signal?.aborted || (error instanceof Error && error.message.includes("cancelled"))) throw error;
-    const fallback = { ...base, generator: "deterministic-profile-v4-fallback" };
-    await mkdir(dirname(fallback.cachePath), { recursive: true });
-    await writeFile(fallback.cachePath, `${JSON.stringify(fallback, null, 2)}\n`, { mode: 0o600 });
-    return fallback;
-  }
+  const languageInstruction =
+    locale === "zh-CN" ? "Write in natural Simplified Chinese." : "Write in natural English.";
+  const output = await runCodexExec({
+    cwd: tmpdir(),
+    schemaPath: schemaPath(),
+    signal,
+    stdin: JSON.stringify(bundle),
+    prompt: `Analyze the Agent Backplane memory bundle from stdin and return only the Memory Profile JSON. ${languageInstruction} Build a concise, coherent portrait around durable themes instead of restating entries. Use specific observation titles and never invent evidence paths or line ranges.`,
+  });
+  const profile = normalizeProfile(
+    JSON.parse(output) as MemoryProfile,
+    root,
+    cachePath,
+    sourceHash,
+    scan.entries.length,
+    current.length,
+  );
+  validateProfile(profile, new Map(scan.sources.map((source) => [source.relativePath, source.lines])));
+  await atomicWrite(cachePath, `${JSON.stringify(profile, null, 2)}\n`);
+  return profile;
 }
 
 export function idleProfileTask(): MemoryProfileGenerationTask {
-  return { id: null, status: "idle", startedAt: null, finishedAt: null, error: null, profile: null };
+  return {
+    id: null,
+    agent: null,
+    locale: null,
+    status: "idle",
+    startedAt: null,
+    finishedAt: null,
+    error: null,
+    profile: null,
+  };
 }
 
-const profileTasks = new BackgroundTaskManager<MemoryProfileGenerationTask, MemoryProfile>(idleProfileTask());
+const profileTasks = new BackgroundTaskManager<MemoryProfileGenerationTask, MemoryProfile>(
+  idleProfileTask(),
+);
 
 export function getProfileGeneration() {
   return profileTasks.get();
 }
 
-export function startProfileGeneration(rootOverride?: string | null) {
-  const id = `profile-${Date.now()}`;
+export function startProfileGeneration(agent: AgentKind, locale: MemoryProfileLocale) {
+  const id = `profile-${agent}-${Date.now()}`;
   return profileTasks.start(
-    { id, status: "running", startedAt: isoNow(), finishedAt: null, error: null, profile: null },
-    (signal) => generateMemoryProfile(rootOverride, signal),
+    {
+      id,
+      agent,
+      locale,
+      status: "running",
+      startedAt: isoNow(),
+      finishedAt: null,
+      error: null,
+      profile: null,
+    },
+    (signal) => generateMemoryProfile(agent, locale, null, signal),
     (task, profile) => ({ ...task, profile }),
   );
 }

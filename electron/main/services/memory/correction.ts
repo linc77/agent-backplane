@@ -1,5 +1,5 @@
 import { link, mkdir, open, readFile, realpath, rm, stat, unlink } from "node:fs/promises";
-import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { basename, dirname, extname, isAbsolute, relative, resolve, sep } from "node:path";
 import type {
   AgentKind,
   CorrectionDraft,
@@ -191,7 +191,6 @@ export async function writeCorrection(root: string, draft: CorrectionDraft): Pro
   const serialized = adapter.serializeChange(draft.change, draft.content);
   if (adapter.writeMode === "append") await appendChange(target, serialized);
   else await createChangeFile(target, serialized);
-  await rm(join(root, ".backplane", "profile.json"), { force: true });
   clearMemoryCatalog(root, draft.agent);
   return { path: target, changeId: draft.change.id };
 }

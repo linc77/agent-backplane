@@ -1,104 +1,137 @@
-import { describe, expect, it } from "vitest";
-import type { MemoryEntry, MemorySource } from "../../../../src/lib/types";
-import { buildMemoryProfileWithoutCache } from "./profile";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
+import type { MemoryEntry, MemoryProfile, MemorySource } from "../../../../src/lib/types";
+import {
+  currentMemoryEntries,
+  loadMemoryProfileForRoot,
+  memoryProfileCachePath,
+  memoryProfileSourceHash,
+} from "./profile";
 
-describe("deterministic memory profile", () => {
-  it("deduplicates repeated observation titles", () => {
-    const sources: MemorySource[] = ["one.md", "two.md"].map((relativePath, index) => ({
-      id: String(index),
-      path: `/tmp/${relativePath}`,
-      relativePath,
-      kind: "registry",
-      modifiedMs: index,
-      bytes: 10,
-      lines: 2,
-      sha256: relativePath,
-    }));
-    const entries: MemoryEntry[] = sources.map((source, index) => ({
-      id: `entry-${index}`,
-      topic: "rules",
-      relatedTopics: [],
-      title: `Rule ${index}`,
-      summary: "The user wants collaboration rules to become executable behavior.",
-      searchText: "The user wants collaboration rules to become executable behavior.",
-      sourcePath: source.relativePath,
-      startLine: 1,
-      endLine: 2,
-    }));
-    const profile = buildMemoryProfileWithoutCache("/tmp", sources, entries, []);
-    expect(new Set(profile.sections.map((section) => section.title)).size).toBe(profile.sections.length);
-  });
+const temporaryRoots: string[] = [];
 
-  it("builds sections only from effective targeted claims", () => {
-    const sources: MemorySource[] = [
-      {
-        id: "registry",
-        path: "/tmp/MEMORY.md",
-        relativePath: "MEMORY.md",
-        kind: "registry",
-        modifiedMs: 1,
-        bytes: 10,
-        lines: 4,
-        sha256: "registry",
-      },
-      {
-        id: "change",
-        path: "/tmp/change.md",
-        relativePath: "extensions/ad_hoc/notes/change.md",
-        kind: "adHocNote",
-        modifiedMs: 2,
-        bytes: 10,
-        lines: 2,
-        sha256: "change",
-      },
+function source(relativePath: string, sha256: string): MemorySource {
+  return {
+    id: relativePath,
+    path: `/tmp/${relativePath}`,
+    relativePath,
+    kind: relativePath.includes("extensions/") ? "adHocNote" : "registry",
+    modifiedMs: 1,
+    bytes: 20,
+    lines: 4,
+    sha256,
+  };
+}
+
+function entry(
+  id: string,
+  sourcePath: string,
+  summary: string,
+  change?: MemoryEntry["change"],
+): MemoryEntry {
+  return {
+    id,
+    topic: change ? "overrides" : "profile",
+    relatedTopics: change ? ["profile"] : [],
+    title: id,
+    summary,
+    searchText: summary,
+    sourcePath,
+    startLine: 1,
+    endLine: 4,
+    change,
+  };
+}
+
+afterEach(async () => {
+  await Promise.all(temporaryRoots.splice(0).map((root) => rm(root, { recursive: true })));
+});
+
+describe("AI memory profile cache", () => {
+  it("hashes only the effective memory sources", () => {
+    const sources = [
+      source("MEMORY.md", "old"),
+      source("extensions/ad_hoc/notes/change.md", "new"),
+      source("unused.md", "unused"),
     ];
-    const entries: MemoryEntry[] = [
-      {
-        id: "project-a",
-        topic: "projects",
-        relatedTopics: [],
-        title: "Project A",
-        summary: "Project A is active.",
-        searchText: "Project A is active.",
-        sourcePath: "MEMORY.md",
-        startLine: 1,
-        endLine: 2,
-      },
-      {
-        id: "project-b",
-        topic: "projects",
-        relatedTopics: [],
-        title: "Project B",
-        summary: "Project B is active.",
-        searchText: "Project B is active.",
-        sourcePath: "MEMORY.md",
-        startLine: 3,
-        endLine: 4,
-      },
-      {
-        id: "project-a-change",
-        topic: "overrides",
-        relatedTopics: ["projects"],
-        title: "Project A correction",
-        summary: "Project A is archived.",
-        searchText: "Project A is archived.",
-        sourcePath: "extensions/ad_hoc/notes/change.md",
-        startLine: 1,
-        endLine: 2,
-        change: {
-          id: "change-a",
+    const entries = [
+      entry("old-profile", "MEMORY.md", "Old profile"),
+      entry(
+        "new-profile",
+        "extensions/ad_hoc/notes/change.md",
+        "New profile",
+        {
+          id: "change-profile",
           operation: "replace",
-          targetEntryIds: ["project-a"],
+          targetEntryIds: ["old-profile"],
           revertsChangeId: null,
           createdAt: "2026-07-17T00:00:00.000Z",
         },
-      },
+      ),
     ];
 
-    const profile = buildMemoryProfileWithoutCache("/tmp", sources, entries, []);
-    const body = profile.sections.map((section) => section.body).join("\n");
-    expect(body).toContain("Project A is archived.");
-    expect(body).toContain("Project B is active.");
-    expect(body).not.toContain("Project A is active.");
+    const current = currentMemoryEntries(sources, entries, []);
+    expect(current.map((item) => item.id)).toEqual(["new-profile"]);
+    expect(memoryProfileSourceHash(sources, current)).toBe(
+      memoryProfileSourceHash([sources[1]], current),
+    );
+  });
+
+  it("returns the last successful Codex profile even when source memory changed", async () => {
+    const root = await mkdtemp(join(tmpdir(), "backplane-profile-"));
+    temporaryRoots.push(root);
+    const cachePath = memoryProfileCachePath(root, "zh-CN");
+    const cached: MemoryProfile = {
+      schemaVersion: "1",
+      generatedAt: "2026-07-17T00:00:00.000Z",
+      sourceHash: "previous-source-hash",
+      generator: "codex-profile-v3",
+      cachePath,
+      sections: [
+        {
+          id: "durable-profile",
+          title: "稳定画像",
+          body: "这是上次成功生成的画像。",
+          evidence: [
+            { sourcePath: "MEMORY.md", startLine: 1, endLine: 4, summary: "Evidence" },
+          ],
+          confidence: "high",
+          stability: "stable",
+        },
+      ],
+      metadata: { memoryRoot: root, inputEntries: 1, currentEntries: 1 },
+    };
+    await mkdir(dirname(cachePath), { recursive: true });
+    await writeFile(cachePath, JSON.stringify(cached));
+    const sources = [source("MEMORY.md", "changed")];
+    const entries = [entry("profile", "MEMORY.md", "Changed profile")];
+
+    const result = await loadMemoryProfileForRoot(root, "zh-CN", sources, entries, []);
+
+    expect(result.profile?.sections[0].body).toBe("这是上次成功生成的画像。");
+    expect(result.profileStale).toBe(true);
+    expect(result.sourceHash).not.toBe(cached.sourceHash);
+  });
+
+  it("ignores rule-generated and locale-mismatched cache files", async () => {
+    const root = await mkdtemp(join(tmpdir(), "backplane-profile-"));
+    temporaryRoots.push(root);
+    const legacyPath = join(root, ".backplane", "profile.json");
+    await mkdir(dirname(legacyPath), { recursive: true });
+    await writeFile(legacyPath, JSON.stringify({ generator: "deterministic-profile-v4" }));
+
+    const result = await loadMemoryProfileForRoot(
+      root,
+      "en-US",
+      [source("MEMORY.md", "current")],
+      [entry("profile", "MEMORY.md", "Current profile")],
+      [],
+    );
+
+    expect(result.profile).toBeNull();
+    expect(result.profileStale).toBe(false);
+    expect(result.sourceHash).toHaveLength(64);
   });
 });

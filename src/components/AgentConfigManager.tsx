@@ -181,7 +181,7 @@ export function AgentConfigManager({
         </div>
       </header>
 
-      {error && <div className="audit-error">{String(error)}</div>}
+      {error && <div className="inline-error">{String(error)}</div>}
       {notice && <div className="agent-notice"><Check size={15} />{notice}</div>}
       {inventoryQuery.isLoading && <div className="skill-state">{uiText.agents.loading}</div>}
 

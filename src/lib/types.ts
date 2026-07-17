@@ -5,7 +5,6 @@ export type MemoryTopic =
   | "tools"
   | "writing"
   | "activityLog"
-  | "audit"
   | "overrides"
   | "sources"
   | "staleRisks";
@@ -96,12 +95,6 @@ export interface MemoryCatalogStats {
   changedSources: number;
 }
 
-export type CodexAuditMode = "curated" | "full";
-
-export type ClaimScope = "global" | "project" | "tool" | "writing" | "rule" | "unknown";
-
-export type ClaimStatus = "current" | "stale" | "historical" | "uncertain";
-
 export interface EvidenceRef {
   sourcePath: string;
   startLine: number;
@@ -109,81 +102,9 @@ export interface EvidenceRef {
   summary: string;
 }
 
-export interface MemoryClaim {
-  id: string;
-  subject: string;
-  field: string;
-  value: string;
-  scope: ClaimScope;
-  status: ClaimStatus;
-  confidence: number;
-  rationale: string;
-  evidence: EvidenceRef[];
-}
-
-export interface MemoryConflict {
-  id: string;
-  title: string;
-  detail: string;
-  confidence: number;
-  claimIds: string[];
-  evidence: EvidenceRef[];
-}
-
-export interface SuggestedCorrection {
-  id: string;
-  title: string;
-  reason: string;
-  content: string;
-  confidence: number;
-  affectedClaimIds: string[];
-  evidence: EvidenceRef[];
-}
-
-export interface CodexAuditMetadata {
-  memoryRoot: string;
-  inputEntries: number;
-  model: string;
-}
-
-export interface CodexAuditReport {
-  schemaVersion: "1";
-  mode: CodexAuditMode;
-  generatedAt: string;
-  summary: string;
-  currentClaims: MemoryClaim[];
-  staleClaims: MemoryClaim[];
-  conflicts: MemoryConflict[];
-  uncertainClaims: MemoryClaim[];
-  suggestedCorrections: SuggestedCorrection[];
-  metadata: CodexAuditMetadata;
-}
-
-export interface CodexAuditRun {
-  report: CodexAuditReport;
-  cachePath: string;
-}
-
-export type CodexAuditTaskStatus =
-  | "idle"
-  | "running"
-  | "cancelling"
-  | "succeeded"
-  | "failed"
-  | "cancelled";
-
-export interface CodexAuditTask {
-  id: string | null;
-  mode: CodexAuditMode | null;
-  status: CodexAuditTaskStatus;
-  startedAt: string | null;
-  finishedAt: string | null;
-  error: string | null;
-  run: CodexAuditRun | null;
-}
-
 export type MemoryProfileConfidence = "high" | "medium" | "low";
 export type MemoryProfileStability = "stable" | "recent" | "uncertain";
+export type MemoryProfileLocale = "zh-CN" | "en-US";
 
 export interface MemoryProfileSection {
   id: string;
@@ -220,6 +141,8 @@ export type MemoryProfileGenerationStatus =
 
 export interface MemoryProfileGenerationTask {
   id: string | null;
+  agent: AgentKind | null;
+  locale: MemoryProfileLocale | null;
   status: MemoryProfileGenerationStatus;
   startedAt: string | null;
   finishedAt: string | null;
@@ -371,7 +294,9 @@ export interface AgentMemorySnapshot {
   agent: AgentKind;
   writable: boolean;
   scan: ScanResult;
-  profile: MemoryProfile;
+  profile: MemoryProfile | null;
+  profileStale: boolean;
+  sourceHash: string;
 }
 
 export type McpScope = "global" | "project";

@@ -4,7 +4,6 @@ import {
   Check,
   ChevronDown,
   Cable,
-  Home,
   Settings2,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ComponentType } from "react";
@@ -23,7 +22,6 @@ interface TopicDef {
 
 function navItems(uiText: UiText): TopicDef[] {
   return [
-    { id: "overview", label: uiText.views.overview, icon: Home },
     { id: "effective", label: uiText.views.effective, icon: BookOpen },
     { id: "skillManager", label: uiText.views.skillManager, icon: Blocks },
     { id: "mcpManager", label: uiText.views.mcpManager, icon: Cable },
@@ -169,11 +167,7 @@ export function Sidebar({
           const Icon = topic.icon;
           return (
             <button
-              className={
-                topic.id === activeTopic || (topic.id === "effective" && activeTopic === "audit")
-                  ? "topic-item active"
-                  : "topic-item"
-              }
+              className={topic.id === activeTopic ? "topic-item active" : "topic-item"}
               key={topic.id}
               onClick={() => onSelectTopic(topic.id)}
               type="button"

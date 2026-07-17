@@ -1,7 +1,6 @@
 import type { MemoryView } from "./memoryViews";
 import type { MemoryTruthStatus } from "./memoryTruth";
-import type { SkillSemanticCategory } from "./skillCategories";
-import type { CodexAuditMode, MemorySourceKind, MemoryTopic, RiskKind } from "./types";
+import type { MemorySourceKind, MemoryTopic, RiskKind } from "./types";
 
 export type Locale = "zh-CN" | "en-US";
 
@@ -20,11 +19,6 @@ export interface UiText {
     settings: string;
     updateAvailable: string;
     languageLabel: string;
-    sections: {
-      memoryModel: string;
-      sources: string;
-      review: string;
-    };
   };
   views: Record<MemoryView, string>;
   sourceKinds: Record<MemorySourceKind, string>;
@@ -32,23 +26,29 @@ export interface UiText {
   topics: Record<MemoryTopic, string>;
   memoryCards: Record<MemoryTopic, string>;
   riskKinds: Record<RiskKind, string>;
-  auditModes: Record<CodexAuditMode, string>;
   memorySummary: {
     eyebrow: string;
     title: (agent: string) => string;
+    description: (agent: string) => string;
     wrong: string;
-    viewEvidence: string;
-    evidence: string;
+    viewEvidence: (count: number) => string;
     loading: string;
     emptyTitle: string;
-    regenerate: string;
+    emptyDescription: string;
+    readyTitle: string;
+    readyDescription: string;
+    updateProfile: string;
     cancelGeneration: string;
-    generatedBy: (generator: string, count: number) => string;
-    matchingSections: (count: number) => string;
+    generatingFirst: string;
+    updatingWithPrevious: string;
+    stale: string;
+    failedWithPrevious: string;
+    failedWithoutProfile: string;
+    errorDetails: string;
+    generatedAt: (date: string, count: number) => string;
     confidence: Record<"high" | "medium" | "low", string>;
     stability: Record<"stable" | "recent" | "uncertain", string>;
     evidenceTrust: Record<"current" | "stale" | "uncertain" | "conflict", string>;
-    evidenceTrustNotes: Record<"current" | "stale" | "uncertain" | "conflict", string>;
   };
   skills: {
     eyebrow: string;
@@ -62,7 +62,6 @@ export interface UiText {
     allTools: string;
     categoryFilter: string;
     allCategories: string;
-    categoryNames: Record<SkillSemanticCategory, string>;
     namespaceNames: Record<string, string>;
     refresh: string;
     loading: string;
@@ -181,36 +180,6 @@ export interface UiText {
     installing: string;
     error: string;
   };
-  board: {
-    eyebrow: string;
-    scannedSources: string;
-    effectiveEntries: string;
-    sourcePriority: string;
-    priorityTitle: string;
-    auditMode: string;
-    running: string;
-    runAudit: string;
-    cancelAudit: string;
-    rescanMemory: string;
-    memoryNavigation: string;
-    noAuditReport: string;
-    currentClaims: string;
-    staleClaims: string;
-    uncertainClaims: string;
-    conflicts: string;
-    suggestedCorrections: string;
-    draftCorrection: string;
-    searchPlaceholder: string;
-    openSource: string;
-    noSourceMatches: string;
-    noEntryMatches: string;
-    staleCandidates: (count: number) => string;
-    auditEntries: (count: number) => string;
-    matchingSources: (count: number) => string;
-    matchingEntries: (count: number) => string;
-    riskFlags: (count: number) => string;
-    openSourceAria: (path: string) => string;
-  };
   inspector: {
     eyebrow: string;
     emptyTitle: string;
@@ -248,16 +217,6 @@ export const localeOptions: ReadonlyArray<{ locale: Locale; label: string }> = [
   { locale: "en-US", label: "English" },
 ];
 
-function profileGeneratorLabel(generator: string, locale: Locale) {
-  if (generator.includes("codex")) {
-    return "Codex";
-  }
-  if (generator.includes("fallback")) {
-    return locale === "zh-CN" ? "规则 fallback" : "rule fallback";
-  }
-  return locale === "zh-CN" ? "规则" : "rules";
-}
-
 const zhCN: UiText = {
   app: {
     fixtureBanner: "演示模式：仅使用示例记忆",
@@ -273,14 +232,8 @@ const zhCN: UiText = {
     settings: "设置",
     updateAvailable: "可更新",
     languageLabel: "语言",
-    sections: {
-      memoryModel: "记忆模型",
-      sources: "来源",
-      review: "检查",
-    },
   },
   views: {
-    overview: "首页",
     effective: "记忆",
     summary: "已加载摘要",
     registry: "记忆注册表",
@@ -294,7 +247,6 @@ const zhCN: UiText = {
     mcpManager: "MCP",
     settings: "设置",
     allSources: "全部来源",
-    audit: "检查",
   },
   sourceKinds: {
     summary: "已加载摘要",
@@ -318,7 +270,6 @@ const zhCN: UiText = {
     tools: "工具",
     writing: "写作",
     activityLog: "活动",
-    audit: "审计",
     overrides: "修正",
     sources: "来源",
     staleRisks: "冲突",
@@ -330,7 +281,6 @@ const zhCN: UiText = {
     tools: "工具",
     writing: "创作",
     activityLog: "最近活动",
-    audit: "检查",
     overrides: "关于你",
     sources: "其他",
     staleRisks: "需要确认",
@@ -339,23 +289,27 @@ const zhCN: UiText = {
     staleConflict: "过时冲突",
     coveredByOverride: "已由修正覆盖",
   },
-  auditModes: {
-    curated: "精简",
-    full: "完整",
-  },
   memorySummary: {
-    eyebrow: "关于你",
-    title: (agent) => `${agent} 目前这样理解你`,
+    eyebrow: "记忆画像",
+    title: (agent) => `${agent} 记住的你`,
+    description: (agent) =>
+      `由本机 Codex CLI 根据 ${agent} 的记忆整理。打开时保留上次结果，新记忆会在后台更新。`,
     wrong: "这不对",
-    viewEvidence: "查看依据",
-    evidence: "依据",
-    loading: "正在生成记忆画像...",
-    emptyTitle: "还没有足够的当前记忆生成画像",
-    regenerate: "重新生成",
-    cancelGeneration: "取消",
-    generatedBy: (generator, count) =>
-      `由 ${profileGeneratorLabel(generator, "zh-CN")} 基于 ${count} 条当前记忆生成`,
-    matchingSections: (count) => `${count} 个匹配章节`,
+    viewEvidence: (count) => `查看依据 ${count}`,
+    loading: "正在读取上次记忆画像...",
+    emptyTitle: "还没有可整理的记忆",
+    emptyDescription: "当当前 Agent 产生本地记忆后，这里会自动整理成画像。",
+    readyTitle: "可以开始整理记忆了",
+    readyDescription: "画像会在后台生成，完成后自动显示。",
+    updateProfile: "更新画像",
+    cancelGeneration: "取消更新",
+    generatingFirst: "正在生成第一份画像，完成后会自动显示。",
+    updatingWithPrevious: "发现新记忆，正在后台更新。当前显示上次结果。",
+    stale: "发现新记忆，当前显示上次结果。",
+    failedWithPrevious: "更新失败，继续显示上次结果。",
+    failedWithoutProfile: "画像生成失败，可以再次更新。",
+    errorDetails: "查看错误",
+    generatedAt: (date, count) => `上次更新 ${date} · 基于 ${count} 条当前记忆`,
     confidence: {
       high: "高可信",
       medium: "中可信",
@@ -372,12 +326,6 @@ const zhCN: UiText = {
       uncertain: "不确定",
       conflict: "需复核",
     },
-    evidenceTrustNotes: {
-      current: "当前记忆正在引用这条依据。",
-      stale: "这条依据已被更新记忆覆盖，只作为历史背景。",
-      uncertain: "这条依据更像近期线索，暂时不当作稳定记忆。",
-      conflict: "这条依据和其他记忆存在冲突，需要复核。",
-    },
   },
   skills: {
     eyebrow: "本机能力",
@@ -391,15 +339,6 @@ const zhCN: UiText = {
     allTools: "全部工具",
     categoryFilter: "分类",
     allCategories: "全部",
-    categoryNames: {
-      writing: "写作",
-      development: "开发",
-      design: "设计",
-      data: "数据处理",
-      automation: "自动化",
-      research: "研究",
-      uncategorized: "未分类",
-    },
     namespaceNames: {
       lark: "飞书",
       github: "GitHub",
@@ -533,36 +472,6 @@ const zhCN: UiText = {
     installing: "正在重启并安装...",
     error: "更新失败",
   },
-  board: {
-    eyebrow: "记忆",
-    scannedSources: "依据",
-    effectiveEntries: "当前记忆",
-    sourcePriority: "来源优先级",
-    priorityTitle: "按来源与证据解析真实记忆",
-    auditMode: "检查范围",
-    running: "检查中...",
-    runAudit: "开始检查",
-    cancelAudit: "取消",
-    rescanMemory: "重新扫描记忆",
-    memoryNavigation: "记忆页面",
-    noAuditReport: "还没有检查结果",
-    currentClaims: "当前",
-    staleClaims: "历史",
-    uncertainClaims: "不确定",
-    conflicts: "冲突",
-    suggestedCorrections: "建议修正",
-    draftCorrection: "起草修正",
-    searchPlaceholder: "搜索当前视图...",
-    openSource: "打开来源",
-    noSourceMatches: "没有匹配当前视图的来源。",
-    noEntryMatches: "没有匹配当前视图的记忆条目。",
-    staleCandidates: (count) => `${count} 条旧记忆被覆盖`,
-    auditEntries: (count) => `${count} 条条目`,
-    matchingSources: (count) => `${count} 个匹配来源`,
-    matchingEntries: (count) => `${count} 条匹配记忆条目`,
-    riskFlags: (count) => `${count} 条记忆需要复核。`,
-    openSourceAria: (path) => `打开来源 ${path}`,
-  },
   inspector: {
     eyebrow: "依据",
     emptyTitle: "依据",
@@ -608,14 +517,8 @@ const enUS: UiText = {
     settings: "Settings",
     updateAvailable: "Update",
     languageLabel: "Language",
-    sections: {
-      memoryModel: "Memory Model",
-      sources: "Sources",
-      review: "Review",
-    },
   },
   views: {
-    overview: "Home",
     effective: "Memory",
     summary: "Loaded Summary",
     registry: "Memory Registry",
@@ -629,7 +532,6 @@ const enUS: UiText = {
     mcpManager: "MCP",
     settings: "Settings",
     allSources: "All Sources",
-    audit: "Check",
   },
   sourceKinds: {
     summary: "Loaded Summary",
@@ -653,7 +555,6 @@ const enUS: UiText = {
     tools: "Tool",
     writing: "Writing",
     activityLog: "Activity",
-    audit: "Audit",
     overrides: "Correction",
     sources: "Source",
     staleRisks: "Conflict",
@@ -665,7 +566,6 @@ const enUS: UiText = {
     tools: "Tools",
     writing: "Writing",
     activityLog: "Recent activity",
-    audit: "Check",
     overrides: "About you",
     sources: "Other",
     staleRisks: "Needs attention",
@@ -674,23 +574,27 @@ const enUS: UiText = {
     staleConflict: "Stale conflict",
     coveredByOverride: "Covered by correction",
   },
-  auditModes: {
-    curated: "Focused",
-    full: "Full",
-  },
   memorySummary: {
-    eyebrow: "About you",
-    title: (agent) => `How ${agent} currently understands you`,
+    eyebrow: "Memory profile",
+    title: (agent) => `What ${agent} remembers about you`,
+    description: (agent) =>
+      `The local Codex CLI organizes this profile from ${agent}'s memory. The last result stays visible while new memory updates in the background.`,
     wrong: "This is wrong",
-    viewEvidence: "View evidence",
-    evidence: "Evidence",
-    loading: "Generating memory profile...",
-    emptyTitle: "Not enough current memory to generate a profile yet",
-    regenerate: "Regenerate",
-    cancelGeneration: "Cancel",
-    generatedBy: (generator, count) =>
-      `Generated by ${profileGeneratorLabel(generator, "en-US")} from ${count} current memories`,
-    matchingSections: (count) => `${count} matching sections`,
+    viewEvidence: (count) => `View evidence ${count}`,
+    loading: "Loading the last memory profile...",
+    emptyTitle: "No memory to organize yet",
+    emptyDescription: "A profile will appear after the current Agent creates local memory.",
+    readyTitle: "Memory is ready to organize",
+    readyDescription: "The profile will be generated in the background and appear automatically.",
+    updateProfile: "Update profile",
+    cancelGeneration: "Cancel update",
+    generatingFirst: "Generating the first profile. It will appear automatically when ready.",
+    updatingWithPrevious: "New memory found. Updating in the background while showing the last result.",
+    stale: "New memory found. The last result is still shown.",
+    failedWithPrevious: "Update failed. The last result remains visible.",
+    failedWithoutProfile: "Profile generation failed. You can try again.",
+    errorDetails: "View error",
+    generatedAt: (date, count) => `Last updated ${date} · Based on ${count} current memories`,
     confidence: {
       high: "High confidence",
       medium: "Medium confidence",
@@ -707,12 +611,6 @@ const enUS: UiText = {
       uncertain: "Uncertain",
       conflict: "Needs review",
     },
-    evidenceTrustNotes: {
-      current: "This evidence is used by current memory.",
-      stale: "This evidence has been displaced by newer memory and is historical context.",
-      uncertain: "This evidence is useful context, but not stable memory yet.",
-      conflict: "This evidence conflicts with another memory and needs review.",
-    },
   },
   skills: {
     eyebrow: "Local capabilities",
@@ -726,15 +624,6 @@ const enUS: UiText = {
     allTools: "All tools",
     categoryFilter: "Categories",
     allCategories: "All",
-    categoryNames: {
-      writing: "Writing",
-      development: "Development",
-      design: "Design",
-      data: "Data",
-      automation: "Automation",
-      research: "Research",
-      uncategorized: "Uncategorized",
-    },
     namespaceNames: {
       lark: "Lark",
       github: "GitHub",
@@ -867,36 +756,6 @@ const enUS: UiText = {
     restartAndInstall: "Restart and install",
     installing: "Restarting to install...",
     error: "Update failed",
-  },
-  board: {
-    eyebrow: "Memory",
-    scannedSources: "Evidence",
-    effectiveEntries: "Current memory",
-    sourcePriority: "Source Priority",
-    priorityTitle: "Truth is resolved by source, then evidence",
-    auditMode: "Check scope",
-    running: "Checking...",
-    runAudit: "Start check",
-    cancelAudit: "Cancel",
-    rescanMemory: "Rescan memory",
-    memoryNavigation: "Memory workspace",
-    noAuditReport: "No check result yet",
-    currentClaims: "Current",
-    staleClaims: "History",
-    uncertainClaims: "Uncertain",
-    conflicts: "Conflicts",
-    suggestedCorrections: "Suggested Corrections",
-    draftCorrection: "Draft correction",
-    searchPlaceholder: "Search current view...",
-    openSource: "Open source",
-    noSourceMatches: "No sources match this view.",
-    noEntryMatches: "No memory entries match this view.",
-    staleCandidates: (count) => `${count} stale memories displaced`,
-    auditEntries: (count) => `${count} entries`,
-    matchingSources: (count) => `${count} matching sources`,
-    matchingEntries: (count) => `${count} matching memory entries`,
-    riskFlags: (count) => `${count} memories need review.`,
-    openSourceAria: (path) => `Open source ${path}`,
   },
   inspector: {
     eyebrow: "Evidence",

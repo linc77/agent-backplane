@@ -1,9 +1,13 @@
 import { z } from "zod";
 
 export const agentSchema = z.enum(["codex", "claudeCode", "hermes"]);
-export const auditModeSchema = z.enum(["curated", "full"]);
+export const memoryProfileLocaleSchema = z.enum(["zh-CN", "en-US"]);
 export const rootOverrideSchema = z.object({ rootOverride: z.string().nullable().optional() }).strict();
 export const agentInputSchema = z.object({ agent: agentSchema }).strict();
+export const memoryProfileInputSchema = z.object({
+  agent: agentSchema,
+  locale: memoryProfileLocaleSchema,
+}).strict();
 export const skillInputSchema = z.object({ projectRootOverride: z.string().nullable().optional() }).strict();
 export const skillUsageInputSchema = z.object({
   targets: z.array(z.object({
@@ -68,10 +72,6 @@ export const draftRevertSchema = z.object({
 export const writeCorrectionSchema = z.object({
   rootOverride: z.string().nullable(),
   draft: correctionDraftSchema,
-}).strict();
-export const auditInputSchema = z.object({
-  rootOverride: z.string().nullable(),
-  mode: auditModeSchema,
 }).strict();
 export const profileIdInputSchema = z.object({
   agent: agentSchema,

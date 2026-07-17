@@ -6,7 +6,7 @@ import remarkGfm from "remark-gfm";
 import { loadSkillInventory, loadSkillUsage, openSourceFile, saveSkillManifest } from "../lib/api";
 import { agentMeta } from "../lib/agentScope";
 import type { UiText } from "../lib/i18n";
-import { categorizeSkills, type SkillCategory, type SkillSemanticCategory } from "../lib/skillCategories";
+import { categorizeSkills, type SkillCategory } from "../lib/skillCategories";
 import { projectSkillInventory } from "../lib/skillInventory";
 import type { AgentKind, SkillCapability, SkillCopy, SkillUsageSummary } from "../lib/types";
 
@@ -39,20 +39,18 @@ function filesystemKind(copy: SkillCopy, uiText: UiText) {
 
 function compactSkillPath(path: string) {
   const normalized = path.replace(/\\/g, "/");
-  const homeRelative = normalized.replace(/^\/Users\/[^/]+/, "~");
-  if (/^~\/\.[^/]+\/skills\//.test(homeRelative)) {
-    return homeRelative;
-  }
-  const segments = homeRelative.split("/").filter(Boolean);
-  return segments.length > 4 ? `…/${segments.slice(-3).join("/")}` : homeRelative;
+  const hiddenRoot = normalized.match(/\/(\.[^/]+)(?:\/|$)/)?.[1];
+  if (hiddenRoot) return hiddenRoot;
+  const segments = normalized.split("/").filter(Boolean);
+  const skillsIndex = segments.lastIndexOf("skills");
+  return skillsIndex > 0
+    ? segments[skillsIndex - 1]
+    : segments[segments.length - 2] ?? segments[segments.length - 1] ?? path;
 }
 
 function categoryLabel(category: SkillCategory, uiText: UiText) {
-  if (category.kind === "namespace") {
-    return uiText.skills.namespaceNames[category.key]
-      ?? category.key.charAt(0).toUpperCase() + category.key.slice(1);
-  }
-  return uiText.skills.categoryNames[category.key as SkillSemanticCategory];
+  return uiText.skills.namespaceNames[category.key]
+    ?? category.key.charAt(0).toUpperCase() + category.key.slice(1);
 }
 
 function formatLastUsedAt(value: string, todayAt: (time: string) => string) {
@@ -242,7 +240,7 @@ export function SkillManager({
         </button>
       </header>
 
-      {inventoryQuery.error && <div className="audit-error">{String(inventoryQuery.error)}</div>}
+      {inventoryQuery.error && <div className="inline-error">{String(inventoryQuery.error)}</div>}
       {inventoryQuery.isLoading && <div className="skill-state">{uiText.skills.loading}</div>}
 
       {inventory && !selectedCapability && (
@@ -311,7 +309,7 @@ export function SkillManager({
             })}
           </nav>
 
-          {inventory.snapshotError && <div className="audit-error">{inventory.snapshotError}</div>}
+          {inventory.snapshotError && <div className="inline-error">{inventory.snapshotError}</div>}
 
           <section className="skill-grid">
             {capabilities.map((capability) => {

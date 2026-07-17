@@ -41,7 +41,7 @@ export function McpManager({
         </button>
       </header>
 
-      {inventoryQuery.error && <div className="audit-error">{String(inventoryQuery.error)}</div>}
+      {inventoryQuery.error && <div className="inline-error">{String(inventoryQuery.error)}</div>}
       {inventoryQuery.isLoading && <div className="skill-state">{uiText.mcp.loading}</div>}
 
       {inventory && (

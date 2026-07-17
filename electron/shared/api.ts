@@ -3,13 +3,10 @@ import type {
   AgentConfigInventory,
   AgentKind,
   AgentMemorySnapshot,
-  CodexAuditMode,
-  CodexAuditRun,
-  CodexAuditTask,
   CorrectionDraft,
   McpInventory,
-  MemoryProfile,
   MemoryProfileGenerationTask,
+  MemoryProfileLocale,
   MemoryChangeMetadata,
   MemoryChangeTarget,
   MemoryChangeWriteResult,
@@ -31,12 +28,16 @@ export interface BackplaneDesktopApi {
   };
   memory: {
     scan(rootOverride?: string | null): Promise<ScanResult>;
-    generateProfile(rootOverride?: string | null): Promise<MemoryProfile>;
-    startProfileGeneration(rootOverride?: string | null): Promise<MemoryProfileGenerationTask>;
+    startProfileGeneration(
+      agent: AgentKind,
+      locale: MemoryProfileLocale,
+    ): Promise<MemoryProfileGenerationTask>;
     getProfileGeneration(): Promise<MemoryProfileGenerationTask>;
     cancelProfileGeneration(): Promise<MemoryProfileGenerationTask>;
-    loadProfile(rootOverride?: string | null): Promise<MemoryProfile>;
-    loadAgentSnapshot(agent: AgentKind): Promise<AgentMemorySnapshot>;
+    loadAgentSnapshot(
+      agent: AgentKind,
+      locale: MemoryProfileLocale,
+    ): Promise<AgentMemorySnapshot>;
     getSourceExcerpt(
       rootOverride: string | null,
       path: string,
@@ -64,12 +65,6 @@ export interface BackplaneDesktopApi {
       sourcePath: string,
     ): Promise<CorrectionDraft>;
     writeCorrection(rootOverride: string | null, draft: CorrectionDraft): Promise<MemoryChangeWriteResult>;
-  };
-  audit: {
-    start(rootOverride: string | null, mode: CodexAuditMode): Promise<CodexAuditTask>;
-    get(): Promise<CodexAuditTask>;
-    cancel(): Promise<CodexAuditTask>;
-    run(rootOverride: string | null, mode: CodexAuditMode): Promise<CodexAuditRun>;
   };
   skills: {
     load(projectRootOverride?: string | null): Promise<SkillInventory>;

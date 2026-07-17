@@ -3,14 +3,12 @@ import type {
   AgentConfigInventory,
   AgentKind,
   AgentMemorySnapshot,
-  CodexAuditMode,
-  CodexAuditRun,
-  CodexAuditTask,
   CorrectionDraft,
   MemoryChangeMetadata,
   MemoryChangeTarget,
   MemoryProfile,
   MemoryProfileGenerationTask,
+  MemoryProfileLocale,
   McpInventory,
   ScanResult,
   SaveAgentProfileInput,
@@ -19,7 +17,7 @@ import type {
   SkillUsageInventory,
   SkillUsageTarget,
 } from "./types";
-import { demoAuditRun, demoMemoryProfile, demoScanResult } from "./demoData";
+import { demoMemoryProfile, demoScanResult } from "./demoData";
 
 function desktopApi() {
   if (!window.backplane) throw new Error("Electron desktop API is unavailable");
@@ -34,25 +32,20 @@ export function scanMemories(rootOverride: string | null = null) {
   return desktopApi().memory.scan(rootOverride);
 }
 
-export function generateMemoryProfile(rootOverride: string | null = null) {
+export function startMemoryProfileGeneration(
+  agent: AgentKind,
+  locale: MemoryProfileLocale,
+) {
   if (isFixtureMode()) {
-    return Promise.resolve(fixtureMemoryProfile(rootOverride));
+    return Promise.resolve(fixtureProfileGenerationTask(agent, locale, "succeeded"));
   }
 
-  return desktopApi().memory.generateProfile(rootOverride);
-}
-
-export function startMemoryProfileGeneration(rootOverride: string | null = null) {
-  if (isFixtureMode()) {
-    return Promise.resolve(fixtureProfileGenerationTask(rootOverride, "succeeded"));
-  }
-
-  return desktopApi().memory.startProfileGeneration(rootOverride);
+  return desktopApi().memory.startProfileGeneration(agent, locale);
 }
 
 export function getMemoryProfileGeneration() {
   if (isFixtureMode()) {
-    return Promise.resolve(fixtureProfileGenerationTask(null, "idle"));
+    return Promise.resolve(fixtureProfileGenerationTask(null, null, "idle"));
   }
 
   return desktopApi().memory.getProfileGeneration();
@@ -60,42 +53,10 @@ export function getMemoryProfileGeneration() {
 
 export function cancelMemoryProfileGeneration() {
   if (isFixtureMode()) {
-    return Promise.resolve(fixtureProfileGenerationTask(null, "cancelled"));
+    return Promise.resolve(fixtureProfileGenerationTask(null, null, "cancelled"));
   }
 
   return desktopApi().memory.cancelProfileGeneration();
-}
-
-export function startCodexAudit(rootOverride: string | null, mode: CodexAuditMode) {
-  if (isFixtureMode()) {
-    return Promise.resolve(fixtureCodexAuditTask(rootOverride, mode, "succeeded"));
-  }
-
-  return desktopApi().audit.start(rootOverride, mode);
-}
-
-export function getCodexAudit() {
-  if (isFixtureMode()) {
-    return Promise.resolve(fixtureCodexAuditTask(null, "curated", "idle"));
-  }
-
-  return desktopApi().audit.get();
-}
-
-export function cancelCodexAudit() {
-  if (isFixtureMode()) {
-    return Promise.resolve(fixtureCodexAuditTask(null, "curated", "cancelled"));
-  }
-
-  return desktopApi().audit.cancel();
-}
-
-export function loadMemoryProfile(rootOverride: string | null = null) {
-  if (isFixtureMode()) {
-    return Promise.resolve(fixtureMemoryProfile(rootOverride));
-  }
-
-  return desktopApi().memory.loadProfile(rootOverride);
 }
 
 export function getSourceExcerpt(
@@ -178,14 +139,6 @@ export function writeCorrection(rootOverride: string | null, draft: CorrectionDr
   return desktopApi().memory.writeCorrection(rootOverride, draft);
 }
 
-export function runCodexAudit(rootOverride: string | null, mode: CodexAuditMode) {
-  if (isFixtureMode()) {
-    return Promise.resolve(fixtureCodexAuditRun(rootOverride, mode));
-  }
-
-  return desktopApi().audit.run(rootOverride, mode);
-}
-
 export function openSourceFile(path: string) {
   if (isFixtureMode()) {
     void path;
@@ -238,12 +191,12 @@ export function loadAgentConfigInventory() {
   return desktopApi().agentConfig.load();
 }
 
-export function loadAgentMemorySnapshot(agent: AgentKind) {
+export function loadAgentMemorySnapshot(agent: AgentKind, locale: MemoryProfileLocale) {
   if (isFixtureMode()) {
-    return Promise.resolve(fixtureAgentMemorySnapshot(agent));
+    return Promise.resolve(fixtureAgentMemorySnapshot(agent, locale));
   }
 
-  return desktopApi().memory.loadAgentSnapshot(agent);
+  return desktopApi().memory.loadAgentSnapshot(agent, locale);
 }
 
 export function loadMcpInventory(agent: AgentKind) {
@@ -334,11 +287,26 @@ function fixtureRoot(rootOverride: string | null) {
   return rootOverride?.trim() || demoScanResult.root;
 }
 
-function fixtureMemoryProfile(rootOverride: string | null) {
+function fixtureMemoryProfile(rootOverride: string | null, locale: MemoryProfileLocale) {
   const root = fixtureRoot(rootOverride);
+  const sections = locale === "zh-CN"
+    ? demoMemoryProfile.sections
+    : [
+        {
+          ...demoMemoryProfile.sections[0],
+          title: "You treat Python and Rust as your current primary stack",
+          body: "Your latest correction asks agents to treat Python and Rust as your current primary technical stack.",
+        },
+        {
+          ...demoMemoryProfile.sections[1],
+          title: "You use corrections to replace outdated memory",
+          body: "The current profile follows the correction note and keeps older Java and Spring Boot references only as historical context.",
+        },
+      ];
   return {
     ...demoMemoryProfile,
-    cachePath: `${root}/.backplane/profile.json`,
+    cachePath: `${root}/.backplane/profile.${locale}.json`,
+    sections,
     metadata: {
       ...demoMemoryProfile.metadata,
       memoryRoot: root,
@@ -347,51 +315,24 @@ function fixtureMemoryProfile(rootOverride: string | null) {
 }
 
 function fixtureProfileGenerationTask(
-  rootOverride: string | null,
+  agent: AgentKind | null,
+  locale: MemoryProfileLocale | null,
   status: MemoryProfileGenerationTask["status"],
 ) {
-  const profile = status === "succeeded" ? fixtureMemoryProfile(rootOverride) : null;
+  const profile =
+    status === "succeeded" && agent && locale
+      ? fixtureAgentMemorySnapshot(agent, locale).profile
+      : null;
   return {
     id: status === "idle" ? null : "fixture-profile-generation",
+    agent,
+    locale,
     status,
     startedAt: status === "idle" ? null : "2026-06-09T00:00:00Z",
     finishedAt: status === "running" || status === "cancelling" ? null : "2026-06-09T00:00:01Z",
     error: null,
     profile,
   } satisfies MemoryProfileGenerationTask;
-}
-
-function fixtureCodexAuditTask(
-  rootOverride: string | null,
-  mode: CodexAuditMode,
-  status: CodexAuditTask["status"],
-) {
-  const run = status === "succeeded" ? fixtureCodexAuditRun(rootOverride, mode) : null;
-  return {
-    id: status === "idle" ? null : "fixture-codex-audit",
-    mode: status === "idle" ? null : mode,
-    status,
-    startedAt: status === "idle" ? null : "2026-06-09T00:00:00Z",
-    finishedAt: status === "running" || status === "cancelling" ? null : "2026-06-09T00:00:01Z",
-    error: null,
-    run,
-  } satisfies CodexAuditTask;
-}
-
-function fixtureCodexAuditRun(rootOverride: string | null, mode: CodexAuditMode) {
-  const root = fixtureRoot(rootOverride);
-  return {
-    ...demoAuditRun,
-    cachePath: `${root}/.backplane/codex-runs/demo-${mode}.json`,
-    report: {
-      ...demoAuditRun.report,
-      mode,
-      metadata: {
-        ...demoAuditRun.report.metadata,
-        memoryRoot: root,
-      },
-    },
-  } satisfies CodexAuditRun;
 }
 
 function withFixtureRoot(rootOverride: string | null): ScanResult {
@@ -406,13 +347,19 @@ function withFixtureRoot(rootOverride: string | null): ScanResult {
   };
 }
 
-function fixtureAgentMemorySnapshot(agent: AgentKind): AgentMemorySnapshot {
+function fixtureAgentMemorySnapshot(
+  agent: AgentKind,
+  locale: MemoryProfileLocale,
+): AgentMemorySnapshot {
   if (agent === "codex") {
+    const profile = fixtureMemoryProfile(null, locale);
     return {
       agent,
       writable: true,
       scan: withFixtureRoot(null),
-      profile: fixtureMemoryProfile(null),
+      profile,
+      profileStale: false,
+      sourceHash: profile.sourceHash,
     };
   }
   const root =
@@ -420,7 +367,9 @@ function fixtureAgentMemorySnapshot(agent: AgentKind): AgentMemorySnapshot {
   const relativePath =
     agent === "claudeCode" ? "project-demo/memory/MEMORY.md" : "USER.md";
   const label = agent === "claudeCode" ? "Claude Code" : "Hermes";
-  const summary = `${label} fixture memory is isolated from Codex.`;
+  const summary = locale === "zh-CN"
+    ? `${label} 的记忆与 Codex 相互独立。`
+    : `${label} fixture memory is isolated from Codex.`;
   const scan: ScanResult = {
     root,
     sources: [
@@ -450,20 +399,23 @@ function fixtureAgentMemorySnapshot(agent: AgentKind): AgentMemorySnapshot {
     ],
     risks: [],
   };
+  const sourceHash = `fixture-${agent}-profile`;
   return {
     agent,
     writable: true,
     scan,
+    profileStale: false,
+    sourceHash,
     profile: {
       schemaVersion: "1",
       generatedAt: "2026-07-16T02:00:00Z",
-      sourceHash: `fixture-${agent}-profile`,
-      generator: "deterministic-profile-v4",
-      cachePath: `${root}/.backplane/profile.json`,
+      sourceHash,
+      generator: "codex-profile-v3",
+      cachePath: `${root}/.backplane/profile.${locale}.json`,
       sections: [
         {
           id: `fixture-${agent}-section`,
-          title: `${label} memory`,
+          title: locale === "zh-CN" ? `${label} 的独立记忆` : `${label} memory`,
           body: summary,
           evidence: [
             {
