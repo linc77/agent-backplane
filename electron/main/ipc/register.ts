@@ -1,5 +1,5 @@
 import type { BrowserWindow, IpcMainInvokeEvent } from "electron";
-import { app, ipcMain, shell } from "electron";
+import { app, ipcMain, session, shell } from "electron";
 import electronUpdater from "electron-updater";
 import type { ZodType } from "zod";
 import { channels } from "../../shared/channels";
@@ -20,7 +20,12 @@ import {
   writeCorrectionSchema,
 } from "../../shared/validation";
 import { createAgentConfigService, defaultAgentConfigPaths } from "../services/agentConfig";
-import { createAppUpdaterService, type AppUpdaterService } from "../services/appUpdater";
+import {
+  createAppUpdaterService,
+  directUpdateFeedUrl,
+  proxyConfigFromResolution,
+  type AppUpdaterService,
+} from "../services/appUpdater";
 import { ElectronSecretStore } from "../services/electronSecretStore";
 import { loadAgentMemorySnapshot, scanMemories } from "../services/memory";
 import { draftCorrection, draftCorrectionFromContent, draftRevert, getSourceExcerpt, writeCorrection } from "../services/memory/correction";
@@ -42,6 +47,11 @@ function getAppUpdater() {
   appUpdater ??= createAppUpdaterService({
     currentVersion: app.getVersion(),
     isPackaged: app.isPackaged,
+    prepareNetwork: async () => {
+      const proxy = await session.defaultSession.resolveProxy(directUpdateFeedUrl);
+      await autoUpdater.netSession.setProxy(proxyConfigFromResolution(proxy));
+      await autoUpdater.netSession.closeAllConnections();
+    },
     updater: autoUpdater,
   });
   return appUpdater;

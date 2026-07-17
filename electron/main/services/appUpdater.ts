@@ -1,3 +1,4 @@
+import type { ProxyConfig } from "electron";
 import type { ProgressInfo, UpdateDownloadedEvent, UpdateInfo } from "electron-updater";
 import type { AppUpdateInfo, AppUpdateState } from "../../../src/lib/appUpdate";
 
@@ -31,10 +32,12 @@ export type UpdateFeed =
       repo: string;
     };
 
+export const directUpdateFeedUrl = "https://github.com/linc77/agent-backplane/releases/latest/download";
+
 export const updateFeeds: readonly UpdateFeed[] = [
   {
     provider: "generic",
-    url: "https://github.com/linc77/agent-backplane/releases/latest/download",
+    url: directUpdateFeedUrl,
     useMultipleRangeRequest: false,
   },
   {
@@ -43,6 +46,31 @@ export const updateFeeds: readonly UpdateFeed[] = [
     repo: "agent-backplane",
   },
 ];
+
+export function proxyConfigFromResolution(resolution: string): ProxyConfig {
+  const candidate = resolution
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part && part.toUpperCase() !== "DIRECT");
+  if (!candidate) return { mode: "direct" };
+
+  const [kind, address] = candidate.split(/\s+/, 2);
+  if (!address) return { mode: "system" };
+  switch (kind.toUpperCase()) {
+    case "PROXY":
+    case "HTTP":
+      return { mode: "fixed_servers", proxyRules: address };
+    case "HTTPS":
+      return { mode: "fixed_servers", proxyRules: `https://${address}` };
+    case "SOCKS":
+    case "SOCKS5":
+      return { mode: "fixed_servers", proxyRules: `socks5://${address}` };
+    case "SOCKS4":
+      return { mode: "fixed_servers", proxyRules: `socks4://${address}` };
+    default:
+      return { mode: "system" };
+  }
+}
 
 export interface AppUpdaterService {
   getState(): AppUpdateState;
@@ -91,10 +119,12 @@ export function sanitizeUpdateError(error: unknown) {
 export function createAppUpdaterService({
   currentVersion,
   isPackaged,
+  prepareNetwork,
   updater,
 }: {
   currentVersion: string;
   isPackaged: boolean;
+  prepareNetwork?: () => Promise<void>;
   updater: UpdaterClient;
 }): AppUpdaterService {
   let state: AppUpdateState = {
@@ -118,6 +148,13 @@ export function createAppUpdaterService({
   const selectFeed = (index: number) => {
     feedIndex = index;
     updater.setFeedURL(updateFeeds[feedIndex]);
+  };
+  const prepareUpdaterNetwork = async () => {
+    try {
+      await prepareNetwork?.();
+    } catch {
+      // A proxy refresh failure should not prevent a direct update request.
+    }
   };
 
   if (isPackaged) {
@@ -170,6 +207,7 @@ export function createAppUpdaterService({
       if (!isPackaged) return snapshot();
       if (["downloading", "downloaded", "installing"].includes(state.phase)) return snapshot();
       mergeState({ phase: "checking", progress: null, error: null });
+      await prepareUpdaterNetwork();
       try {
         await updater.checkForUpdates();
       } catch {
@@ -191,6 +229,7 @@ export function createAppUpdaterService({
         throw new Error("No update is ready to download.");
       }
       mergeState({ phase: "downloading", progress: 0, error: null });
+      await prepareUpdaterNetwork();
       try {
         await updater.downloadUpdate();
       } catch (error) {

@@ -1,7 +1,12 @@
 import { EventEmitter } from "node:events";
 import type { UpdateInfo } from "electron-updater";
 import { describe, expect, it, vi } from "vitest";
-import { createAppUpdaterService, sanitizeUpdateError, type UpdaterClient } from "./appUpdater";
+import {
+  createAppUpdaterService,
+  proxyConfigFromResolution,
+  sanitizeUpdateError,
+  type UpdaterClient,
+} from "./appUpdater";
 
 function updateInfo(version = "0.3.0") {
   return {
@@ -53,9 +58,11 @@ describe("Electron app updater service", () => {
 
   it("checks, downloads, and installs a stable update explicitly", async () => {
     const updater = fakeUpdater();
+    const prepareNetwork = vi.fn(async () => undefined);
     const service = createAppUpdaterService({
       currentVersion: "0.2.1",
       isPackaged: true,
+      prepareNetwork,
       updater,
     });
 
@@ -81,6 +88,19 @@ describe("Electron app updater service", () => {
     await service.installUpdate();
     expect(service.getState().phase).toBe("installing");
     expect(updater.quitAndInstall).toHaveBeenCalledWith(false, true);
+    expect(prepareNetwork).toHaveBeenCalledTimes(2);
+  });
+
+  it("maps the resolved Windows system proxy into the updater session", () => {
+    expect(proxyConfigFromResolution("PROXY 127.0.0.1:7890; DIRECT")).toEqual({
+      mode: "fixed_servers",
+      proxyRules: "127.0.0.1:7890",
+    });
+    expect(proxyConfigFromResolution("SOCKS5 127.0.0.1:1080; DIRECT")).toEqual({
+      mode: "fixed_servers",
+      proxyRules: "socks5://127.0.0.1:1080",
+    });
+    expect(proxyConfigFromResolution("DIRECT")).toEqual({ mode: "direct" });
   });
 
   it("retries a failed direct check through the GitHub provider", async () => {

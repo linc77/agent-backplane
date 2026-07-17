@@ -3,7 +3,7 @@
   "description": "Desktop control plane for Agent memory, skills, MCP, and provider profiles.",
   "author": "linc77",
   "private": true,
-  "version": "0.5.1",
+  "version": "0.5.2-rc.1",
   "type": "module",
   "main": "out/main/index.js",
   "scripts": {
