@@ -11,7 +11,7 @@ Installers are published on [GitHub Releases](https://github.com/linc77/agent-ba
 - macOS Apple Silicon: `.dmg`
 - Windows x64: NSIS `.exe`
 
-The first Electron builds (`v0.2.0` and `v0.2.1`) are unsigned and require one final manual upgrade. The first signed updater-enabled release and later versions can check, download, install, and restart from Settings. macOS updater releases require Developer ID signing and notarization; release CI fails instead of publishing an unsigned macOS updater.
+Desktop releases are currently unsigned. macOS users may need to approve the app in System Settings on first launch. The in-app updater can check and download releases, but unsigned macOS updates do not provide the trust guarantees of Developer ID signing and notarization.
 
 ## Development
 

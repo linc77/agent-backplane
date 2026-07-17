@@ -30,7 +30,7 @@ jobs:
         include:
           - platform: macos-latest
             update_platform: mac
-            command: pnpm exec electron-builder --mac dmg zip --arm64 --publish never -c.forceCodeSigning=true
+            command: pnpm exec electron-builder --mac dmg zip --arm64 --publish never -c.mac.identity=null -c.mac.notarize=false
           - platform: windows-latest
             update_platform: win
             command: pnpm exec electron-builder --win nsis --x64 --publish never
@@ -54,41 +54,8 @@ jobs:
       - name: Verify
         run: pnpm verify
 
-      - name: Require macOS signing credentials
-        if: matrix.platform == 'macos-latest'
-        shell: bash
-        env:
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: |
-          for name in CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
-            if [[ -z "${!name}" ]]; then
-              echo "Missing required GitHub Actions secret: $name" >&2
-              exit 1
-            fi
-          done
-
       - name: Build installer
-        env:
-          CSC_LINK: ${{ matrix.platform == 'macos-latest' && secrets.CSC_LINK || '' }}
-          CSC_KEY_PASSWORD: ${{ matrix.platform == 'macos-latest' && secrets.CSC_KEY_PASSWORD || '' }}
-          APPLE_ID: ${{ matrix.platform == 'macos-latest' && secrets.APPLE_ID || '' }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ matrix.platform == 'macos-latest' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
-          APPLE_TEAM_ID: ${{ matrix.platform == 'macos-latest' && secrets.APPLE_TEAM_ID || '' }}
         run: ${{ matrix.command }}
-
-      - name: Verify macOS signature and notarization
-        if: matrix.platform == 'macos-latest'
-        shell: bash
-        run: |
-          app_path=$(find release -type d -name '*.app' -print -quit)
-          test -n "$app_path"
-          codesign --verify --deep --strict --verbose=2 "$app_path"
-          spctl --assess --type execute --verbose=4 "$app_path"
-          xcrun stapler validate "$app_path"
 
       - name: Verify update assets
         shell: bash
