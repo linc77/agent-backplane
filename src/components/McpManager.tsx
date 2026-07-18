@@ -15,6 +15,8 @@ import { agentMeta } from "../lib/agentScope";
 import { loadMcpInventory, openSourceFile } from "../lib/api";
 import type { UiText } from "../lib/i18n";
 import type { AgentKind, McpServer, McpTransport } from "../lib/types";
+import { PageHeader } from "./PageHeader";
+import { LoadingState } from "./LoadingState";
 
 type StateFilter = "all" | "configured" | "disabled" | "attention";
 
@@ -83,22 +85,22 @@ export function McpManager({
 
   return (
     <main className="board mcp-manager">
-      <header className="toolbar mcp-toolbar">
-        <div>
-          <p className="eyebrow">{uiText.mcp.eyebrow}</p>
-          <h1>{agentMeta[selectedAgent].label} · {uiText.mcp.title}</h1>
-          <span className="toolbar-meta">{uiText.mcp.subtitle}</span>
-        </div>
-        <button
-          className="secondary-button"
-          disabled={inventoryQuery.isFetching}
-          onClick={() => void inventoryQuery.refetch()}
-          type="button"
-        >
-          <RefreshCw className={inventoryQuery.isFetching ? "spinning" : ""} size={15} />
-          {inventoryQuery.isFetching ? uiText.mcp.refreshing : uiText.mcp.refresh}
-        </button>
-      </header>
+      <PageHeader
+        className="mcp-toolbar"
+        title={`${agentMeta[selectedAgent].label} · ${uiText.mcp.title}`}
+        description={uiText.mcp.subtitle}
+        actions={(
+          <button
+            className="secondary-button"
+            disabled={inventoryQuery.isFetching}
+            onClick={() => void inventoryQuery.refetch()}
+            type="button"
+          >
+            <RefreshCw className={inventoryQuery.isFetching ? "spinning" : ""} size={15} />
+            {inventoryQuery.isFetching ? uiText.mcp.refreshing : uiText.mcp.refresh}
+          </button>
+        )}
+      />
 
       {inventoryQuery.error && inventory && (
         <div className="inline-error" role="alert">{uiText.mcp.staleResult(generatedAt)}</div>
@@ -106,7 +108,7 @@ export function McpManager({
       {inventoryQuery.error && !inventory && (
         <div className="inline-error" role="alert">{uiText.mcp.loadFailed}</div>
       )}
-      {inventoryQuery.isLoading && <div className="skill-state" role="status">{uiText.mcp.loading}</div>}
+      {inventoryQuery.isLoading && <LoadingState label={uiText.mcp.loading} />}
 
       {inventory && (
         <>

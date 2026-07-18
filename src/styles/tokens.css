@@ -1,0 +1,77 @@
+:root {
+  color-scheme: light;
+
+  --bp-canvas: oklch(0.968 0.004 255);
+  --bp-sidebar: oklch(0.975 0.004 255 / 0.92);
+  --bp-surface: oklch(0.995 0.002 255);
+  --bp-surface-elevated: oklch(0.999 0.001 255);
+  --bp-surface-subtle: oklch(0.972 0.004 255);
+  --bp-surface-hover: oklch(0.22 0.01 255 / 0.045);
+  --bp-surface-selected: oklch(0.61 0.15 257 / 0.1);
+
+  --bp-text: oklch(0.22 0.01 255);
+  --bp-text-secondary: oklch(0.42 0.015 255);
+  --bp-text-muted: oklch(0.58 0.012 255);
+  --bp-border: oklch(0.22 0.01 255 / 0.1);
+  --bp-border-strong: oklch(0.22 0.01 255 / 0.17);
+
+  --bp-accent: oklch(0.61 0.15 257);
+  --bp-accent-hover: oklch(0.56 0.15 257);
+  --bp-accent-soft: oklch(0.93 0.04 257);
+  --bp-accent-text: oklch(0.39 0.13 257);
+  --bp-focus: oklch(0.61 0.15 257 / 0.32);
+
+  --bp-success: oklch(0.55 0.15 150);
+  --bp-success-soft: oklch(0.96 0.035 150);
+  --bp-success-text: oklch(0.39 0.12 150);
+  --bp-warning: oklch(0.62 0.16 55);
+  --bp-warning-soft: oklch(0.97 0.045 75);
+  --bp-warning-text: oklch(0.43 0.13 55);
+  --bp-danger: oklch(0.56 0.2 28);
+  --bp-danger-soft: oklch(0.96 0.035 28);
+  --bp-danger-text: oklch(0.43 0.17 28);
+
+  --bp-font-sans: -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+    "Noto Sans CJK SC", sans-serif;
+  --bp-font-mono: "SFMono-Regular", "SF Mono", "JetBrains Mono", Menlo, Consolas,
+    monospace;
+
+  --bp-font-caption: 11px;
+  --bp-font-base: 13px;
+  --bp-font-heading: 15px;
+  --bp-font-stat: 20px;
+
+  --bp-space-1: 4px;
+  --bp-space-2: 8px;
+  --bp-space-3: 12px;
+  --bp-space-4: 16px;
+  --bp-space-5: 20px;
+  --bp-space-6: 24px;
+  --bp-space-8: 32px;
+  --bp-space-10: 40px;
+
+  --bp-radius-tight: 6px;
+  --bp-radius-control: 8px;
+  --bp-radius-surface: 12px;
+  --bp-radius-panel: 16px;
+  --bp-radius-pill: 999px;
+
+  --bp-control-xs: 24px;
+  --bp-control-sm: 28px;
+  --bp-control-md: 32px;
+  --bp-control-lg: 36px;
+  --bp-control-xl: 40px;
+
+  --bp-duration-quick: 120ms;
+  --bp-duration-base: 150ms;
+  --bp-duration-slow: 180ms;
+  --bp-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --bp-shadow-panel:
+    0 1px 2px oklch(0.22 0.01 255 / 0.04),
+    0 12px 34px oklch(0.22 0.01 255 / 0.08);
+  --bp-shadow-popover:
+    0 1px 2px oklch(0.22 0.01 255 / 0.06),
+    0 18px 48px oklch(0.22 0.01 255 / 0.14);
+}

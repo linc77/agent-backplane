@@ -5,6 +5,7 @@ import {
   ChevronDown,
   Cable,
   Settings2,
+  Waypoints,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ComponentType } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -82,6 +83,16 @@ export function Sidebar({
 
   return (
     <aside className="sidebar">
+      <div className="sidebar-brand" aria-label="Agent Backplane">
+        <span className="sidebar-brand-icon">
+          <Waypoints aria-hidden="true" size={18} />
+        </span>
+        <span className="sidebar-brand-copy">
+          <small>AGENT</small>
+          <strong>Backplane</strong>
+        </span>
+      </div>
+
       <div className="agent-context" ref={selectorRef}>
         <button
           aria-expanded={isAgentMenuOpen}
@@ -167,6 +178,7 @@ export function Sidebar({
           const Icon = topic.icon;
           return (
             <button
+              aria-current={topic.id === activeTopic ? "page" : undefined}
               className={topic.id === activeTopic ? "topic-item active" : "topic-item"}
               key={topic.id}
               onClick={() => onSelectTopic(topic.id)}

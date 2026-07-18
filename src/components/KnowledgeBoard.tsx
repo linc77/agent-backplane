@@ -26,6 +26,8 @@ import type {
   MemorySource,
   ScanResult,
 } from "../lib/types";
+import { PageHeader } from "./PageHeader";
+import { LoadingState } from "./LoadingState";
 
 type BoardView = "profile" | "memories";
 type ProfileSectionState = "steady" | "recent" | "review";
@@ -221,28 +223,26 @@ export function KnowledgeBoard({
   return (
     <main className="board memory-board">
       <section className="memory-profile">
-        <header className="memory-profile-header">
-          <div className="memory-profile-heading">
-            <p className="eyebrow">{uiText.memorySummary.eyebrow}</p>
-            <h1>{uiText.memorySummary.title(agentMeta[selectedAgent].label)}</h1>
-            <p className="memory-profile-description">
-              {uiText.memorySummary.description(agentMeta[selectedAgent].label)}
-            </p>
-          </div>
-          <button
-            className="secondary-button compact"
-            disabled={isProfileLoading || (!hasMemory && !profile)}
-            onClick={
-              isProfileRegenerating ? onCancelProfileGeneration : onRegenerateProfile
-            }
-            type="button"
-          >
-            <RefreshCw aria-hidden="true" size={15} />
-            {isProfileRegenerating
-              ? uiText.memorySummary.cancelGeneration
-              : uiText.memorySummary.updateProfile}
-          </button>
-        </header>
+        <PageHeader
+          className="memory-profile-header"
+          title={uiText.memorySummary.title(agentMeta[selectedAgent].label)}
+          description={uiText.memorySummary.description(agentMeta[selectedAgent].label)}
+          actions={(
+            <button
+              className="secondary-button compact"
+              disabled={isProfileLoading || (!hasMemory && !profile)}
+              onClick={
+                isProfileRegenerating ? onCancelProfileGeneration : onRegenerateProfile
+              }
+              type="button"
+            >
+              <RefreshCw aria-hidden="true" size={15} />
+              {isProfileRegenerating
+                ? uiText.memorySummary.cancelGeneration
+                : uiText.memorySummary.updateProfile}
+            </button>
+          )}
+        />
 
         {(profile || currentMemories.length > 0) && (
           <div className="memory-overview" aria-label={uiText.memorySummary.overviewLabel}>
@@ -329,9 +329,7 @@ export function KnowledgeBoard({
         )}
 
         {view === "profile" && isProfileLoading && !profile && (
-          <div className="memory-profile-placeholder" aria-live="polite">
-            <strong>{uiText.memorySummary.loading}</strong>
-          </div>
+          <LoadingState label={uiText.memorySummary.loading} />
         )}
 
         {view === "profile" && !isProfileLoading && !profile && !hasMemory && (

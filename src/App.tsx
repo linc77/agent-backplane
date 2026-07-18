@@ -361,7 +361,6 @@ function App() {
     setPaneLayout(
       resizePaneLayout(
         drag.startLayout,
-        "left",
         event.clientX - drag.startX,
         drag.viewportWidth,
       ),
@@ -378,7 +377,7 @@ function App() {
     event.preventDefault();
     const step = event.shiftKey ? 48 : 16;
     const deltaX = event.key === "ArrowLeft" ? -step : step;
-    setPaneLayout((layout) => resizePaneLayout(layout, "left", deltaX, window.innerWidth));
+    setPaneLayout((layout) => resizePaneLayout(layout, deltaX, window.innerWidth));
   }
 
   const pageMode =
@@ -421,40 +420,42 @@ function App() {
         tabIndex={0}
       />
 
-      {activeTopic === "skillManager" ? (
-        <SkillManager selectedAgent={selectedAgent} uiText={uiText} />
-      ) : activeTopic === "mcpManager" ? (
-        <McpManager selectedAgent={selectedAgent} uiText={uiText} />
-      ) : activeTopic === "agentManager" ? (
-        <AgentConfigManager selectedAgent={selectedAgent} uiText={uiText} />
-      ) : activeTopic === "settings" ? (
-        <SettingsPage
-          controller={appUpdater}
-          locale={locale}
-          nativeEnabled={nativeUpdaterEnabled}
-          onLocaleChange={changeLocale}
-          uiText={uiText}
-        />
-      ) : (
-        <KnowledgeBoard
-          key={selectedAgent}
-          isProfileLoading={agentMemoryQuery.isLoading}
-          isProfileRegenerating={isProfileRegenerating}
-          locale={locale}
-          onCancelProfileGeneration={cancelProfileGeneration}
-          onDraftEntryCorrection={draftEntryCorrection}
-          onDraftProfileCorrection={draftProfileCorrection}
-          onOpenSource={(path) => openSourceMutation.mutate(path)}
-          onRegenerateProfile={regenerateProfile}
-          profile={profile}
-          profileError={agentMemoryQuery.error ?? profileGenerationError}
-          profileStale={Boolean(snapshot?.profileStale)}
-          scan={scan}
-          selectedAgent={selectedAgent}
-          uiText={uiText}
-          writable={writable}
-        />
-      )}
+      <section className="workspace-surface">
+        {activeTopic === "skillManager" ? (
+          <SkillManager selectedAgent={selectedAgent} uiText={uiText} />
+        ) : activeTopic === "mcpManager" ? (
+          <McpManager selectedAgent={selectedAgent} uiText={uiText} />
+        ) : activeTopic === "agentManager" ? (
+          <AgentConfigManager selectedAgent={selectedAgent} uiText={uiText} />
+        ) : activeTopic === "settings" ? (
+          <SettingsPage
+            controller={appUpdater}
+            locale={locale}
+            nativeEnabled={nativeUpdaterEnabled}
+            onLocaleChange={changeLocale}
+            uiText={uiText}
+          />
+        ) : (
+          <KnowledgeBoard
+            key={selectedAgent}
+            isProfileLoading={agentMemoryQuery.isLoading}
+            isProfileRegenerating={isProfileRegenerating}
+            locale={locale}
+            onCancelProfileGeneration={cancelProfileGeneration}
+            onDraftEntryCorrection={draftEntryCorrection}
+            onDraftProfileCorrection={draftProfileCorrection}
+            onOpenSource={(path) => openSourceMutation.mutate(path)}
+            onRegenerateProfile={regenerateProfile}
+            profile={profile}
+            profileError={agentMemoryQuery.error ?? profileGenerationError}
+            profileStale={Boolean(snapshot?.profileStale)}
+            scan={scan}
+            selectedAgent={selectedAgent}
+            uiText={uiText}
+            writable={writable}
+          />
+        )}
+      </section>
 
       {lastWritePath && (
         <div className="status-toast">{uiText.app.correctionWritten(lastWritePath)}</div>

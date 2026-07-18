@@ -1,6 +1,7 @@
 import { Languages, RefreshCw, Settings2 } from "lucide-react";
 import type { AppUpdaterController } from "../hooks/useAppUpdater";
 import { localeOptions, type Locale, type UiText } from "../lib/i18n";
+import { PageHeader } from "./PageHeader";
 
 export function SettingsPage({
   controller,
@@ -24,11 +25,11 @@ export function SettingsPage({
 
   return (
     <main className="settings-page">
-      <header className="settings-page-heading">
-        <p className="eyebrow">{uiText.settings.eyebrow}</p>
-        <h1>{uiText.settings.title}</h1>
-        <p>{uiText.settings.subtitle}</p>
-      </header>
+      <PageHeader
+        className="settings-page-heading"
+        title={uiText.settings.title}
+        description={uiText.settings.subtitle}
+      />
 
       <div className="settings-page-content">
         <section className="settings-section">

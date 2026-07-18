@@ -25,6 +25,8 @@ import type {
   AgentProviderProfile,
   SaveAgentProfileInput,
 } from "../lib/types";
+import { PageHeader } from "./PageHeader";
+import { LoadingState } from "./LoadingState";
 
 const defaultProfiles: Record<AgentKind, Omit<SaveAgentProfileInput, "agent">> = {
   codex: {
@@ -145,7 +147,7 @@ export function AgentConfigManager({
           result.reloadHint,
         ]
           .filter(Boolean)
-          .join(" · "),
+          .join(" "),
       );
     },
   });
@@ -154,36 +156,36 @@ export function AgentConfigManager({
 
   return (
     <main className="board agent-manager">
-      <header className="toolbar agent-toolbar">
-        <div>
-          <p className="eyebrow">{uiText.agents.eyebrow}</p>
-          <h1>{target?.label ?? agentMeta[selectedAgent].label} · {uiText.agents.title}</h1>
-          <span className="toolbar-meta">{uiText.agents.subtitle}</span>
-        </div>
-        <div className="agent-toolbar-actions">
-          <button
-            aria-label={uiText.agents.refresh}
-            className="icon-button"
-            disabled={inventoryQuery.isFetching}
-            onClick={() => void inventoryQuery.refetch()}
-            type="button"
-          >
-            <RefreshCw size={16} />
-          </button>
-          <button
-            className="primary-button agent-add-button"
-            onClick={() => setEditing(inputFromProfile(selectedAgent))}
-            type="button"
-          >
-            <Plus size={17} />
-            {uiText.agents.addProfile}
-          </button>
-        </div>
-      </header>
+      <PageHeader
+        className="agent-toolbar"
+        title={`${target?.label ?? agentMeta[selectedAgent].label} · ${uiText.agents.title}`}
+        description={uiText.agents.subtitle}
+        actions={(
+          <div className="agent-toolbar-actions">
+            <button
+              aria-label={uiText.agents.refresh}
+              className="icon-button"
+              disabled={inventoryQuery.isFetching}
+              onClick={() => void inventoryQuery.refetch()}
+              type="button"
+            >
+              <RefreshCw size={16} />
+            </button>
+            <button
+              className="primary-button agent-add-button"
+              onClick={() => setEditing(inputFromProfile(selectedAgent))}
+              type="button"
+            >
+              <Plus size={17} />
+              {uiText.agents.addProfile}
+            </button>
+          </div>
+        )}
+      />
 
       {error && <div className="inline-error">{String(error)}</div>}
       {notice && <div className="agent-notice"><Check size={15} />{notice}</div>}
-      {inventoryQuery.isLoading && <div className="skill-state">{uiText.agents.loading}</div>}
+      {inventoryQuery.isLoading && <LoadingState label={uiText.agents.loading} />}
 
       {target && (
         <>
@@ -200,11 +202,11 @@ export function AgentConfigManager({
             <dl>
               <div>
                 <dt>{uiText.agents.currentProvider}</dt>
-                <dd>{target.activeProviderKey || "—"}</dd>
+                <dd>{target.activeProviderKey || "-"}</dd>
               </div>
               <div>
                 <dt>{uiText.agents.currentModel}</dt>
-                <dd>{target.activeModel || "—"}</dd>
+                <dd>{target.activeModel || "-"}</dd>
               </div>
               <div className="agent-config-path">
                 <dt>{uiText.agents.configPath}</dt>

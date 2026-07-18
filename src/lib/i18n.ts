@@ -489,7 +489,7 @@ const zhCN: UiText = {
     copyCount: (count) => `${count} 份副本`,
     usageCount: (count) => `使用 ${count} 次`,
     usageSummary: (count, lastUsed, agents) =>
-      `使用 ${count} 次 · 最近使用于 ${lastUsed} · ${agents}`,
+      `使用 ${count} 次，最近使用于 ${lastUsed}。${agents}`,
     todayAt: (time) => `今天 ${time}`,
     noUsage: "暂无使用记录",
     project: "项目",
@@ -698,7 +698,7 @@ const zhCN: UiText = {
   format: {
     evidence: (path, startLine, endLine) => `${path} 第 ${startLine}-${endLine} 行`,
     lineRange: (startLine, endLine) => `第 ${startLine}-${endLine} 行`,
-    sourceMeta: (kind, lines, kb) => `${kind} · ${lines} 行 · ${kb} KB`,
+    sourceMeta: (kind, lines, kb) => `${kind} / ${lines} 行 / ${kb} KB`,
   },
 };
 
@@ -887,7 +887,7 @@ const enUS: UiText = {
     copyCount: (count) => `${count} copies`,
     usageCount: (count) => `Used ${count} times`,
     usageSummary: (count, lastUsed, agents) =>
-      `Used ${count} times · Last used ${lastUsed} · ${agents}`,
+      `Used ${count} times, last used ${lastUsed}. ${agents}`,
     todayAt: (time) => `Today ${time}`,
     noUsage: "No usage recorded",
     project: "Project",
@@ -1096,7 +1096,7 @@ const enUS: UiText = {
   format: {
     evidence: (path, startLine, endLine) => `${path} L${startLine}-${endLine}`,
     lineRange: (startLine, endLine) => `L${startLine}-${endLine}`,
-    sourceMeta: (kind, lines, kb) => `${kind} · ${lines} lines · ${kb} KB`,
+    sourceMeta: (kind, lines, kb) => `${kind} / ${lines} lines / ${kb} KB`,
   },
 };
 

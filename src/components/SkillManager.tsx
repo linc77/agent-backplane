@@ -33,6 +33,8 @@ import {
   syncProjectSkills,
 } from "../lib/api";
 import { agentMeta } from "../lib/agentScope";
+import { PageHeader } from "./PageHeader";
+import { LoadingState } from "./LoadingState";
 import type { UiText } from "../lib/i18n";
 import { categorizeSkills, type SkillCategory } from "../lib/skillCategories";
 import {
@@ -490,37 +492,37 @@ export function SkillManager({
 
   return (
     <main className="board skill-manager">
-      <header className="toolbar skill-toolbar">
-        <div>
-          <p className="eyebrow">{uiText.skills.eyebrow}</p>
-          <h1>{agentMeta[selectedAgent].label} · {uiText.skills.title}</h1>
-        </div>
-        <div className="skill-project-actions">
-          <button
-            className="secondary-button"
-            disabled={isChoosingProject || isEditing}
-            onClick={() => void addProject()}
-            type="button"
-          >
-            <FolderPlus size={15} />
-            {uiText.skills.addProject}
-          </button>
-          <button
-            className="secondary-button"
-            disabled={inventoryQuery.isFetching || isEditing}
-            onClick={() => void inventoryQuery.refetch()}
-            type="button"
-          >
-            <RefreshCw size={15} />
-            {uiText.skills.refresh}
-          </button>
-        </div>
-      </header>
+      <PageHeader
+        className="skill-toolbar"
+        title={`${agentMeta[selectedAgent].label} · ${uiText.skills.title}`}
+        actions={(
+          <div className="skill-project-actions">
+            <button
+              className="secondary-button"
+              disabled={isChoosingProject || isEditing}
+              onClick={() => void addProject()}
+              type="button"
+            >
+              <FolderPlus size={15} />
+              {uiText.skills.addProject}
+            </button>
+            <button
+              className="secondary-button"
+              disabled={inventoryQuery.isFetching || isEditing}
+              onClick={() => void inventoryQuery.refetch()}
+              type="button"
+            >
+              <RefreshCw size={15} />
+              {uiText.skills.refresh}
+            </button>
+          </div>
+        )}
+      />
 
       {workspaceQuery.error && <div className="inline-error">{String(workspaceQuery.error)}</div>}
       {inventoryQuery.error && <div className="inline-error">{String(inventoryQuery.error)}</div>}
       {(workspaceQuery.isLoading || inventoryQuery.isLoading) && (
-        <div className="skill-state">{uiText.skills.loading}</div>
+        <LoadingState label={uiText.skills.loading} />
       )}
 
       {workspace && inventory && !selectedCapability && (
@@ -866,7 +868,7 @@ export function SkillManager({
                     >
                       {selectedCapability.copies.map((copy) => (
                         <option key={copy.id} value={copy.id}>
-                          {copy.tool} · {copyScope(copy, uiText)} · {copy.path}
+                          {copy.tool} / {copyScope(copy, uiText)} / {copy.path}
                         </option>
                       ))}
                     </select>
