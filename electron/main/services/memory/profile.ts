@@ -10,7 +10,7 @@ import type {
 import { resolveMemoryTruth } from "../../../../src/lib/memoryTruth";
 import { sha256 } from "../shared";
 
-const profileGenerator = "codex-profile-v3";
+const profileGenerator = "codex-profile-v4";
 
 export function currentMemoryEntries(
   sources: MemorySource[],
@@ -56,7 +56,8 @@ function isCachedProfile(value: unknown): value is MemoryProfile {
     profile.sections.every(
       (section) =>
         Boolean(section.id && section.title && section.body) &&
-        Array.isArray(section.evidence),
+        Array.isArray(section.evidence) &&
+        section.evidence.every((evidence) => Boolean(evidence.entryId)),
     )
   );
 }

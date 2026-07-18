@@ -1,5 +1,14 @@
-import { ExternalLink, PencilLine, RefreshCw } from "lucide-react";
-import { useState } from "react";
+import {
+  AlertTriangle,
+  ExternalLink,
+  FileText,
+  LayoutGrid,
+  List,
+  PencilLine,
+  RefreshCw,
+  Search,
+} from "lucide-react";
+import { useMemo, useState } from "react";
 import { agentMeta } from "../lib/agentScope";
 import type { Locale, UiText } from "../lib/i18n";
 import {
@@ -11,11 +20,15 @@ import {
 import type {
   AgentKind,
   EvidenceRef,
+  MemoryEntry,
   MemoryProfile,
   MemoryProfileSection,
   MemorySource,
   ScanResult,
 } from "../lib/types";
+
+type BoardView = "profile" | "memories";
+type ProfileSectionState = "steady" | "recent" | "review";
 
 function evidenceTrustStatus(
   evidence: EvidenceRef,
@@ -27,6 +40,36 @@ function evidenceTrustStatus(
   if (source?.kind === "chronicle") return "uncertain";
   if (source?.kind === "raw" || source?.kind === "rolloutSummary") return "stale";
   return source ? "current" : "uncertain";
+}
+
+function profileSectionState(
+  section: MemoryProfileSection,
+  sources: MemorySource[],
+  truth: MemoryTruthModel,
+): ProfileSectionState {
+  const evidenceStatuses = section.evidence.map((evidence) =>
+    evidenceTrustStatus(
+      evidence,
+      sources.find((source) => source.relativePath === evidence.sourcePath),
+      truth,
+    ),
+  );
+  const hasExplicitCorrection = section.evidence.some(
+    (evidence) =>
+      sources.find((source) => source.relativePath === evidence.sourcePath)?.kind === "adHocNote",
+  );
+  if (
+    section.confidence === "low" ||
+    section.stability === "uncertain" ||
+    (section.evidence.length === 1 && !hasExplicitCorrection) ||
+    evidenceStatuses.some((status) => status !== "current")
+  ) {
+    return "review";
+  }
+  if (section.confidence === "medium" || section.stability === "recent") {
+    return "recent";
+  }
+  return "steady";
 }
 
 function ProfileEvidenceDetails({
@@ -57,10 +100,8 @@ function ProfileEvidenceDetails({
             const source = sources.find((item) => item.relativePath === evidence.sourcePath);
             const status = evidenceTrustStatus(evidence, source, truth);
             return (
-              <article
-                className={`profile-evidence-row ${status}`}
-                key={`${evidence.sourcePath}:${evidence.startLine}-${evidence.endLine}`}
-              >
+              <article className={`profile-evidence-row ${status}`} key={evidence.entryId}>
+                <p>{evidence.summary}</p>
                 <div className="profile-evidence-main">
                   {source ? (
                     <button
@@ -88,7 +129,6 @@ function ProfileEvidenceDetails({
                     {uiText.memorySummary.evidenceTrust[status]}
                   </span>
                 </div>
-                <p>{evidence.summary}</p>
               </article>
             );
           })}
@@ -107,11 +147,18 @@ function formatGeneratedAt(value: string, locale: Locale) {
   }).format(date);
 }
 
+function matchesMemory(entry: MemoryEntry, query: string) {
+  const normalized = query.trim().toLocaleLowerCase();
+  if (!normalized) return true;
+  return `${entry.title}\n${entry.summary}\n${entry.sourcePath}`.toLocaleLowerCase().includes(normalized);
+}
+
 export function KnowledgeBoard({
   isProfileLoading,
   isProfileRegenerating,
   locale,
   onCancelProfileGeneration,
+  onDraftEntryCorrection,
   onDraftProfileCorrection,
   onOpenSource,
   onRegenerateProfile,
@@ -136,10 +183,22 @@ export function KnowledgeBoard({
   onCancelProfileGeneration: () => void;
   onRegenerateProfile: () => void;
   onDraftProfileCorrection: (section: MemoryProfileSection) => void;
+  onDraftEntryCorrection: (entry: MemoryEntry) => void;
   onOpenSource: (path: string) => void;
 }) {
+  const [view, setView] = useState<BoardView>("profile");
+  const [reviewOnly, setReviewOnly] = useState(false);
+  const [memoryQuery, setMemoryQuery] = useState("");
   const sources = scan?.sources ?? [];
-  const truth = resolveMemoryTruth(scan);
+  const truth = useMemo(() => resolveMemoryTruth(scan), [scan]);
+  const currentMemories = truth.current.map((item) => item.entry);
+  const reviewSections = (profile?.sections ?? []).filter(
+    (section) => profileSectionState(section, sources, truth) === "review",
+  );
+  const visibleSections = reviewOnly && reviewSections.length > 0
+    ? reviewSections
+    : profile?.sections ?? [];
+  const visibleMemories = currentMemories.filter((entry) => matchesMemory(entry, memoryQuery));
   const hasMemory = Boolean(scan?.entries.length);
   const statusMessage = profileError
     ? profile
@@ -152,6 +211,12 @@ export function KnowledgeBoard({
       : profileStale && profile
         ? uiText.memorySummary.stale
         : null;
+
+  function showReviewSections() {
+    if (!reviewSections.length) return;
+    setView("profile");
+    setReviewOnly(true);
+  }
 
   return (
     <main className="board memory-board">
@@ -179,6 +244,28 @@ export function KnowledgeBoard({
           </button>
         </header>
 
+        {(profile || currentMemories.length > 0) && (
+          <div className="memory-overview" aria-label={uiText.memorySummary.overviewLabel}>
+            <div className="memory-overview-item">
+              <strong>{profile?.sections.length ?? 0}</strong>
+              <span>{uiText.memorySummary.profileThemes}</span>
+            </div>
+            <button className="memory-overview-item" onClick={() => setView("memories")} type="button">
+              <strong>{currentMemories.length}</strong>
+              <span>{uiText.memorySummary.currentMemories}</span>
+            </button>
+            <button
+              className={`memory-overview-item attention${reviewSections.length ? " has-items" : ""}`}
+              disabled={!reviewSections.length}
+              onClick={showReviewSections}
+              type="button"
+            >
+              <strong>{reviewSections.length}</strong>
+              <span>{uiText.memorySummary.needsAttention}</span>
+            </button>
+          </div>
+        )}
+
         {profile && (
           <p className="profile-source-note">
             {uiText.memorySummary.generatedAt(
@@ -203,54 +290,159 @@ export function KnowledgeBoard({
           </div>
         )}
 
-        {isProfileLoading && !profile && (
+        {(profile || currentMemories.length > 0) && (
+          <div className="memory-view-toolbar">
+            <div aria-label={uiText.memorySummary.viewLabel} className="memory-view-switch" role="group">
+              <button
+                aria-pressed={view === "profile"}
+                className={view === "profile" ? "active" : ""}
+                onClick={() => setView("profile")}
+                type="button"
+              >
+                <LayoutGrid aria-hidden="true" size={15} />
+                {uiText.memorySummary.profileView}
+              </button>
+              <button
+                aria-pressed={view === "memories"}
+                className={view === "memories" ? "active" : ""}
+                onClick={() => setView("memories")}
+                type="button"
+              >
+                <List aria-hidden="true" size={15} />
+                {uiText.memorySummary.memoryView}
+              </button>
+            </div>
+            {view === "profile" && reviewSections.length > 0 && (
+              <button
+                aria-pressed={reviewOnly}
+                className={`memory-review-filter${reviewOnly ? " active" : ""}`}
+                onClick={() => setReviewOnly((value) => !value)}
+                type="button"
+              >
+                <AlertTriangle aria-hidden="true" size={14} />
+                {reviewOnly
+                  ? uiText.memorySummary.showAll
+                  : uiText.memorySummary.showNeedsAttention(reviewSections.length)}
+              </button>
+            )}
+          </div>
+        )}
+
+        {view === "profile" && isProfileLoading && !profile && (
           <div className="memory-profile-placeholder" aria-live="polite">
             <strong>{uiText.memorySummary.loading}</strong>
           </div>
         )}
 
-        {!isProfileLoading && !profile && !hasMemory && (
+        {view === "profile" && !isProfileLoading && !profile && !hasMemory && (
           <div className="memory-profile-placeholder">
             <strong>{uiText.memorySummary.emptyTitle}</strong>
             <p>{uiText.memorySummary.emptyDescription}</p>
           </div>
         )}
 
-        {!isProfileLoading && !profile && hasMemory && !isProfileRegenerating && !profileError && (
+        {view === "profile" && !isProfileLoading && !profile && hasMemory && !isProfileRegenerating && !profileError && (
           <div className="memory-profile-placeholder">
             <strong>{uiText.memorySummary.readyTitle}</strong>
             <p>{uiText.memorySummary.readyDescription}</p>
           </div>
         )}
 
-        {profile && (
-          <div className="memory-profile-essay">
-            {profile.sections.map((section) => (
-              <article className="memory-profile-section" key={section.id}>
-                <h2>{section.title}</h2>
-                <p>{section.body}</p>
-                <div className="memory-profile-actions">
-                  {writable && (
-                    <button
-                      className="profile-text-button"
-                      onClick={() => onDraftProfileCorrection(section)}
-                      type="button"
-                    >
-                      <PencilLine aria-hidden="true" size={14} />
-                      {uiText.memorySummary.wrong}
-                    </button>
-                  )}
-                  <ProfileEvidenceDetails
-                    onOpenSource={onOpenSource}
-                    section={section}
-                    sources={sources}
-                    truth={truth}
-                    uiText={uiText}
-                  />
-                </div>
-              </article>
-            ))}
+        {view === "profile" && profile && (
+          <div className="memory-profile-grid">
+            {visibleSections.map((section) => {
+              const state = profileSectionState(section, sources, truth);
+              return (
+                <article className={`memory-profile-section ${state}`} key={section.id}>
+                  <header>
+                    <span className={`profile-state ${state}`}>
+                      {uiText.memorySummary.sectionState[state]}
+                    </span>
+                    <span>{uiText.memorySummary.evidenceCount(section.evidence.length)}</span>
+                  </header>
+                  <h2>{section.title}</h2>
+                  <p>{section.body}</p>
+                  <div className="memory-profile-actions">
+                    {writable && (
+                      <button
+                        className="profile-edit-button"
+                        disabled={profileStale || isProfileRegenerating}
+                        onClick={() => onDraftProfileCorrection(section)}
+                        type="button"
+                      >
+                        <PencilLine aria-hidden="true" size={14} />
+                        {uiText.memorySummary.editMemory}
+                      </button>
+                    )}
+                    <ProfileEvidenceDetails
+                      onOpenSource={onOpenSource}
+                      section={section}
+                      sources={sources}
+                      truth={truth}
+                      uiText={uiText}
+                    />
+                  </div>
+                </article>
+              );
+            })}
           </div>
+        )}
+
+        {view === "memories" && (
+          <section className="memory-records">
+            <div className="memory-records-heading">
+              <div>
+                <h2>{uiText.memorySummary.memoryListTitle}</h2>
+                <p>{uiText.memorySummary.memoryListDescription}</p>
+              </div>
+              <label className="memory-search">
+                <Search aria-hidden="true" size={15} />
+                <input
+                  aria-label={uiText.memorySummary.searchMemories}
+                  onChange={(event) => setMemoryQuery(event.target.value)}
+                  placeholder={uiText.memorySummary.searchMemories}
+                  value={memoryQuery}
+                />
+              </label>
+            </div>
+            {visibleMemories.length > 0 ? (
+              <div className="memory-record-list">
+                {visibleMemories.map((entry) => {
+                  const source = sources.find((item) => item.relativePath === entry.sourcePath);
+                  return (
+                    <article className="memory-record" key={entry.id}>
+                      <div className="memory-record-meta">
+                        <span>{uiText.memoryCards[entry.topic]}</span>
+                        <span>{source ? uiText.sourceKinds[source.kind] : uiText.memorySummary.unknownSource}</span>
+                      </div>
+                      <h3>{entry.title}</h3>
+                      <p>{entry.summary}</p>
+                      <footer>
+                        {source ? (
+                          <button className="memory-source-link" onClick={() => onOpenSource(source.path)} type="button">
+                            <FileText aria-hidden="true" size={13} />
+                            {uiText.format.evidence(entry.sourcePath, entry.startLine, entry.endLine)}
+                          </button>
+                        ) : (
+                          <span>{uiText.format.evidence(entry.sourcePath, entry.startLine, entry.endLine)}</span>
+                        )}
+                        {writable && (
+                          <button className="memory-record-edit" onClick={() => onDraftEntryCorrection(entry)} type="button">
+                            <PencilLine aria-hidden="true" size={13} />
+                            {uiText.memorySummary.editMemory}
+                          </button>
+                        )}
+                      </footer>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="memory-profile-placeholder">
+                <strong>{uiText.memorySummary.noMemoryMatches}</strong>
+              </div>
+            )}
+          </section>
         )}
       </section>
     </main>

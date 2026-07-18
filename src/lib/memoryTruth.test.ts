@@ -242,6 +242,7 @@ describe("resolveMemoryTruth", () => {
 
     expect(
       truthItemForEvidence(truth, {
+        entryId: "profile-correction",
         sourcePath: "extensions/ad_hoc/notes/profile.md",
         startLine: 1,
         endLine: 3,
@@ -250,6 +251,7 @@ describe("resolveMemoryTruth", () => {
     ).toBe("current");
     expect(
       truthItemForEvidence(truth, {
+        entryId: "profile-old",
         sourcePath: "MEMORY.md",
         startLine: 1,
         endLine: 3,
@@ -258,6 +260,7 @@ describe("resolveMemoryTruth", () => {
     ).toBe("stale");
     expect(
       truthItemForEvidence(truth, {
+        entryId: "activity",
         sourcePath: "extensions/chronicle/resources/activity.md",
         startLine: 1,
         endLine: 3,

@@ -10,7 +10,7 @@ const explicitPath = args.find((arg) => !arg.startsWith("--"));
 const cachePath =
   explicitPath ?? path.join(os.homedir(), ".codex/memories/.backplane/profile.zh-CN.json");
 
-const allowedGenerators = new Set(["codex-profile-v3"]);
+const allowedGenerators = new Set(["codex-profile-v4"]);
 
 const templateIds = new Set([
   "overview",
@@ -73,6 +73,11 @@ try {
   fail(`invalid JSON at ${cachePath}: ${error.message}`);
 }
 
+if (optional && !allowedGenerators.has(profile?.generator)) {
+  console.log(`profile-cache check skipped: ${cachePath} uses outdated generator ${profile?.generator}`);
+  process.exit(0);
+}
+
 const errors = [];
 
 function check(condition, message) {
@@ -103,7 +108,7 @@ check(profile.sections?.length > 0, "sections must not be empty for a profile ca
 check(profile.sections?.length <= 8, "sections must not exceed 8 items");
 check(profile.metadata && typeof profile.metadata === "object", "metadata is required");
 
-const requiresChineseSynthesis = profile.generator === "codex-profile-v3";
+const requiresChineseSynthesis = profile.generator === "codex-profile-v4";
 
 const memoryRoot = profile.metadata?.memoryRoot;
 check(typeof memoryRoot === "string" && memoryRoot.length > 0, "metadata.memoryRoot is required");
@@ -153,6 +158,7 @@ for (const [index, section] of (profile.sections ?? []).entries()) {
       continue;
     }
 
+    check(typeof evidence.entryId === "string" && evidence.entryId.length > 0, `${evidencePrefix}.entryId is required`);
     check(typeof evidence.sourcePath === "string" && evidence.sourcePath.length > 0, `${evidencePrefix}.sourcePath is required`);
     check(!path.isAbsolute(evidence.sourcePath), `${evidencePrefix}.sourcePath must be relative`);
     check(!evidence.sourcePath.split(/[\\/]/).includes(".."), `${evidencePrefix}.sourcePath must not traverse`);

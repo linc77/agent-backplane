@@ -87,7 +87,7 @@ describe("AI memory profile cache", () => {
       schemaVersion: "1",
       generatedAt: "2026-07-17T00:00:00.000Z",
       sourceHash: "previous-source-hash",
-      generator: "codex-profile-v3",
+      generator: "codex-profile-v4",
       cachePath,
       sections: [
         {
@@ -95,7 +95,7 @@ describe("AI memory profile cache", () => {
           title: "稳定画像",
           body: "这是上次成功生成的画像。",
           evidence: [
-            { sourcePath: "MEMORY.md", startLine: 1, endLine: 4, summary: "Evidence" },
+            { entryId: "profile", sourcePath: "MEMORY.md", startLine: 1, endLine: 4, summary: "Evidence" },
           ],
           confidence: "high",
           stability: "stable",

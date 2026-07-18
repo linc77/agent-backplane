@@ -410,7 +410,7 @@ function fixtureAgentMemorySnapshot(
       schemaVersion: "1",
       generatedAt: "2026-07-16T02:00:00Z",
       sourceHash,
-      generator: "codex-profile-v3",
+      generator: "codex-profile-v4",
       cachePath: `${root}/.backplane/profile.${locale}.json`,
       sections: [
         {
@@ -419,6 +419,7 @@ function fixtureAgentMemorySnapshot(
           body: summary,
           evidence: [
             {
+              entryId: `${relativePath}:1-4`,
               sourcePath: relativePath,
               startLine: 1,
               endLine: 4,

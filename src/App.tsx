@@ -55,21 +55,25 @@ import "./App.css";
 
 function targetsForEvidence(
   entries: MemoryEntry[],
-  evidence: Array<{ sourcePath: string; startLine: number; endLine: number }>,
+  evidence: Array<{ entryId: string; sourcePath: string }>,
 ) {
   const targets = new Map<string, MemoryChangeTarget>();
   for (const item of evidence) {
-    for (const entry of entries) {
-      if (
-        entry.sourcePath === item.sourcePath &&
-        entry.startLine <= item.endLine &&
-        item.startLine <= entry.endLine
-      ) {
-        targets.set(entry.id, { entryId: entry.id, sourcePath: entry.sourcePath });
-      }
+    const entry = entries.find(
+      (candidate) => candidate.id === item.entryId && candidate.sourcePath === item.sourcePath,
+    );
+    if (entry) {
+      targets.set(entry.id, { entryId: entry.id, sourcePath: entry.sourcePath });
     }
   }
   return [...targets.values()];
+}
+
+interface CorrectionRequest {
+  slug: string;
+  title: string;
+  body: string;
+  targets: MemoryChangeTarget[];
 }
 
 function App() {
@@ -82,6 +86,8 @@ function App() {
   const [selectedAgent, setSelectedAgent] = useState<AgentKind>(() => readStoredAgent());
   const [activeTopic, setActiveTopic] = useState<MemoryView>("effective");
   const [draft, setDraft] = useState<CorrectionDraft | null>(null);
+  const [correctionContext, setCorrectionContext] = useState<CorrectionRequest | null>(null);
+  const [correctionText, setCorrectionText] = useState("");
   const [lastWritePath, setLastWritePath] = useState<string | null>(null);
   const [profileGenerationTask, setProfileGenerationTask] =
     useState<MemoryProfileGenerationTask | null>(null);
@@ -157,22 +163,20 @@ function App() {
     onSuccess: applyProfileTask,
   });
 
-  const profileCorrectionMutation = useMutation({
-    mutationFn: (section: MemoryProfileSection) =>
+  const correctionDraftMutation = useMutation({
+    mutationFn: (request: CorrectionRequest) =>
       draftCorrection(
         selectedAgentRef.current,
         null,
-        `memory-profile-${section.id}`,
-        [
-          `Review and update memory profile section "${section.title}": ${section.body}`,
-          ...section.evidence.map(
-            (evidence) =>
-              `Evidence ${evidence.sourcePath} lines ${evidence.startLine}-${evidence.endLine}: ${evidence.summary}`,
-          ),
-        ],
-        targetsForEvidence(scan?.entries ?? [], section.evidence),
+        request.slug,
+        [request.body],
+        request.targets,
       ),
-    onSuccess: setDraft,
+    onSuccess: (nextDraft, request) => {
+      setDraft(nextDraft);
+      setCorrectionContext(request);
+      setCorrectionText("");
+    },
   });
 
   const writeMutation = useMutation({
@@ -180,6 +184,8 @@ function App() {
     onSuccess: async (result) => {
       await agentMemoryQuery.refetch();
       setDraft(null);
+      setCorrectionContext(null);
+      setCorrectionText("");
       setLastWritePath(result.path);
       setActiveTopic("effective");
       setProfileGenerationTask(null);
@@ -280,12 +286,46 @@ function App() {
     cancelProfileGenerationMutation.mutate();
   }
 
+  function draftProfileCorrection(section: MemoryProfileSection) {
+    correctionDraftMutation.mutate({
+      slug: `memory-profile-${section.id}`,
+      title: section.title,
+      body: section.body,
+      targets: targetsForEvidence(scan?.entries ?? [], section.evidence),
+    });
+  }
+
+  function draftEntryCorrection(entry: MemoryEntry) {
+    correctionDraftMutation.mutate({
+      slug: `memory-entry-${entry.id}`,
+      title: entry.title,
+      body: entry.summary,
+      targets: [{ entryId: entry.id, sourcePath: entry.sourcePath }],
+    });
+  }
+
+  function closeCorrectionDialog() {
+    setDraft(null);
+    setCorrectionContext(null);
+    setCorrectionText("");
+  }
+
+  function writeCurrentCorrection() {
+    if (!draft || !correctionText.trim()) return;
+    writeMutation.mutate({
+      ...draft,
+      content: `Memory update request:\n\n${correctionText.trim()}\n`,
+    });
+  }
+
   function changeLocale(nextLocale: Locale) {
     if (nextLocale === locale) return;
     if (isProfileRegenerating) cancelProfileGenerationMutation.mutate();
     setLocale(nextLocale);
     writeStoredLocale(nextLocale);
     setDraft(null);
+    setCorrectionContext(null);
+    setCorrectionText("");
     setLastWritePath(null);
     setProfileGenerationTask(null);
   }
@@ -296,9 +336,11 @@ function App() {
     setSelectedAgent(nextAgent);
     writeStoredAgent(nextAgent);
     setDraft(null);
+    setCorrectionContext(null);
+    setCorrectionText("");
     setLastWritePath(null);
     setProfileGenerationTask(null);
-    profileCorrectionMutation.reset();
+    correctionDraftMutation.reset();
     writeMutation.reset();
   }
 
@@ -395,11 +437,13 @@ function App() {
         />
       ) : (
         <KnowledgeBoard
+          key={selectedAgent}
           isProfileLoading={agentMemoryQuery.isLoading}
           isProfileRegenerating={isProfileRegenerating}
           locale={locale}
           onCancelProfileGeneration={cancelProfileGeneration}
-          onDraftProfileCorrection={(section) => profileCorrectionMutation.mutate(section)}
+          onDraftEntryCorrection={draftEntryCorrection}
+          onDraftProfileCorrection={draftProfileCorrection}
           onOpenSource={(path) => openSourceMutation.mutate(path)}
           onRegenerateProfile={regenerateProfile}
           profile={profile}
@@ -415,8 +459,8 @@ function App() {
       {lastWritePath && (
         <div className="status-toast">{uiText.app.correctionWritten(lastWritePath)}</div>
       )}
-      {profileCorrectionMutation.error && (
-        <div className="status-toast error">{String(profileCorrectionMutation.error)}</div>
+      {correctionDraftMutation.error && (
+        <div className="status-toast error">{String(correctionDraftMutation.error)}</div>
       )}
       {writeMutation.error && (
         <div className="status-toast error">{String(writeMutation.error)}</div>
@@ -425,14 +469,17 @@ function App() {
         <div className="status-toast error">{String(openSourceMutation.error)}</div>
       )}
 
-      {draft && (
+      {draft && correctionContext && (
         <CorrectionDialog
+          content={correctionText}
           draft={draft}
           isWriting={writeMutation.isPending}
+          originalBody={correctionContext.body}
+          originalTitle={correctionContext.title}
           uiText={uiText}
-          onCancel={() => setDraft(null)}
-          onContentChange={(content) => setDraft({ ...draft, content })}
-          onConfirm={() => writeMutation.mutate(draft)}
+          onCancel={closeCorrectionDialog}
+          onContentChange={setCorrectionText}
+          onConfirm={writeCurrentCorrection}
         />
       )}
     </div>

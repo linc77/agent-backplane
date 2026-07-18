@@ -170,6 +170,9 @@ export function truthItemForEvidence(
   truth: MemoryTruthModel,
   evidence: EvidenceRef,
 ): MemoryTruthItem | undefined {
+  const directMatch = truth.byEntryId.get(evidence.entryId);
+  if (directMatch) return directMatch;
+
   const candidates = Array.from(truth.byEntryId.values()).filter(
     (item) =>
       item.entry.sourcePath === evidence.sourcePath &&

@@ -96,6 +96,7 @@ export interface MemoryCatalogStats {
 }
 
 export interface EvidenceRef {
+  entryId: string;
   sourcePath: string;
   startLine: number;
   endLine: number;

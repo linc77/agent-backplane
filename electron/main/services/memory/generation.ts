@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type {
   AgentKind,
+  MemoryEntry,
   MemoryProfile,
   MemoryProfileGenerationTask,
   MemoryProfileLocale,
@@ -41,13 +42,13 @@ function normalizeProfile(
     schemaVersion: "1",
     generatedAt: isoNow(),
     sourceHash,
-    generator: "codex-profile-v3",
+    generator: "codex-profile-v4",
     cachePath,
     metadata: { memoryRoot: root, inputEntries, currentEntries },
   };
 }
 
-function validateProfile(profile: MemoryProfile, sourceLines: Map<string, number>) {
+function validateProfile(profile: MemoryProfile, currentEntries: Map<string, MemoryEntry>) {
   if (!Array.isArray(profile.sections) || profile.sections.length > 8) {
     throw new Error("codex exec returned an invalid memory profile");
   }
@@ -66,16 +67,19 @@ function validateProfile(profile: MemoryProfile, sourceLines: Map<string, number
     }
     ids.add(section.id);
     titles.add(section.title);
+    const evidenceIds = new Set<string>();
     for (const evidence of section.evidence) {
-      const lines = sourceLines.get(evidence.sourcePath);
+      const entry = currentEntries.get(evidence.entryId);
       if (
-        !lines ||
-        evidence.startLine < 1 ||
-        evidence.endLine < evidence.startLine ||
-        evidence.endLine > lines
+        !entry ||
+        evidenceIds.has(evidence.entryId) ||
+        evidence.sourcePath !== entry.sourcePath ||
+        evidence.startLine !== entry.startLine ||
+        evidence.endLine !== entry.endLine
       ) {
         throw new Error("codex exec returned invalid memory profile evidence");
       }
+      evidenceIds.add(evidence.entryId);
     }
   }
 }
@@ -93,6 +97,7 @@ export async function generateMemoryProfile(
 
   const sourceHash = memoryProfileSourceHash(scan.sources, current);
   const cachePath = memoryProfileCachePath(root, locale);
+  const sourceKinds = new Map(scan.sources.map((source) => [source.relativePath, source.kind]));
   const bundle = {
     schemaVersion: "1",
     agent,
@@ -108,6 +113,7 @@ export async function generateMemoryProfile(
       title: entry.title,
       summary: entry.summary,
       sourcePath: entry.sourcePath,
+      sourceKind: sourceKinds.get(entry.sourcePath),
       startLine: entry.startLine,
       endLine: entry.endLine,
       change: entry.change,
@@ -120,7 +126,7 @@ export async function generateMemoryProfile(
     schemaPath: schemaPath(),
     signal,
     stdin: JSON.stringify(bundle),
-    prompt: `Analyze the Agent Backplane memory bundle from stdin and return only the Memory Profile JSON. ${languageInstruction} Build a concise, coherent portrait around durable themes instead of restating entries. Use specific observation titles and never invent evidence paths or line ranges.`,
+    prompt: `Analyze the Agent Backplane memory bundle from stdin and return only the Memory Profile JSON. ${languageInstruction} Build concise, independently reviewable observations around durable themes instead of restating entries. Treat adHocNote entries as explicit user corrections, avoid turning project-specific or one-off behavior into a global trait, and do not count derived summaries of the same event as independent confirmation. Use low confidence or uncertain stability when support is weak. Every evidence item must copy the exact entryId, sourcePath, startLine, and endLine from one input entry. Never invent or duplicate evidence.`,
   });
   const profile = normalizeProfile(
     JSON.parse(output) as MemoryProfile,
@@ -130,7 +136,7 @@ export async function generateMemoryProfile(
     scan.entries.length,
     current.length,
   );
-  validateProfile(profile, new Map(scan.sources.map((source) => [source.relativePath, source.lines])));
+  validateProfile(profile, new Map(current.map((entry) => [entry.id, entry])));
   await atomicWrite(cachePath, `${JSON.stringify(profile, null, 2)}\n`);
   return profile;
 }

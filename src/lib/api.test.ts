@@ -121,7 +121,7 @@ describe("fixture API mode", () => {
     expect(claudeMemory.profile?.sections[0].body).toContain("Claude Code");
     expect(claudeMemory.profile?.sections[0].body).not.toContain("Hermes");
     expect(hermesMemory.profile?.sections[0].body).toContain("Hermes");
-    expect(claudeMemory.profile?.generator).toBe("codex-profile-v3");
+    expect(claudeMemory.profile?.generator).toBe("codex-profile-v4");
     expect(codexMcp.servers.map((server) => server.name)).toEqual(["context7"]);
     expect(claudeMcp.servers.map((server) => server.name)).toEqual(["drawio"]);
     expect(JSON.stringify([codexMcp, claudeMcp])).not.toContain("sk-");

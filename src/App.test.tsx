@@ -144,7 +144,7 @@ const profile: MemoryProfile = {
   schemaVersion: "1",
   generatedAt: "2026-07-17T02:00:00Z",
   sourceHash: "profile-source-hash",
-  generator: "codex-profile-v3",
+  generator: "codex-profile-v4",
   cachePath: "/Users/qsh/.codex/memories/.backplane/profile.zh-CN.json",
   sections: [
     {
@@ -155,12 +155,14 @@ const profile: MemoryProfile = {
       stability: "stable",
       evidence: [
         {
+          entryId: "profile-correction",
           sourcePath: "extensions/ad_hoc/notes/profile.md",
           startLine: 1,
           endLine: 3,
           summary: "The current primary stack is Python and Rust.",
         },
         {
+          entryId: "profile",
           sourcePath: "MEMORY.md",
           startLine: 1,
           endLine: 3,
@@ -390,8 +392,8 @@ describe("App memory profile", () => {
       ),
     );
 
-    fireEvent.click(getByRole("button", { name: "这不对" }));
-    expect(await findByRole("heading", { name: "修正笔记" })).toBeInTheDocument();
+    fireEvent.click(getByRole("button", { name: "修改" }));
+    expect(await findByRole("heading", { name: "修改这条记忆" })).toBeInTheDocument();
     expect(invokeMock).toHaveBeenCalledWith("draft_correction", expect.objectContaining({
       agent: "codex",
       slug: "memory-profile-python-rust-current-stack",

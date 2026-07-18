@@ -30,6 +30,23 @@ export interface UiText {
     eyebrow: string;
     title: (agent: string) => string;
     description: (agent: string) => string;
+    overviewLabel: string;
+    profileThemes: string;
+    currentMemories: string;
+    needsAttention: string;
+    viewLabel: string;
+    profileView: string;
+    memoryView: string;
+    showAll: string;
+    showNeedsAttention: (count: number) => string;
+    sectionState: Record<"steady" | "recent" | "review", string>;
+    evidenceCount: (count: number) => string;
+    editMemory: string;
+    memoryListTitle: string;
+    memoryListDescription: string;
+    searchMemories: string;
+    noMemoryMatches: string;
+    unknownSource: string;
     wrong: string;
     viewEvidence: (count: number) => string;
     loading: string;
@@ -197,6 +214,11 @@ export interface UiText {
   dialog: {
     eyebrow: string;
     title: string;
+    currentMemory: string;
+    correctMemory: string;
+    correctionHint: string;
+    correctionPlaceholder: string;
+    writeDetails: string;
     targetPath: string;
     content: string;
     cancel: string;
@@ -223,7 +245,7 @@ const zhCN: UiText = {
     resizeSidebar: "调整侧栏宽度",
     resizeInspector: "调整依据栏宽度",
     scanning: (agent) => `正在扫描 ${agent} 记忆...`,
-    correctionWritten: (path) => `修正笔记已写入：${path}`,
+    correctionWritten: () => "记忆已修改，正在更新画像。",
   },
   sidebar: {
     agentMenuLabel: "切换当前 Agent",
@@ -293,7 +315,28 @@ const zhCN: UiText = {
     eyebrow: "记忆画像",
     title: (agent) => `${agent} 记住的你`,
     description: (agent) =>
-      `由本机 Codex CLI 根据 ${agent} 的记忆整理。打开时保留上次结果，新记忆会在后台更新。`,
+      `先看 ${agent} 整理出的画像，再到全部记忆中逐条核对。发现不准确时可以直接修改。`,
+    overviewLabel: "记忆概览",
+    profileThemes: "画像主题",
+    currentMemories: "当前记忆",
+    needsAttention: "建议确认",
+    viewLabel: "记忆展示方式",
+    profileView: "画像概览",
+    memoryView: "全部记忆",
+    showAll: "显示全部画像",
+    showNeedsAttention: (count) => `只看建议确认 ${count}`,
+    sectionState: {
+      steady: "较稳定",
+      recent: "近期形成",
+      review: "建议确认",
+    },
+    evidenceCount: (count) => `${count} 条依据`,
+    editMemory: "修改",
+    memoryListTitle: "Codex 当前记忆",
+    memoryListDescription: "这里展示画像背后的有效记忆条目。你可以搜索、查看来源并逐条修改。",
+    searchMemories: "搜索记忆",
+    noMemoryMatches: "没有匹配的记忆",
+    unknownSource: "未知来源",
     wrong: "这不对",
     viewEvidence: (count) => `查看依据 ${count}`,
     loading: "正在读取上次记忆画像...",
@@ -487,13 +530,18 @@ const zhCN: UiText = {
     openSource: "打开来源",
   },
   dialog: {
-    eyebrow: "安全写入预览",
-    title: "修正笔记",
+    eyebrow: "纠正 Codex 记忆",
+    title: "修改这条记忆",
+    currentMemory: "当前记忆",
+    correctMemory: "正确情况是什么？",
+    correctionHint: "保存后会写入一条优先级更高的修正，并自动更新画像。",
+    correctionPlaceholder: "直接写下正确内容，例如：我现在主要使用 TypeScript 和 Python。",
+    writeDetails: "查看写入位置",
     targetPath: "目标路径",
     content: "内容",
     cancel: "取消",
     writing: "写入中...",
-    writeCorrection: "写入修正笔记",
+    writeCorrection: "保存修改",
   },
   format: {
     evidence: (path, startLine, endLine) => `${path} 第 ${startLine}-${endLine} 行`,
@@ -508,7 +556,7 @@ const enUS: UiText = {
     resizeSidebar: "Resize sidebar",
     resizeInspector: "Resize evidence pane",
     scanning: (agent) => `Scanning ${agent} memory...`,
-    correctionWritten: (path) => `Correction note written: ${path}`,
+    correctionWritten: () => "Memory updated. Refreshing the profile.",
   },
   sidebar: {
     agentMenuLabel: "Switch current Agent",
@@ -578,7 +626,28 @@ const enUS: UiText = {
     eyebrow: "Memory profile",
     title: (agent) => `What ${agent} remembers about you`,
     description: (agent) =>
-      `The local Codex CLI organizes this profile from ${agent}'s memory. The last result stays visible while new memory updates in the background.`,
+      `Start with the profile organized by ${agent}, then review every active memory. You can correct anything that is inaccurate.`,
+    overviewLabel: "Memory overview",
+    profileThemes: "Profile themes",
+    currentMemories: "Current memories",
+    needsAttention: "Review suggested",
+    viewLabel: "Memory view",
+    profileView: "Profile overview",
+    memoryView: "All memories",
+    showAll: "Show all profile sections",
+    showNeedsAttention: (count) => `Review suggested ${count}`,
+    sectionState: {
+      steady: "More stable",
+      recent: "Recently formed",
+      review: "Review suggested",
+    },
+    evidenceCount: (count) => `${count} evidence`,
+    editMemory: "Edit",
+    memoryListTitle: "Current Codex memory",
+    memoryListDescription: "These active memory entries sit behind the profile. Search them, inspect their sources, and edit them one by one.",
+    searchMemories: "Search memories",
+    noMemoryMatches: "No matching memories",
+    unknownSource: "Unknown source",
     wrong: "This is wrong",
     viewEvidence: (count) => `View evidence ${count}`,
     loading: "Loading the last memory profile...",
@@ -772,13 +841,18 @@ const enUS: UiText = {
     openSource: "Open source",
   },
   dialog: {
-    eyebrow: "Safe write preview",
-    title: "Correction note",
+    eyebrow: "Correct Codex memory",
+    title: "Edit this memory",
+    currentMemory: "Current memory",
+    correctMemory: "What is correct?",
+    correctionHint: "Saving writes a higher-priority correction and refreshes the profile automatically.",
+    correctionPlaceholder: "Write the correct information directly, for example: I mainly use TypeScript and Python now.",
+    writeDetails: "View write location",
     targetPath: "Target path",
     content: "Content",
     cancel: "Cancel",
     writing: "Writing...",
-    writeCorrection: "Write correction note",
+    writeCorrection: "Save change",
   },
   format: {
     evidence: (path, startLine, endLine) => `${path} L${startLine}-${endLine}`,

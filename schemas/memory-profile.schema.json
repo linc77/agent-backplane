@@ -82,8 +82,12 @@
     "evidenceRef": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["sourcePath", "startLine", "endLine", "summary"],
+      "required": ["entryId", "sourcePath", "startLine", "endLine", "summary"],
       "properties": {
+        "entryId": {
+          "type": "string",
+          "minLength": 1
+        },
         "sourcePath": {
           "type": "string",
           "minLength": 1

@@ -202,7 +202,7 @@ describe("App browser fixture mode", () => {
 
     expect(await findByRole("heading", { name: "Claude Code 记住的你" })).toBeInTheDocument();
     expect(await findByText("Claude Code 的记忆与 Codex 相互独立。")).toBeInTheDocument();
-    expect(queryByRole("button", { name: "这不对" })).toBeInTheDocument();
+    expect(queryByRole("button", { name: "修改" })).toBeInTheDocument();
     expect(queryByRole("button", { name: "更新画像" })).toBeInTheDocument();
     expect(queryByRole("button", { name: "检查" })).not.toBeInTheDocument();
     expect(ensureLocalStorage().getItem("agent-backplane.selected-agent")).toBe(
@@ -263,6 +263,7 @@ describe("App browser fixture mode", () => {
   it("drives the core memory review flow without desktop IPC", async () => {
     const {
       findAllByText,
+      findByRole,
       findByText,
       getAllByRole,
       getByRole,
@@ -276,9 +277,15 @@ describe("App browser fixture mode", () => {
     expect(await findByText("Codex 记住的你")).toBeInTheDocument();
     expect(await findByText("你把 Python/Rust 作为当前主栈")).toBeInTheDocument();
     expect((await findAllByText(/优先相信 Python\/Rust/)).length).toBeGreaterThan(0);
-    fireEvent.click(getAllByRole("button", { name: "这不对" })[0]);
-    expect(await findByText("修正笔记")).toBeInTheDocument();
-    fireEvent.click(getByRole("button", { name: "写入修正笔记" }));
-    expect(await findByText(/修正笔记已写入：/)).toBeInTheDocument();
+    fireEvent.click(getByRole("button", { name: "全部记忆" }));
+    expect(await findByRole("heading", { name: "Codex 当前记忆" })).toBeInTheDocument();
+    expect(await findByText(/Treat Python\/Rust as the current primary stack/)).toBeInTheDocument();
+    fireEvent.click(getAllByRole("button", { name: "修改" })[0]);
+    expect(await findByText("修改这条记忆")).toBeInTheDocument();
+    fireEvent.change(getByRole("textbox", { name: "正确情况是什么？" }), {
+      target: { value: "我现在主要使用 TypeScript 和 Python。" },
+    });
+    fireEvent.click(getByRole("button", { name: "保存修改" }));
+    expect(await findByText("记忆已修改，正在更新画像。")).toBeInTheDocument();
   });
 });

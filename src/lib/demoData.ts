@@ -91,7 +91,7 @@ export const demoMemoryProfile: MemoryProfile = {
   schemaVersion: "1",
   generatedAt: "2026-06-09T00:00:00Z",
   sourceHash: "demo-profile-source-hash",
-  generator: "codex-profile-v3",
+  generator: "codex-profile-v4",
   cachePath: "/demo/.codex/memories/.backplane/profile.zh-CN.json",
   sections: [
     {
@@ -102,6 +102,7 @@ export const demoMemoryProfile: MemoryProfile = {
       stability: "stable",
       evidence: [
         {
+          entryId: "demo-profile-correction",
           sourcePath: "extensions/ad_hoc/notes/profile.md",
           startLine: 1,
           endLine: 4,
@@ -117,12 +118,14 @@ export const demoMemoryProfile: MemoryProfile = {
       stability: "stable",
       evidence: [
         {
+          entryId: "demo-profile-correction",
           sourcePath: "extensions/ad_hoc/notes/profile.md",
           startLine: 1,
           endLine: 4,
           summary: "Treat Python/Rust as the current primary stack.",
         },
         {
+          entryId: "demo-profile",
           sourcePath: "MEMORY.md",
           startLine: 1,
           endLine: 8,
