@@ -299,22 +299,51 @@ export interface AgentMemorySnapshot {
   sourceHash: string;
 }
 
-export type McpScope = "global" | "project";
-export type McpTransport = "stdio" | "http" | "sse" | "unknown";
+export type McpScope = "user" | "local" | "project";
+export type McpTransport = "stdio" | "http" | "sse" | "ws" | "unknown";
+export type McpEndpointKind = "value" | "local" | "remote" | "conflicting" | "missing";
+export type McpServerState = "configured" | "disabled" | "invalid" | "pending" | "rejected";
+export type McpServerDiagnostic =
+  | "conflicting-endpoints"
+  | "invalid-entry"
+  | "invalid-name"
+  | "missing-endpoint"
+  | "missing-transport"
+  | "transport-mismatch"
+  | "unsupported-transport";
+export type McpConfigSourceState = "loaded" | "missing" | "invalid";
+export type McpConfigSourceDiagnostic =
+  | "file-too-large"
+  | "invalid-shape"
+  | "parse-failed"
+  | "read-failed";
+
+export interface McpConfigSource {
+  id: string;
+  path: string;
+  label: string;
+  state: McpConfigSourceState;
+  diagnostic: McpConfigSourceDiagnostic | null;
+  serverCount: number;
+}
 
 export interface McpServer {
   id: string;
   name: string;
   scope: McpScope;
   scopeLabel: string;
+  sourceId: string;
+  sourcePath: string;
   transport: McpTransport;
   endpoint: string;
-  enabled: boolean;
+  endpointKind: McpEndpointKind;
+  state: McpServerState;
+  diagnostics: McpServerDiagnostic[];
 }
 
 export interface McpInventory {
   generatedAt: string;
   agent: AgentKind;
-  configPaths: string[];
+  sources: McpConfigSource[];
   servers: McpServer[];
 }

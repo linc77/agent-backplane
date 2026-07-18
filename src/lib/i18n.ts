@@ -1,6 +1,17 @@
 import type { MemoryView } from "./memoryViews";
 import type { MemoryTruthStatus } from "./memoryTruth";
-import type { MemorySourceKind, MemoryTopic, RiskKind } from "./types";
+import type {
+  McpConfigSourceDiagnostic,
+  McpConfigSourceState,
+  McpEndpointKind,
+  McpScope,
+  McpServerDiagnostic,
+  McpServerState,
+  McpTransport,
+  MemorySourceKind,
+  MemoryTopic,
+  RiskKind,
+} from "./types";
 
 export type Locale = "zh-CN" | "en-US";
 
@@ -103,16 +114,33 @@ export interface UiText {
     title: string;
     subtitle: string;
     refresh: string;
+    refreshing: string;
     loading: string;
+    loadFailed: string;
     empty: string;
+    noMatches: string;
     readOnly: string;
     serverCount: string;
-    enabled: string;
-    disabled: string;
-    globalScope: string;
-    projectScope: string;
+    configuredCount: string;
+    attentionCount: string;
+    lastRead: (date: string) => string;
+    staleResult: (date: string) => string;
+    searchPlaceholder: string;
+    filterLabel: string;
+    allFilter: string;
+    configuredFilter: string;
+    disabledFilter: string;
+    attentionFilter: string;
+    states: Record<McpServerState, string>;
+    scopes: Record<McpScope, string>;
     configSources: string;
-    transports: Record<"stdio" | "http" | "sse" | "unknown", string>;
+    sourceServerCount: (count: number) => string;
+    revealSource: string;
+    sourceStates: Record<McpConfigSourceState, string>;
+    sourceDiagnostics: Record<McpConfigSourceDiagnostic, string>;
+    serverDiagnostics: Record<McpServerDiagnostic, string>;
+    endpoints: Record<Exclude<McpEndpointKind, "value">, string>;
+    transports: Record<McpTransport, string>;
   };
   agents: {
     eyebrow: string;
@@ -387,21 +415,71 @@ const zhCN: UiText = {
   mcp: {
     eyebrow: "工具连接",
     title: "MCP",
-    subtitle: "只读取当前 Agent 的原生 MCP 配置，不显示参数、环境变量或凭据。",
+    subtitle: "读取并诊断当前 Agent 的原生 MCP 配置，不显示参数、环境变量或凭据。",
     refresh: "刷新",
+    refreshing: "刷新中...",
     loading: "正在读取 MCP 配置...",
+    loadFailed: "无法读取 MCP 配置。请检查配置来源后重试。",
     empty: "当前 Agent 还没有配置 MCP Server。",
-    readOnly: "只读发现：Backplane 不会修改 Agent 的 MCP 配置。",
-    serverCount: "已配置服务",
-    enabled: "已启用",
-    disabled: "已停用",
-    globalScope: "全局",
-    projectScope: "项目",
+    noMatches: "没有符合当前筛选条件的 MCP Server。",
+    readOnly: "配置诊断不会启动 MCP Server 或修改配置。",
+    serverCount: "已发现",
+    configuredCount: "配置启用",
+    attentionCount: "需处理",
+    lastRead: (date) => `最近读取 ${date}`,
+    staleResult: (date) => `刷新失败，仍显示 ${date} 的上次结果。`,
+    searchPlaceholder: "搜索 Server、端点或项目...",
+    filterLabel: "MCP 配置状态筛选",
+    allFilter: "全部",
+    configuredFilter: "配置启用",
+    disabledFilter: "已停用",
+    attentionFilter: "需处理",
+    states: {
+      configured: "配置已启用",
+      disabled: "配置已停用",
+      invalid: "配置无效",
+      pending: "等待批准",
+      rejected: "已拒绝",
+    },
+    scopes: {
+      user: "用户",
+      local: "本地项目",
+      project: "共享项目",
+    },
     configSources: "配置来源",
+    sourceServerCount: (count) => `${count} 个 Server`,
+    revealSource: "在 Finder 中显示",
+    sourceStates: {
+      loaded: "已读取",
+      missing: "不存在",
+      invalid: "读取失败",
+    },
+    sourceDiagnostics: {
+      "file-too-large": "配置文件超过 2 MB 安全上限。",
+      "invalid-shape": "配置根节点不是对象。",
+      "parse-failed": "配置语法无法解析。",
+      "read-failed": "配置文件无法读取。",
+    },
+    serverDiagnostics: {
+      "conflicting-endpoints": "同时配置了 command 和 url。",
+      "invalid-entry": "Server 配置必须是对象。",
+      "invalid-name": "Server 名称不能为空。",
+      "missing-endpoint": "缺少 command 或 url。",
+      "missing-transport": "远程 Claude MCP 必须声明 type。",
+      "transport-mismatch": "传输类型与端点字段不匹配。",
+      "unsupported-transport": "传输类型不受支持。",
+    },
+    endpoints: {
+      local: "命令已隐藏",
+      remote: "远程端点",
+      conflicting: "端点配置冲突",
+      missing: "未配置端点",
+    },
     transports: {
       stdio: "本地进程",
       http: "HTTP",
       sse: "SSE",
+      ws: "WebSocket",
       unknown: "未知传输",
     },
   },
@@ -672,21 +750,71 @@ const enUS: UiText = {
   mcp: {
     eyebrow: "Tool connections",
     title: "MCP",
-    subtitle: "Reads only the current Agent's native MCP configuration without exposing arguments, environment values, or credentials.",
+    subtitle: "Reads and diagnoses the current Agent's native MCP configuration without exposing arguments, environment values, or credentials.",
     refresh: "Refresh",
+    refreshing: "Refreshing...",
     loading: "Reading MCP configuration...",
+    loadFailed: "MCP configuration could not be read. Check the configuration sources and try again.",
     empty: "No MCP servers are configured for this Agent.",
-    readOnly: "Read-only discovery: Backplane does not change the Agent's MCP configuration.",
-    serverCount: "Configured servers",
-    enabled: "Enabled",
-    disabled: "Disabled",
-    globalScope: "Global",
-    projectScope: "Project",
+    noMatches: "No MCP servers match the current filters.",
+    readOnly: "Configuration diagnostics do not start MCP servers or change configuration.",
+    serverCount: "Discovered",
+    configuredCount: "Configured on",
+    attentionCount: "Needs attention",
+    lastRead: (date) => `Last read ${date}`,
+    staleResult: (date) => `Refresh failed. Showing the last result from ${date}.`,
+    searchPlaceholder: "Search servers, endpoints, or projects...",
+    filterLabel: "MCP configuration state filter",
+    allFilter: "All",
+    configuredFilter: "Configured on",
+    disabledFilter: "Disabled",
+    attentionFilter: "Needs attention",
+    states: {
+      configured: "Configured on",
+      disabled: "Configured off",
+      invalid: "Invalid configuration",
+      pending: "Pending approval",
+      rejected: "Rejected",
+    },
+    scopes: {
+      user: "User",
+      local: "Local project",
+      project: "Shared project",
+    },
     configSources: "Configuration sources",
+    sourceServerCount: (count) => `${count} server${count === 1 ? "" : "s"}`,
+    revealSource: "Show in Finder",
+    sourceStates: {
+      loaded: "Loaded",
+      missing: "Missing",
+      invalid: "Read failed",
+    },
+    sourceDiagnostics: {
+      "file-too-large": "The configuration file exceeds the 2 MB safety limit.",
+      "invalid-shape": "The configuration root is not an object.",
+      "parse-failed": "The configuration syntax could not be parsed.",
+      "read-failed": "The configuration file could not be read.",
+    },
+    serverDiagnostics: {
+      "conflicting-endpoints": "Both command and url are configured.",
+      "invalid-entry": "The server configuration must be an object.",
+      "invalid-name": "The server name cannot be blank.",
+      "missing-endpoint": "A command or url is required.",
+      "missing-transport": "Remote Claude MCP servers must declare a type.",
+      "transport-mismatch": "The transport type does not match the endpoint fields.",
+      "unsupported-transport": "The transport type is unsupported.",
+    },
+    endpoints: {
+      local: "Command hidden",
+      remote: "Remote endpoint",
+      conflicting: "Conflicting endpoints",
+      missing: "Endpoint not configured",
+    },
     transports: {
       stdio: "Local process",
       http: "HTTP",
       sse: "SSE",
+      ws: "WebSocket",
       unknown: "Unknown transport",
     },
   },
