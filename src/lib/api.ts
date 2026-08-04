@@ -11,6 +11,8 @@ import type {
   MemoryProfileGenerationTask,
   MemoryProfileLocale,
   McpInventory,
+  ModelBenchmarkInput,
+  ModelGatewayCredentials,
   ProjectSkillBinding,
   ScanResult,
   SaveAgentProfileInput,
@@ -311,6 +313,34 @@ export function loadMcpInventory(agent: AgentKind) {
   }
 
   return desktopApi().mcp.load(agent);
+}
+
+export function discoverModelGateway(input: ModelGatewayCredentials) {
+  if (isFixtureMode()) {
+    return Promise.resolve({
+      baseUrl: input.baseUrl.replace(/\/$/, ""),
+      models: [
+        { id: "gpt-5.4", ownedBy: "openai", createdAt: null },
+        { id: "claude-sonnet-4-5", ownedBy: "anthropic", createdAt: null },
+      ],
+    });
+  }
+
+  return desktopApi().modelGateway.discover(input);
+}
+
+export function benchmarkModelGateway(input: ModelBenchmarkInput) {
+  if (isFixtureMode()) {
+    return Promise.resolve({
+      modelId: input.modelId,
+      status: "success" as const,
+      latencyMs: input.modelId.startsWith("gpt") ? 428 : 612,
+      outputTokens: 1,
+      error: null,
+    });
+  }
+
+  return desktopApi().modelGateway.benchmark(input);
 }
 
 export function saveAgentProviderProfile(input: SaveAgentProfileInput) {

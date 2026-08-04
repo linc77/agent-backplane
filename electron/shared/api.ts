@@ -6,6 +6,10 @@ import type {
   ApplySkillProfileInput,
   CorrectionDraft,
   McpInventory,
+  ModelBenchmarkInput,
+  ModelBenchmarkResult,
+  ModelGatewayCredentials,
+  ModelGatewayDiscovery,
   MemoryProfileGenerationTask,
   MemoryProfileLocale,
   MemoryChangeMetadata,
@@ -95,6 +99,10 @@ export interface BackplaneDesktopApi {
   };
   mcp: {
     load(agent: AgentKind): Promise<McpInventory>;
+  };
+  modelGateway: {
+    discover(input: ModelGatewayCredentials): Promise<ModelGatewayDiscovery>;
+    benchmark(input: ModelBenchmarkInput): Promise<ModelBenchmarkResult>;
   };
   shell: {
     revealSource(path: string): Promise<void>;

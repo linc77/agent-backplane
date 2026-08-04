@@ -474,3 +474,33 @@ export interface McpInventory {
   sources: McpConfigSource[];
   servers: McpServer[];
 }
+
+export interface ModelGatewayCredentials {
+  baseUrl: string;
+  apiKey: string;
+}
+
+export interface GatewayModel {
+  id: string;
+  ownedBy: string | null;
+  createdAt: number | null;
+}
+
+export interface ModelGatewayDiscovery {
+  baseUrl: string;
+  models: GatewayModel[];
+}
+
+export interface ModelBenchmarkInput extends ModelGatewayCredentials {
+  modelId: string;
+}
+
+export type ModelBenchmarkStatus = "success" | "failed";
+
+export interface ModelBenchmarkResult {
+  modelId: string;
+  status: ModelBenchmarkStatus;
+  latencyMs: number;
+  outputTokens: number | null;
+  error: string | null;
+}

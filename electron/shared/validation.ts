@@ -127,4 +127,11 @@ export const saveAgentProfileSchema = z.object({
     clearSecret: z.boolean(),
   }).strict(),
 }).strict();
+export const modelGatewayCredentialsSchema = z.object({
+  baseUrl: z.string().min(1).max(4_096),
+  apiKey: z.string().min(1).max(16_384),
+}).strict();
+export const modelGatewayBenchmarkSchema = modelGatewayCredentialsSchema.extend({
+  modelId: z.string().min(1).max(1_024),
+}).strict();
 export const revealSourceSchema = z.object({ path: z.string().min(1) }).strict();
