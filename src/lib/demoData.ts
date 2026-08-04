@@ -91,7 +91,7 @@ export const demoMemoryProfile: MemoryProfile = {
   schemaVersion: "1",
   generatedAt: "2026-06-09T00:00:00Z",
   sourceHash: "demo-profile-source-hash",
-  generator: "codex-profile-v4",
+  generator: "codex-profile-v7",
   cachePath: "/demo/.codex/memories/.backplane/profile.zh-CN.json",
   sections: [
     {

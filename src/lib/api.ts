@@ -410,7 +410,7 @@ function fixtureAgentMemorySnapshot(
       schemaVersion: "1",
       generatedAt: "2026-07-16T02:00:00Z",
       sourceHash,
-      generator: "codex-profile-v4",
+      generator: "codex-profile-v7",
       cachePath: `${root}/.backplane/profile.${locale}.json`,
       sections: [
         {
@@ -459,11 +459,17 @@ function buildFixtureDraft(
     targetPath: `${fixtureRoot(rootOverride)}/extensions/ad_hoc/notes/demo-${safeSlug}.md`,
     targetSourcePaths: [...new Set(targets.map((target) => target.sourcePath))],
     change: {
+      schemaVersion: "2",
       id: `fixture-${safeSlug}`,
-      operation: override?.operation ?? "replace",
+      operation: override?.operation ?? (targets.length ? "replace" : "append"),
       targetEntryIds: targets.map((target) => target.entryId),
       revertsChangeId: override?.revertsChangeId ?? null,
       createdAt: "2026-07-17T00:00:00.000Z",
+      targetRevisions: Object.fromEntries(
+        targets.flatMap((target) => target.revisionHash
+          ? [[target.entryId, target.revisionHash] as const]
+          : []),
+      ),
     },
   };
 }

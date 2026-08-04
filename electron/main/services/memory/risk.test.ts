@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { MemoryEntry } from "../../../../src/lib/types";
 import { detectRisks } from "./risk";
 
-function changeEntry(id: string, createdAt: string): MemoryEntry {
+function changeEntry(id: string, createdAt: string, targetEntryIds = ["project-a"]): MemoryEntry {
   return {
     id,
     topic: "overrides",
@@ -16,7 +16,7 @@ function changeEntry(id: string, createdAt: string): MemoryEntry {
     change: {
       id,
       operation: "replace",
-      targetEntryIds: ["project-a"],
+      targetEntryIds,
       revertsChangeId: null,
       createdAt,
     },
@@ -44,5 +44,46 @@ describe("memory structural risks", () => {
   it("reports a targeted correction whose claim disappeared", () => {
     const risks = detectRisks([changeEntry("change-orphan", "2026-07-17T00:00:00.000Z")]);
     expect(risks[0]).toMatchObject({ kind: "staleConflict", entryId: "change-orphan" });
+  });
+
+  it("resolves a legacy block alias to all atomic claims without reporting a missing target", () => {
+    const projectA: MemoryEntry = {
+      ...changeEntry("project-a", "2026-07-15T00:00:00.000Z"),
+      aliasIds: ["legacy-project-block"],
+      topic: "projects",
+      relatedTopics: [],
+      change: undefined,
+    };
+    const projectB: MemoryEntry = {
+      ...projectA,
+      id: "project-b",
+      title: "Project B",
+      summary: "Project B is active.",
+      aliasIds: ["legacy-project-block"],
+    };
+
+    expect(detectRisks([
+      projectA,
+      projectB,
+      changeEntry("change-legacy", "2026-07-17T00:00:00.000Z", ["legacy-project-block"]),
+    ])).toEqual([]);
+  });
+
+  it("uses revision evidence only as a unique recovery path", () => {
+    const original: MemoryEntry = {
+      ...changeEntry("new-stable-id", "2026-07-15T00:00:00.000Z"),
+      revisionHash: "revision-a",
+      topic: "projects",
+      relatedTopics: [],
+      change: undefined,
+    };
+    const correction = changeEntry("change-recovered", "2026-07-17T00:00:00.000Z", ["lost-stable-id"]);
+    correction.change = {
+      ...correction.change!,
+      schemaVersion: "2",
+      targetRevisions: { "lost-stable-id": "revision-a" },
+    };
+
+    expect(detectRisks([original, correction])).toEqual([]);
   });
 });

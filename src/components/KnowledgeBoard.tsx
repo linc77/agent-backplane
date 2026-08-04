@@ -1,76 +1,42 @@
 import {
-  AlertTriangle,
   ExternalLink,
   FileText,
+  History,
   LayoutGrid,
+  Lightbulb,
   List,
+  Network,
   PencilLine,
+  Plus,
   RefreshCw,
+  RotateCcw,
   Search,
+  ShieldAlert,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { agentMeta } from "../lib/agentScope";
 import type { Locale, UiText } from "../lib/i18n";
 import {
   resolveMemoryTruth,
-  truthItemForEvidence,
+  type MemoryTruthItem,
   type MemoryTruthModel,
-  type MemoryTruthStatus,
 } from "../lib/memoryTruth";
+import {
+  memoryEvidenceTrustStatus,
+  memoryProfileSectionState,
+  memoryTruthDisplayText,
+} from "../lib/memoryReview";
 import type {
   AgentKind,
-  EvidenceRef,
   MemoryEntry,
   MemoryProfile,
   MemoryProfileSection,
   MemorySource,
   ScanResult,
 } from "../lib/types";
+import { MemoryGraph } from "./MemoryGraph";
 
-type BoardView = "profile" | "memories";
-type ProfileSectionState = "steady" | "recent" | "review";
-
-function evidenceTrustStatus(
-  evidence: EvidenceRef,
-  source: MemorySource | undefined,
-  truth: MemoryTruthModel,
-): MemoryTruthStatus {
-  const truthItem = truthItemForEvidence(truth, evidence);
-  if (truthItem) return truthItem.status;
-  if (source?.kind === "chronicle") return "uncertain";
-  if (source?.kind === "raw" || source?.kind === "rolloutSummary") return "stale";
-  return source ? "current" : "uncertain";
-}
-
-function profileSectionState(
-  section: MemoryProfileSection,
-  sources: MemorySource[],
-  truth: MemoryTruthModel,
-): ProfileSectionState {
-  const evidenceStatuses = section.evidence.map((evidence) =>
-    evidenceTrustStatus(
-      evidence,
-      sources.find((source) => source.relativePath === evidence.sourcePath),
-      truth,
-    ),
-  );
-  const hasExplicitCorrection = section.evidence.some(
-    (evidence) =>
-      sources.find((source) => source.relativePath === evidence.sourcePath)?.kind === "adHocNote",
-  );
-  if (
-    section.confidence === "low" ||
-    section.stability === "uncertain" ||
-    (section.evidence.length === 1 && !hasExplicitCorrection) ||
-    evidenceStatuses.some((status) => status !== "current")
-  ) {
-    return "review";
-  }
-  if (section.confidence === "medium" || section.stability === "recent") {
-    return "recent";
-  }
-  return "steady";
-}
+type BoardView = "graph" | "profile" | "review" | "memories";
 
 function ProfileEvidenceDetails({
   onOpenSource,
@@ -98,7 +64,7 @@ function ProfileEvidenceDetails({
           </div>
           {section.evidence.map((evidence) => {
             const source = sources.find((item) => item.relativePath === evidence.sourcePath);
-            const status = evidenceTrustStatus(evidence, source, truth);
+            const status = memoryEvidenceTrustStatus(evidence, source, truth);
             return (
               <article className={`profile-evidence-row ${status}`} key={evidence.entryId}>
                 <p>{evidence.summary}</p>
@@ -153,13 +119,100 @@ function matchesMemory(entry: MemoryEntry, query: string) {
   return `${entry.title}\n${entry.summary}\n${entry.sourcePath}`.toLocaleLowerCase().includes(normalized);
 }
 
+function TruthReviewCard({
+  item,
+  onDraftCorrection,
+  onOpenSource,
+  uiText,
+  writable,
+}: {
+  item: MemoryTruthItem;
+  onDraftCorrection: (entry: MemoryEntry) => void;
+  onOpenSource: (path: string) => void;
+  uiText: UiText;
+  writable: boolean;
+}) {
+  const canCorrect = item.status === "conflict" || item.status === "uncertain";
+  const displayText = memoryTruthDisplayText(item, uiText);
+
+  return (
+    <article className={`memory-review-card ${item.status}`}>
+      <header>
+        <span className={`evidence-status ${item.status}`}>
+          {uiText.truthStatuses[item.status]}
+        </span>
+        <span>{uiText.memoryCards[item.entry.topic]}</span>
+      </header>
+      <h3>{item.entry.title}</h3>
+      <p>{item.entry.summary}</p>
+      <div className="memory-review-decision">
+        <strong>{uiText.inspector.decisionPath}</strong>
+        <p>{displayText.decision}</p>
+        {displayText.reviewReason && (
+          <>
+            <strong>{uiText.inspector.reviewReason}</strong>
+            <p>{displayText.reviewReason}</p>
+          </>
+        )}
+        <span>
+          {uiText.truthStatuses[item.status]} · {Math.round(item.confidence * 100)}%
+        </span>
+      </div>
+      {item.staleCandidates.length > 0 && (
+        <div className="memory-review-candidates">
+          <strong>{uiText.inspector.staleCandidates}</strong>
+          <ul>
+            {item.staleCandidates.map((candidate) => (
+              <li key={candidate.id}>{candidate.title}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <footer>
+        {item.source && (
+          <button
+            className="memory-source-link"
+            onClick={() => onOpenSource(item.source!.path)}
+            type="button"
+          >
+            <FileText aria-hidden="true" size={13} />
+            {uiText.format.evidence(
+              item.entry.sourcePath,
+              item.entry.startLine,
+              item.entry.endLine,
+            )}
+          </button>
+        )}
+        {writable && canCorrect && (
+          <button
+            className="memory-record-edit"
+            onClick={() => onDraftCorrection(item.entry)}
+            type="button"
+          >
+            {item.status === "uncertain" ? (
+              <Lightbulb aria-hidden="true" size={13} />
+            ) : (
+              <PencilLine aria-hidden="true" size={13} />
+            )}
+            {item.status === "uncertain"
+              ? uiText.memorySummary.promoteMemory
+              : uiText.memorySummary.editMemory}
+          </button>
+        )}
+      </footer>
+    </article>
+  );
+}
+
 export function KnowledgeBoard({
   isProfileLoading,
   isProfileRegenerating,
   locale,
   onCancelProfileGeneration,
   onDraftEntryCorrection,
+  onDraftNewMemory,
   onDraftProfileCorrection,
+  onDraftRevert,
   onOpenSource,
   onRegenerateProfile,
   profile,
@@ -184,20 +237,26 @@ export function KnowledgeBoard({
   onRegenerateProfile: () => void;
   onDraftProfileCorrection: (section: MemoryProfileSection) => void;
   onDraftEntryCorrection: (entry: MemoryEntry) => void;
+  onDraftNewMemory: () => void;
+  onDraftRevert: (entry: MemoryEntry) => void;
   onOpenSource: (path: string) => void;
 }) {
-  const [view, setView] = useState<BoardView>("profile");
-  const [reviewOnly, setReviewOnly] = useState(false);
+  const [view, setView] = useState<BoardView>("graph");
   const [memoryQuery, setMemoryQuery] = useState("");
   const sources = scan?.sources ?? [];
   const truth = useMemo(() => resolveMemoryTruth(scan), [scan]);
   const currentMemories = truth.current.map((item) => item.entry);
   const reviewSections = (profile?.sections ?? []).filter(
-    (section) => profileSectionState(section, sources, truth) === "review",
+    (section) => memoryProfileSectionState(section, sources, truth) === "review",
   );
-  const visibleSections = reviewOnly && reviewSections.length > 0
-    ? reviewSections
-    : profile?.sections ?? [];
+  const conflictReviewItems = truth.review.filter((item) => item.status === "conflict");
+  const historicalReviewItems = truth.review.filter((item) => item.status === "stale");
+  const uncertainReviewItems = truth.review.filter((item) => item.status === "uncertain");
+  const attentionCount = reviewSections.length + conflictReviewItems.length;
+  const hasReviewContent = Boolean(
+    attentionCount || historicalReviewItems.length || uncertainReviewItems.length,
+  );
+  const visibleSections = profile?.sections ?? [];
   const visibleMemories = currentMemories.filter((entry) => matchesMemory(entry, memoryQuery));
   const hasMemory = Boolean(scan?.entries.length);
   const statusMessage = profileError
@@ -212,87 +271,117 @@ export function KnowledgeBoard({
         ? uiText.memorySummary.stale
         : null;
 
-  function showReviewSections() {
-    if (!reviewSections.length) return;
-    setView("profile");
-    setReviewOnly(true);
+  function showReviewCenter() {
+    setView("review");
   }
+
+  function renderProfilePlaceholder() {
+    if (isProfileLoading && !profile) {
+      return (
+        <div className="memory-profile-placeholder" aria-live="polite">
+          <strong>{uiText.memorySummary.loading}</strong>
+        </div>
+      );
+    }
+    if (!isProfileLoading && !profile && !hasMemory) {
+      return (
+        <div className="memory-profile-placeholder">
+          <strong>{uiText.memorySummary.emptyTitle}</strong>
+          <p>{uiText.memorySummary.emptyDescription}</p>
+        </div>
+      );
+    }
+    if (!isProfileLoading && !profile && hasMemory && !isProfileRegenerating && !profileError) {
+      return (
+        <div className="memory-profile-placeholder">
+          <strong>{uiText.memorySummary.readyTitle}</strong>
+          <p>{uiText.memorySummary.readyDescription}</p>
+        </div>
+      );
+    }
+    return null;
+  }
+
+  const overviewPanel = (
+    <div className="memory-overview-panel">
+      <span className="memory-overview-eyebrow">{uiText.memorySummary.eyebrow}</span>
+      <h1>{uiText.memorySummary.title(agentMeta[selectedAgent].label)}</h1>
+      <p className="memory-overview-description">
+        {uiText.memorySummary.description(agentMeta[selectedAgent].label)}
+      </p>
+      {(profile || currentMemories.length > 0) && (
+        <div className="memory-overview-sidebar-stats" aria-label={uiText.memorySummary.overviewLabel}>
+          <div>
+            <strong>{profile?.sections.length ?? 0}</strong>
+            <span>{uiText.memorySummary.profileThemes}</span>
+          </div>
+          <button onClick={() => setView("memories")} type="button">
+            <strong>{currentMemories.length}</strong>
+            <span>{uiText.memorySummary.currentMemories}</span>
+          </button>
+          <button
+            className={attentionCount ? "attention" : ""}
+            disabled={!hasReviewContent}
+            onClick={showReviewCenter}
+            type="button"
+          >
+            <strong>{attentionCount}</strong>
+            <span>{uiText.memorySummary.needsAttention}</span>
+          </button>
+        </div>
+      )}
+      {profile && (
+        <p className="memory-overview-updated">
+          {uiText.memorySummary.generatedAt(
+            formatGeneratedAt(profile.generatedAt, locale),
+            profile.metadata.currentEntries,
+          )}
+        </p>
+      )}
+      <button
+        className="secondary-button memory-overview-update"
+        disabled={isProfileLoading || (!hasMemory && !profile)}
+        onClick={isProfileRegenerating ? onCancelProfileGeneration : onRegenerateProfile}
+        type="button"
+      >
+        <RefreshCw aria-hidden="true" size={15} />
+        {isProfileRegenerating
+          ? uiText.memorySummary.cancelGeneration
+          : uiText.memorySummary.updateProfile}
+      </button>
+      {statusMessage && (
+        <div
+          aria-live="polite"
+          className={`memory-profile-status memory-overview-status ${profileError ? "error" : ""}`}
+        >
+          <strong>{statusMessage}</strong>
+          {Boolean(profileError) && (
+            <details>
+              <summary>{uiText.memorySummary.errorDetails}</summary>
+              <span>{String(profileError)}</span>
+            </details>
+          )}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <main className="board memory-board">
       <section className="memory-profile">
-        <header className="memory-profile-header">
-          <div className="memory-profile-heading">
-            <p className="eyebrow">{uiText.memorySummary.eyebrow}</p>
-            <h1>{uiText.memorySummary.title(agentMeta[selectedAgent].label)}</h1>
-            <p className="memory-profile-description">
-              {uiText.memorySummary.description(agentMeta[selectedAgent].label)}
-            </p>
-          </div>
-          <button
-            className="secondary-button compact"
-            disabled={isProfileLoading || (!hasMemory && !profile)}
-            onClick={
-              isProfileRegenerating ? onCancelProfileGeneration : onRegenerateProfile
-            }
-            type="button"
-          >
-            <RefreshCw aria-hidden="true" size={15} />
-            {isProfileRegenerating
-              ? uiText.memorySummary.cancelGeneration
-              : uiText.memorySummary.updateProfile}
-          </button>
-        </header>
-
-        {(profile || currentMemories.length > 0) && (
-          <div className="memory-overview" aria-label={uiText.memorySummary.overviewLabel}>
-            <div className="memory-overview-item">
-              <strong>{profile?.sections.length ?? 0}</strong>
-              <span>{uiText.memorySummary.profileThemes}</span>
-            </div>
-            <button className="memory-overview-item" onClick={() => setView("memories")} type="button">
-              <strong>{currentMemories.length}</strong>
-              <span>{uiText.memorySummary.currentMemories}</span>
-            </button>
-            <button
-              className={`memory-overview-item attention${reviewSections.length ? " has-items" : ""}`}
-              disabled={!reviewSections.length}
-              onClick={showReviewSections}
-              type="button"
-            >
-              <strong>{reviewSections.length}</strong>
-              <span>{uiText.memorySummary.needsAttention}</span>
-            </button>
-          </div>
-        )}
-
-        {profile && (
-          <p className="profile-source-note">
-            {uiText.memorySummary.generatedAt(
-              formatGeneratedAt(profile.generatedAt, locale),
-              profile.metadata.currentEntries,
-            )}
-          </p>
-        )}
-
-        {statusMessage && (
-          <div
-            aria-live="polite"
-            className={`memory-profile-status ${profileError ? "error" : ""}`}
-          >
-            <strong>{statusMessage}</strong>
-            {Boolean(profileError) && (
-              <details>
-                <summary>{uiText.memorySummary.errorDetails}</summary>
-                <span>{String(profileError)}</span>
-              </details>
-            )}
-          </div>
-        )}
 
         {(profile || currentMemories.length > 0) && (
           <div className="memory-view-toolbar">
             <div aria-label={uiText.memorySummary.viewLabel} className="memory-view-switch" role="group">
+              <button
+                aria-pressed={view === "graph"}
+                className={view === "graph" ? "active" : ""}
+                onClick={() => setView("graph")}
+                type="button"
+              >
+                <Network aria-hidden="true" size={15} />
+                {uiText.memorySummary.graphView}
+              </button>
               <button
                 aria-pressed={view === "profile"}
                 className={view === "profile" ? "active" : ""}
@@ -301,6 +390,18 @@ export function KnowledgeBoard({
               >
                 <LayoutGrid aria-hidden="true" size={15} />
                 {uiText.memorySummary.profileView}
+              </button>
+              <button
+                aria-pressed={view === "review"}
+                className={view === "review" ? "active" : ""}
+                onClick={() => setView("review")}
+                type="button"
+              >
+                <ShieldAlert aria-hidden="true" size={15} />
+                {uiText.memorySummary.reviewView}
+                {attentionCount > 0 && (
+                  <span className="memory-view-count">{attentionCount}</span>
+                )}
               </button>
               <button
                 aria-pressed={view === "memories"}
@@ -312,46 +413,40 @@ export function KnowledgeBoard({
                 {uiText.memorySummary.memoryView}
               </button>
             </div>
-            {view === "profile" && reviewSections.length > 0 && (
-              <button
-                aria-pressed={reviewOnly}
-                className={`memory-review-filter${reviewOnly ? " active" : ""}`}
-                onClick={() => setReviewOnly((value) => !value)}
-                type="button"
-              >
-                <AlertTriangle aria-hidden="true" size={14} />
-                {reviewOnly
-                  ? uiText.memorySummary.showAll
-                  : uiText.memorySummary.showNeedsAttention(reviewSections.length)}
-              </button>
-            )}
           </div>
         )}
 
-        {view === "profile" && isProfileLoading && !profile && (
-          <div className="memory-profile-placeholder" aria-live="polite">
-            <strong>{uiText.memorySummary.loading}</strong>
+        {view === "graph" && (
+          <div className="memory-view-layout">
+            <div className="memory-view-content memory-view-content-graph">
+              {profile ? (
+                <MemoryGraph
+                  agentLabel={agentMeta[selectedAgent].label}
+                  onDraftEntryCorrection={onDraftEntryCorrection}
+                  onDraftProfileCorrection={onDraftProfileCorrection}
+                  onOpenSource={onOpenSource}
+                  profile={profile}
+                  profileStale={profileStale}
+                  regenerating={isProfileRegenerating}
+                  sources={sources}
+                  truth={truth}
+                  uiText={uiText}
+                  writable={writable}
+                />
+              ) : renderProfilePlaceholder()}
+            </div>
+            <aside className="memory-overview-sidebar">{overviewPanel}</aside>
           </div>
         )}
 
-        {view === "profile" && !isProfileLoading && !profile && !hasMemory && (
-          <div className="memory-profile-placeholder">
-            <strong>{uiText.memorySummary.emptyTitle}</strong>
-            <p>{uiText.memorySummary.emptyDescription}</p>
-          </div>
-        )}
-
-        {view === "profile" && !isProfileLoading && !profile && hasMemory && !isProfileRegenerating && !profileError && (
-          <div className="memory-profile-placeholder">
-            <strong>{uiText.memorySummary.readyTitle}</strong>
-            <p>{uiText.memorySummary.readyDescription}</p>
-          </div>
-        )}
-
+        {view !== "graph" && (
+          <div className="memory-view-layout">
+            <div className="memory-view-content">
+              {view === "profile" && renderProfilePlaceholder()}
         {view === "profile" && profile && (
-          <div className="memory-profile-grid">
+          <div className="memory-profile-grid memory-profile-grid-single">
             {visibleSections.map((section) => {
-              const state = profileSectionState(section, sources, truth);
+              const state = memoryProfileSectionState(section, sources, truth);
               return (
                 <article className={`memory-profile-section ${state}`} key={section.id}>
                   <header>
@@ -388,6 +483,141 @@ export function KnowledgeBoard({
           </div>
         )}
 
+        {view === "review" && (
+          <section className="memory-review-center">
+            <header className="memory-review-heading">
+              <div>
+                <p className="eyebrow">{uiText.memorySummary.reviewView}</p>
+                <h2>{uiText.memorySummary.reviewCenterTitle}</h2>
+                <p>{uiText.memorySummary.reviewCenterDescription}</p>
+              </div>
+            </header>
+
+            {!hasReviewContent && (
+              <div className="memory-profile-placeholder">
+                <strong>{uiText.memorySummary.reviewEmptyTitle}</strong>
+                <p>{uiText.memorySummary.reviewEmptyDescription}</p>
+              </div>
+            )}
+
+            {reviewSections.length > 0 && (
+              <section className="memory-review-group">
+                <header>
+                  <div>
+                    <h3>{uiText.memorySummary.profileReviewTitle}</h3>
+                    <p>{uiText.memorySummary.profileReviewDescription}</p>
+                  </div>
+                  <span className="memory-review-group-count">{reviewSections.length}</span>
+                </header>
+                <div className="memory-profile-grid memory-review-profile-grid">
+                  {reviewSections.map((section) => (
+                    <article className="memory-profile-section review" key={section.id}>
+                      <header>
+                        <span className="profile-state review">
+                          {uiText.memorySummary.sectionState.review}
+                        </span>
+                        <span>{uiText.memorySummary.evidenceCount(section.evidence.length)}</span>
+                      </header>
+                      <h2>{section.title}</h2>
+                      <p>{section.body}</p>
+                      <div className="memory-profile-actions">
+                        {writable && (
+                          <button
+                            className="profile-edit-button"
+                            disabled={profileStale || isProfileRegenerating}
+                            onClick={() => onDraftProfileCorrection(section)}
+                            type="button"
+                          >
+                            <PencilLine aria-hidden="true" size={14} />
+                            {uiText.memorySummary.editMemory}
+                          </button>
+                        )}
+                        <ProfileEvidenceDetails
+                          onOpenSource={onOpenSource}
+                          section={section}
+                          sources={sources}
+                          truth={truth}
+                          uiText={uiText}
+                        />
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {conflictReviewItems.length > 0 && (
+              <section className="memory-review-group">
+                <header>
+                  <div>
+                    <h3>{uiText.memorySummary.conflictReviewTitle}</h3>
+                    <p>{uiText.memorySummary.conflictReviewDescription}</p>
+                  </div>
+                  <span className="memory-review-group-count conflict">
+                    {conflictReviewItems.length}
+                  </span>
+                </header>
+                <div className="memory-review-grid">
+                  {conflictReviewItems.map((item) => (
+                    <TruthReviewCard
+                      item={item}
+                      key={item.id}
+                      onDraftCorrection={onDraftEntryCorrection}
+                      onOpenSource={onOpenSource}
+                      uiText={uiText}
+                      writable={writable}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {historicalReviewItems.length > 0 && (
+              <details className="memory-review-archive">
+                <summary>
+                  <History aria-hidden="true" size={15} />
+                  <span>{uiText.memorySummary.historyReviewTitle(historicalReviewItems.length)}</span>
+                </summary>
+                <p>{uiText.memorySummary.historyReviewDescription}</p>
+                <div className="memory-review-grid">
+                  {historicalReviewItems.map((item) => (
+                    <TruthReviewCard
+                      item={item}
+                      key={item.id}
+                      onDraftCorrection={onDraftEntryCorrection}
+                      onOpenSource={onOpenSource}
+                      uiText={uiText}
+                      writable={writable}
+                    />
+                  ))}
+                </div>
+              </details>
+            )}
+
+            {uncertainReviewItems.length > 0 && (
+              <details className="memory-review-archive">
+                <summary>
+                  <Lightbulb aria-hidden="true" size={15} />
+                  <span>{uiText.memorySummary.uncertainReviewTitle(uncertainReviewItems.length)}</span>
+                </summary>
+                <p>{uiText.memorySummary.uncertainReviewDescription}</p>
+                <div className="memory-review-grid">
+                  {uncertainReviewItems.map((item) => (
+                    <TruthReviewCard
+                      item={item}
+                      key={item.id}
+                      onDraftCorrection={onDraftEntryCorrection}
+                      onOpenSource={onOpenSource}
+                      uiText={uiText}
+                      writable={writable}
+                    />
+                  ))}
+                </div>
+              </details>
+            )}
+          </section>
+        )}
+
         {view === "memories" && (
           <section className="memory-records">
             <div className="memory-records-heading">
@@ -395,15 +625,23 @@ export function KnowledgeBoard({
                 <h2>{uiText.memorySummary.memoryListTitle}</h2>
                 <p>{uiText.memorySummary.memoryListDescription}</p>
               </div>
-              <label className="memory-search">
-                <Search aria-hidden="true" size={15} />
-                <input
-                  aria-label={uiText.memorySummary.searchMemories}
-                  onChange={(event) => setMemoryQuery(event.target.value)}
-                  placeholder={uiText.memorySummary.searchMemories}
-                  value={memoryQuery}
-                />
-              </label>
+              <div className="memory-records-actions">
+                {writable && (
+                  <button className="secondary-button compact" onClick={onDraftNewMemory} type="button">
+                    <Plus aria-hidden="true" size={14} />
+                    {uiText.memorySummary.addMemory}
+                  </button>
+                )}
+                <label className="memory-search">
+                  <Search aria-hidden="true" size={15} />
+                  <input
+                    aria-label={uiText.memorySummary.searchMemories}
+                    onChange={(event) => setMemoryQuery(event.target.value)}
+                    placeholder={uiText.memorySummary.searchMemories}
+                    value={memoryQuery}
+                  />
+                </label>
+              </div>
             </div>
             {visibleMemories.length > 0 ? (
               <div className="memory-record-list">
@@ -427,10 +665,18 @@ export function KnowledgeBoard({
                           <span>{uiText.format.evidence(entry.sourcePath, entry.startLine, entry.endLine)}</span>
                         )}
                         {writable && (
-                          <button className="memory-record-edit" onClick={() => onDraftEntryCorrection(entry)} type="button">
-                            <PencilLine aria-hidden="true" size={13} />
-                            {uiText.memorySummary.editMemory}
-                          </button>
+                          <div className="memory-record-actions">
+                            <button className="memory-record-edit" onClick={() => onDraftEntryCorrection(entry)} type="button">
+                              <PencilLine aria-hidden="true" size={13} />
+                              {uiText.memorySummary.editMemory}
+                            </button>
+                            {entry.change?.operation === "replace" && (
+                              <button className="memory-record-edit revert" onClick={() => onDraftRevert(entry)} type="button">
+                                <RotateCcw aria-hidden="true" size={13} />
+                                {uiText.memorySummary.revertMemory}
+                              </button>
+                            )}
+                          </div>
                         )}
                       </footer>
                     </article>
@@ -443,6 +689,10 @@ export function KnowledgeBoard({
               </div>
             )}
           </section>
+        )}
+            </div>
+            <aside className="memory-overview-sidebar">{overviewPanel}</aside>
+          </div>
         )}
       </section>
     </main>

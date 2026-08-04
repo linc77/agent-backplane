@@ -31,15 +31,21 @@ export const sourceExcerptSchema = z.object({
   endLine: z.number().int().positive(),
 }).strict().refine((value) => value.endLine >= value.startLine, "endLine must not precede startLine");
 export const memoryChangeMetadataSchema = z.object({
+  schemaVersion: z.enum(["1", "2"]).optional(),
   id: z.string().min(1).max(256),
   operation: z.enum(["replace", "append", "revert"]),
   targetEntryIds: z.array(z.string().min(1).max(4096)).max(256),
   revertsChangeId: z.string().min(1).max(256).nullable(),
   createdAt: z.string().min(1).max(64),
+  targetRevisions: z.record(
+    z.string().min(1).max(4096),
+    z.string().min(1).max(256),
+  ).optional(),
 }).strict();
 export const memoryChangeTargetSchema = z.object({
   entryId: z.string().min(1).max(4096),
   sourcePath: z.string().min(1).max(4096),
+  revisionHash: z.string().min(1).max(256).optional(),
 }).strict();
 export const correctionDraftSchema = z.object({
   agent: agentSchema,

@@ -2,6 +2,7 @@ import { ExternalLink, FileText, PencilLine, RotateCcw } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { getSourceExcerpt, openSourceFile } from "../lib/api";
 import type { UiText } from "../lib/i18n";
+import { memoryTruthDisplayText } from "../lib/memoryReview";
 import type { MemoryTruthItem } from "../lib/memoryTruth";
 import type { MemoryEntry, MemorySource, RiskFlag } from "../lib/types";
 
@@ -39,6 +40,7 @@ export function Inspector({
   const excerptText = excerptQuery.error
     ? String(excerptQuery.error)
     : excerptQuery.data ?? uiText.inspector.loadingExcerpt;
+  const displayText = truthItem ? memoryTruthDisplayText(truthItem, uiText) : undefined;
 
   if (!entry) {
     return (
@@ -64,14 +66,14 @@ export function Inspector({
           <span>
             {uiText.truthStatuses[truthItem.status]} · {Math.round(truthItem.confidence * 100)}%
           </span>
-          <span>{truthItem.decision}</span>
+          <span>{displayText?.decision}</span>
         </section>
       )}
 
-      {truthItem?.reviewReason && (
+      {displayText?.reviewReason && (
         <section className="inspector-panel warning">
           <strong>{uiText.inspector.reviewReason}</strong>
-          <span>{truthItem.reviewReason}</span>
+          <span>{displayText.reviewReason}</span>
         </section>
       )}
 

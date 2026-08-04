@@ -31,6 +31,10 @@ export interface MemorySource {
 
 export interface MemoryEntry {
   id: string;
+  revisionHash?: string;
+  aliasIds?: string[];
+  structuralKey?: string;
+  claimKind?: "paragraph" | "listItem" | "block";
   topic: MemoryTopic;
   relatedTopics: MemoryTopic[];
   title: string;
@@ -45,11 +49,13 @@ export interface MemoryEntry {
 export type MemoryChangeOperation = "replace" | "append" | "revert";
 
 export interface MemoryChangeMetadata {
+  schemaVersion?: "1" | "2";
   id: string;
   operation: MemoryChangeOperation;
   targetEntryIds: string[];
   revertsChangeId: string | null;
   createdAt: string;
+  targetRevisions?: Record<string, string>;
 }
 
 export type RiskKind = "staleConflict" | "coveredByOverride";
@@ -74,6 +80,7 @@ export interface CorrectionDraft {
 export interface MemoryChangeTarget {
   entryId: string;
   sourcePath: string;
+  revisionHash?: string;
 }
 
 export interface MemoryChangeWriteResult {

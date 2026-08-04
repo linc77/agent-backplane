@@ -5,6 +5,15 @@ import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import App from "./App";
 
+Object.defineProperty(globalThis, "ResizeObserver", {
+  configurable: true,
+  value: class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  },
+});
+
 function ensureLocalStorage() {
   try {
     if (window.localStorage) {
@@ -201,6 +210,7 @@ describe("App browser fixture mode", () => {
     fireEvent.click(await findByRole("menuitemradio", { name: /Claude Code/ }));
 
     expect(await findByRole("heading", { name: "Claude Code 记住的你" })).toBeInTheDocument();
+    fireEvent.click(await findByRole("button", { name: "关键记忆" }));
     expect(await findByText("Claude Code 的记忆与 Codex 相互独立。")).toBeInTheDocument();
     expect(queryByRole("button", { name: "修改" })).toBeInTheDocument();
     expect(queryByRole("button", { name: "更新画像" })).toBeInTheDocument();
@@ -242,6 +252,7 @@ describe("App browser fixture mode", () => {
     const { findByRole, findByText, queryByRole } = renderFixtureApp();
 
     expect(await findByRole("heading", { name: "Hermes 记住的你" })).toBeInTheDocument();
+    fireEvent.click(await findByRole("button", { name: "关键记忆" }));
     expect(await findByText("Hermes 的记忆与 Codex 相互独立。")).toBeInTheDocument();
     expect(queryByRole("button", { name: "检查" })).not.toBeInTheDocument();
   });
@@ -275,10 +286,12 @@ describe("App browser fixture mode", () => {
 
     fireEvent.click(await waitFor(() => getByRole("button", { name: "记忆" })));
     expect(await findByText("Codex 记住的你")).toBeInTheDocument();
+    expect(await findByRole("region", { name: "Codex 记忆图谱" })).toBeInTheDocument();
+    fireEvent.click(getByRole("button", { name: "关键记忆" }));
     expect(await findByText("你把 Python/Rust 作为当前主栈")).toBeInTheDocument();
     expect((await findAllByText(/优先相信 Python\/Rust/)).length).toBeGreaterThan(0);
-    fireEvent.click(getByRole("button", { name: "全部记忆" }));
-    expect(await findByRole("heading", { name: "Codex 当前记忆" })).toBeInTheDocument();
+    fireEvent.click(getByRole("button", { name: "原始记忆" }));
+    expect(await findByRole("heading", { name: "原始记忆" })).toBeInTheDocument();
     expect(await findByText(/Treat Python\/Rust as the current primary stack/)).toBeInTheDocument();
     fireEvent.click(getAllByRole("button", { name: "修改" })[0]);
     expect(await findByText("修改这条记忆")).toBeInTheDocument();

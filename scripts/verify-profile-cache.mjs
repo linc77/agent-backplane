@@ -10,7 +10,7 @@ const explicitPath = args.find((arg) => !arg.startsWith("--"));
 const cachePath =
   explicitPath ?? path.join(os.homedir(), ".codex/memories/.backplane/profile.zh-CN.json");
 
-const allowedGenerators = new Set(["codex-profile-v4"]);
+const allowedGenerators = new Set(["codex-profile-v7"]);
 
 const templateIds = new Set([
   "overview",
@@ -108,7 +108,7 @@ check(profile.sections?.length > 0, "sections must not be empty for a profile ca
 check(profile.sections?.length <= 8, "sections must not exceed 8 items");
 check(profile.metadata && typeof profile.metadata === "object", "metadata is required");
 
-const requiresChineseSynthesis = profile.generator === "codex-profile-v4";
+const requiresChineseSynthesis = profile.generator === "codex-profile-v7";
 
 const memoryRoot = profile.metadata?.memoryRoot;
 check(typeof memoryRoot === "string" && memoryRoot.length > 0, "metadata.memoryRoot is required");

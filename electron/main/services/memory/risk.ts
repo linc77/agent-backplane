@@ -1,8 +1,8 @@
 import type { MemoryEntry, RiskFlag } from "../../../../src/lib/types";
+import { resolveMemoryTargets, resolvedMemoryTargetIds } from "../../../../src/lib/memoryChanges";
 
 export function detectRisks(entries: MemoryEntry[]) {
   const risks: RiskFlag[] = [];
-  const entryIds = new Set(entries.map((entry) => entry.id));
   const changes = entries.filter((entry) => entry.change);
   const changeIds = new Set(changes.map((entry) => entry.change!.id));
   const revertedChangeIds = new Set(
@@ -15,7 +15,11 @@ export function detectRisks(entries: MemoryEntry[]) {
   for (const entry of changes) {
     const change = entry.change!;
     if (change.operation === "replace") {
-      const missingTargets = change.targetEntryIds.filter((id) => !entryIds.has(id));
+      const missingTargets = resolveMemoryTargets(
+        entries,
+        change.targetEntryIds,
+        change.targetRevisions,
+      ).filter((resolution) => resolution.mode === "unresolved");
       if (missingTargets.length) {
         risks.push({
           id: `missing-target:${change.id}`,
@@ -41,7 +45,11 @@ export function detectRisks(entries: MemoryEntry[]) {
   for (const entry of changes) {
     const change = entry.change!;
     if (change.operation !== "replace" || revertedChangeIds.has(change.id)) continue;
-    for (const targetId of change.targetEntryIds) {
+    for (const targetId of resolvedMemoryTargetIds(
+      entries,
+      change.targetEntryIds,
+      change.targetRevisions,
+    )) {
       const replacements = replacementsByTarget.get(targetId) ?? [];
       replacements.push(entry);
       replacementsByTarget.set(targetId, replacements);

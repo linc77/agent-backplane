@@ -9,6 +9,9 @@ export interface CodexExecInput {
   schemaPath: string;
   stdin?: string;
   signal?: AbortSignal;
+  ignoreUserConfig?: boolean;
+  model?: string;
+  reasoningEffort?: "low" | "medium" | "high";
 }
 
 interface CodexLaunch {
@@ -92,6 +95,11 @@ export async function runCodexExec(input: CodexExecInput) {
     "--sandbox",
     "read-only",
     "--ephemeral",
+    ...(input.ignoreUserConfig ? ["--ignore-user-config"] : []),
+    ...(input.model ? ["--model", input.model] : []),
+    ...(input.reasoningEffort
+      ? ["--config", `model_reasoning_effort=${JSON.stringify(input.reasoningEffort)}`]
+      : []),
     "--output-schema",
     input.schemaPath,
     input.prompt,

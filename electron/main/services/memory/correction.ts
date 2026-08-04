@@ -7,7 +7,8 @@ import type {
   MemoryChangeTarget,
   MemoryChangeWriteResult,
 } from "../../../../src/lib/types";
-import { clearMemoryCatalog } from "./catalog";
+import { resolveMemoryTargets } from "../../../../src/lib/memoryChanges";
+import { clearMemoryCatalog, loadMemoryCatalog } from "./catalog";
 import { memoryAdapter } from "./adapters";
 
 function timestamp(date = new Date()) {
@@ -39,12 +40,57 @@ function changeMetadata(
   date = new Date(),
 ): MemoryChangeMetadata {
   return {
+    schemaVersion: "2",
     id: `${timestamp(date)}-${safeSlug(slug)}`,
     operation,
     targetEntryIds: [...new Set(targets.map((target) => target.entryId))],
     revertsChangeId,
     createdAt: date.toISOString(),
+    targetRevisions: Object.fromEntries(
+      targets.flatMap((target) => target.revisionHash
+        ? [[target.entryId, target.revisionHash] as const]
+        : []),
+    ),
   };
+}
+
+async function resolveDraftTargets(
+  agent: AgentKind,
+  root: string,
+  targets: MemoryChangeTarget[],
+  operation: MemoryChangeMetadata["operation"],
+) {
+  if (operation !== "replace" || targets.length === 0) return targets;
+  const scan = await loadMemoryCatalog(agent, root);
+  const revisions = Object.fromEntries(
+    targets.flatMap((target) => target.revisionHash
+      ? [[target.entryId, target.revisionHash] as const]
+      : []),
+  );
+  const resolutions = resolveMemoryTargets(
+    scan.entries,
+    targets.map((target) => target.entryId),
+    revisions,
+  );
+  if (resolutions.some((resolution) => resolution.mode === "unresolved")) {
+    throw new Error("The selected memory changed or is no longer available. Reopen it before saving a correction.");
+  }
+
+  const resolved = new Map<string, MemoryChangeTarget>();
+  for (const resolution of resolutions) {
+    const requested = targets.find((target) => target.entryId === resolution.requestedId);
+    for (const entry of resolution.entries) {
+      if (requested?.revisionHash && entry.revisionHash !== requested.revisionHash) {
+        throw new Error("The selected memory changed after it was opened. Review the latest text before correcting it.");
+      }
+      resolved.set(entry.id, {
+        entryId: entry.id,
+        sourcePath: entry.sourcePath,
+        ...(entry.revisionHash ? { revisionHash: entry.revisionHash } : {}),
+      });
+    }
+  }
+  return [...resolved.values()];
 }
 
 async function buildDraft(
@@ -58,9 +104,10 @@ async function buildDraft(
 ) {
   const normalizedSlug = safeSlug(slug);
   const effectiveOperation = operation === "replace" && targets.length === 0 ? "append" : operation;
-  const change = changeMetadata(normalizedSlug, effectiveOperation, targets, revertsChangeId);
+  const resolvedTargets = await resolveDraftTargets(agent, root, targets, effectiveOperation);
+  const change = changeMetadata(normalizedSlug, effectiveOperation, resolvedTargets, revertsChangeId);
   const filename = `${change.id}.md`;
-  const targetSourcePaths = [...new Set(targets.map((target) => target.sourcePath))];
+  const targetSourcePaths = [...new Set(resolvedTargets.map((target) => target.sourcePath))];
   const targetPath = await memoryAdapter(agent).correctionTarget(root, filename, targetSourcePaths);
   return {
     agent,
@@ -184,9 +231,32 @@ async function appendChange(target: string, content: string) {
   }
 }
 
+async function validateCurrentTargets(root: string, draft: CorrectionDraft) {
+  if (draft.change.operation !== "replace") return;
+  const scan = await loadMemoryCatalog(draft.agent, root);
+  const resolutions = resolveMemoryTargets(
+    scan.entries,
+    draft.change.targetEntryIds,
+    draft.change.targetRevisions,
+  );
+  for (const resolution of resolutions) {
+    if (resolution.mode === "unresolved") {
+      throw new Error("The correction target is no longer available. Reopen the memory before saving.");
+    }
+    const expectedRevision = draft.change.targetRevisions?.[resolution.requestedId];
+    if (
+      expectedRevision &&
+      !resolution.entries.some((entry) => entry.revisionHash === expectedRevision)
+    ) {
+      throw new Error("The correction target changed after this draft was created. Review the latest text before saving.");
+    }
+  }
+}
+
 export async function writeCorrection(root: string, draft: CorrectionDraft): Promise<MemoryChangeWriteResult> {
   const target = await validateTarget(root, draft);
   await validateCanonicalParent(root, target);
+  await validateCurrentTargets(root, draft);
   const adapter = memoryAdapter(draft.agent);
   const serialized = adapter.serializeChange(draft.change, draft.content);
   if (adapter.writeMode === "append") await appendChange(target, serialized);
