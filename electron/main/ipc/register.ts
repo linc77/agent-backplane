@@ -15,6 +15,8 @@ import {
   draftRevertSchema,
   emptyInputSchema,
   memoryProfileInputSchema,
+  modelGatewayBenchmarkSchema,
+  modelGatewayCredentialsSchema,
   profileIdInputSchema,
   revealSourceSchema,
   rootOverrideSchema,
@@ -45,6 +47,7 @@ import {
 } from "../services/memory/generation";
 import { resolveAgentMemoryRoot, resolveMemoryRoot } from "../services/memory/paths";
 import { loadMcpInventory } from "../services/mcp";
+import { benchmarkModelGateway, discoverModelGateway } from "../services/modelGateway";
 import { loadSkillInventory, saveSkillManifest } from "../services/skills";
 import { createSkillProfileService } from "../services/skillProfiles";
 import { loadSkillUsage } from "../services/skillUsage";
@@ -150,6 +153,10 @@ export function registerIpcHandlers(window: BrowserWindow, developmentOrigin?: s
     skillProfiles.sync(input));
   handle(channels.loadMcpInventory, agentInputSchema, window, developmentOrigin, ({ agent }) =>
     loadMcpInventory(agent));
+  handle(channels.discoverModelGateway, modelGatewayCredentialsSchema, window, developmentOrigin, (input) =>
+    discoverModelGateway(input));
+  handle(channels.benchmarkModelGateway, modelGatewayBenchmarkSchema, window, developmentOrigin, (input) =>
+    benchmarkModelGateway(input));
   handle(channels.startMemoryProfileGeneration, memoryProfileInputSchema, window, developmentOrigin, ({ agent, locale }) =>
     startProfileGeneration(agent, locale));
   ipcMain.handle(channels.getMemoryProfileGeneration, (event) => {

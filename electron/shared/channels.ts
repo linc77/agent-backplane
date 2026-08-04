@@ -28,5 +28,7 @@ export const channels = {
   deleteAgentProviderProfile: "agent-config:delete",
   activateAgentProviderProfile: "agent-config:activate",
   loadMcpInventory: "mcp:load",
+  discoverModelGateway: "model-gateway:discover",
+  benchmarkModelGateway: "model-gateway:benchmark",
   revealSource: "shell:reveal-source",
 } as const;

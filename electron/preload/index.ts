@@ -59,6 +59,10 @@ const api: BackplaneDesktopApi = {
   mcp: {
     load: (agent) => ipcRenderer.invoke(channels.loadMcpInventory, { agent }),
   },
+  modelGateway: {
+    discover: (input) => ipcRenderer.invoke(channels.discoverModelGateway, input),
+    benchmark: (input) => ipcRenderer.invoke(channels.benchmarkModelGateway, input),
+  },
   shell: {
     revealSource: (path) => ipcRenderer.invoke(channels.revealSource, { path }),
   },

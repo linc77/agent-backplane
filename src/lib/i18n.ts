@@ -196,6 +196,42 @@ export interface UiText {
     endpoints: Record<Exclude<McpEndpointKind, "value">, string>;
     transports: Record<McpTransport, string>;
   };
+  modelGateway: {
+    eyebrow: string;
+    title: string;
+    subtitle: string;
+    baseUrl: string;
+    baseUrlPlaceholder: string;
+    apiKey: string;
+    apiKeyPlaceholder: string;
+    apiKeyHint: string;
+    discover: string;
+    discovering: string;
+    discoveryFailed: string;
+    authenticationFailed: string;
+    insufficientBalance: string;
+    accessDenied: string;
+    endpointNotFound: string;
+    rateLimited: string;
+    serviceUnavailable: string;
+    httpFailed: (status: number) => string;
+    normalizedBaseUrl: string;
+    modelCount: string;
+    benchmarkedCount: string;
+    availableCount: string;
+    benchmarkAll: string;
+    benchmarkingAll: string;
+    searchPlaceholder: string;
+    empty: string;
+    noMatches: string;
+    benchmarkHint: string;
+    ownerUnknown: string;
+    benchmark: string;
+    retry: string;
+    latency: (milliseconds: number) => string;
+    tokenCount: (count: number) => string;
+    statuses: Record<"idle" | "queued" | "running" | "success" | "failed", string>;
+  };
   agents: {
     eyebrow: string;
     title: string;
@@ -332,6 +368,7 @@ const zhCN: UiText = {
     skillManager: "Skills",
     agentManager: "Agents",
     mcpManager: "MCP",
+    modelGateway: "模型网关",
     settings: "设置",
     allSources: "全部来源",
   },
@@ -600,6 +637,48 @@ const zhCN: UiText = {
       unknown: "未知传输",
     },
   },
+  modelGateway: {
+    eyebrow: "模型连接",
+    title: "模型网关",
+    subtitle: "输入 OpenAI-compatible Base URL 与 API Key，发现网关模型并逐个测试最小生成请求的往返耗时。",
+    baseUrl: "Base URL",
+    baseUrlPlaceholder: "https://gateway.example.com/v1",
+    apiKey: "API Key",
+    apiKeyPlaceholder: "仅在本次检测中使用",
+    apiKeyHint: "Key 只保留在当前页面内存并发送给桌面主进程执行请求，不会保存到 Backplane 配置。",
+    discover: "获取模型",
+    discovering: "正在获取...",
+    discoveryFailed: "无法获取模型。请检查 Base URL、Key 与网关兼容性。",
+    authenticationFailed: "API Key 认证失败（HTTP 401）。请确认这是该网关签发且仍然有效的 Key。",
+    insufficientBalance: "网关账户余额不足（HTTP 402）。",
+    accessDenied: "当前 Key 无权访问模型列表（HTTP 403）。",
+    endpointNotFound: "模型列表接口不存在（HTTP 404）。请检查 Base URL 是否已经包含正确的 API 路径。",
+    rateLimited: "请求过于频繁（HTTP 429），请稍后重试。",
+    serviceUnavailable: "网关服务暂时不可用，请稍后重试。",
+    httpFailed: (status) => `模型列表请求失败（HTTP ${status}）。`,
+    normalizedBaseUrl: "当前 API 根地址",
+    modelCount: "模型总数",
+    benchmarkedCount: "已测速",
+    availableCount: "测速成功",
+    benchmarkAll: "全部测速",
+    benchmarkingAll: "测速中...",
+    searchPlaceholder: "搜索模型...",
+    empty: "网关没有返回可用模型。",
+    noMatches: "没有符合搜索条件的模型。",
+    benchmarkHint: "测速使用 Chat Completions 发起 1 token 非流式请求；结果是最小生成的端到端耗时，不代表吞吐量。非 Chat 模型可能显示失败。",
+    ownerUnknown: "未知提供方",
+    benchmark: "测速",
+    retry: "重测",
+    latency: (milliseconds) => `${milliseconds} ms`,
+    tokenCount: (count) => `${count} 输出 token`,
+    statuses: {
+      idle: "未测速",
+      queued: "等待中",
+      running: "测速中",
+      success: "可用",
+      failed: "失败",
+    },
+  },
   agents: {
     eyebrow: "Agent 配置",
     title: "配置",
@@ -730,6 +809,7 @@ const enUS: UiText = {
     skillManager: "Skills",
     agentManager: "Agents",
     mcpManager: "MCP",
+    modelGateway: "Model Gateway",
     settings: "Settings",
     allSources: "All Sources",
   },
@@ -996,6 +1076,48 @@ const enUS: UiText = {
       sse: "SSE",
       ws: "WebSocket",
       unknown: "Unknown transport",
+    },
+  },
+  modelGateway: {
+    eyebrow: "Model connectivity",
+    title: "Model Gateway",
+    subtitle: "Enter an OpenAI-compatible Base URL and API key to discover models and measure each model with a minimal generation request.",
+    baseUrl: "Base URL",
+    baseUrlPlaceholder: "https://gateway.example.com/v1",
+    apiKey: "API Key",
+    apiKeyPlaceholder: "Used only for this check",
+    apiKeyHint: "The key stays in this page's memory and is sent to the desktop main process for requests. It is not saved to Backplane configuration.",
+    discover: "Get models",
+    discovering: "Discovering...",
+    discoveryFailed: "Models could not be loaded. Check the Base URL, key, and gateway compatibility.",
+    authenticationFailed: "API key authentication failed (HTTP 401). Confirm that the key was issued by this gateway and is still valid.",
+    insufficientBalance: "The gateway account has insufficient balance (HTTP 402).",
+    accessDenied: "This key cannot access the model list (HTTP 403).",
+    endpointNotFound: "The model list endpoint was not found (HTTP 404). Check whether the Base URL already includes the correct API path.",
+    rateLimited: "The gateway rate limit was reached (HTTP 429). Try again later.",
+    serviceUnavailable: "The gateway is temporarily unavailable. Try again later.",
+    httpFailed: (status) => `Model discovery failed (HTTP ${status}).`,
+    normalizedBaseUrl: "Current API root",
+    modelCount: "Models",
+    benchmarkedCount: "Benchmarked",
+    availableCount: "Succeeded",
+    benchmarkAll: "Benchmark all",
+    benchmarkingAll: "Benchmarking...",
+    searchPlaceholder: "Search models...",
+    empty: "The gateway returned no available models.",
+    noMatches: "No models match the search.",
+    benchmarkHint: "Each benchmark sends a non-streaming 1-token Chat Completions request. It measures minimal end-to-end generation latency, not throughput. Non-chat models may fail.",
+    ownerUnknown: "Unknown owner",
+    benchmark: "Benchmark",
+    retry: "Retry",
+    latency: (milliseconds) => `${milliseconds} ms`,
+    tokenCount: (count) => `${count} output token${count === 1 ? "" : "s"}`,
+    statuses: {
+      idle: "Not tested",
+      queued: "Queued",
+      running: "Testing",
+      success: "Available",
+      failed: "Failed",
     },
   },
   agents: {

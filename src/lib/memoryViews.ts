@@ -13,6 +13,7 @@ export type MemoryView =
   | "skillManager"
   | "agentManager"
   | "mcpManager"
+  | "modelGateway"
   | "settings"
   | "allSources";
 

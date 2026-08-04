@@ -47,6 +47,7 @@ import { CorrectionDialog } from "./components/CorrectionDialog";
 import { AgentConfigManager } from "./components/AgentConfigManager";
 import { KnowledgeBoard } from "./components/KnowledgeBoard";
 import { McpManager } from "./components/McpManager";
+import { ModelGateway } from "./components/ModelGateway";
 import { Sidebar } from "./components/Sidebar";
 import { SkillManager } from "./components/SkillManager";
 import { SettingsPage } from "./components/SettingsPage";
@@ -387,9 +388,11 @@ function App() {
         ? "agent-mode"
         : activeTopic === "mcpManager"
           ? "mcp-mode"
-          : activeTopic === "settings"
-            ? "settings-mode"
-            : "memory-mode";
+          : activeTopic === "modelGateway"
+            ? "model-gateway-mode"
+            : activeTopic === "settings"
+              ? "settings-mode"
+              : "memory-mode";
 
   return (
     <div
@@ -425,6 +428,8 @@ function App() {
           <SkillManager selectedAgent={selectedAgent} uiText={uiText} />
         ) : activeTopic === "mcpManager" ? (
           <McpManager selectedAgent={selectedAgent} uiText={uiText} />
+        ) : activeTopic === "modelGateway" ? (
+          <ModelGateway uiText={uiText} />
         ) : activeTopic === "agentManager" ? (
           <AgentConfigManager selectedAgent={selectedAgent} uiText={uiText} />
         ) : activeTopic === "settings" ? (

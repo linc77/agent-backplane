@@ -4,6 +4,7 @@ import {
   Check,
   ChevronDown,
   Cable,
+  Gauge,
   Settings2,
   Waypoints,
 } from "lucide-react";
@@ -26,6 +27,7 @@ function navItems(uiText: UiText): TopicDef[] {
     { id: "effective", label: uiText.views.effective, icon: BookOpen },
     { id: "skillManager", label: uiText.views.skillManager, icon: Blocks },
     { id: "mcpManager", label: uiText.views.mcpManager, icon: Cable },
+    { id: "modelGateway", label: uiText.views.modelGateway, icon: Gauge },
   ];
 }
 
