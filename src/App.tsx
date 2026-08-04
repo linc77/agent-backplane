@@ -7,10 +7,10 @@ import {
   type PointerEvent,
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import {
   cancelMemoryProfileGeneration,
   draftCorrection,
+  draftRevert,
   getMemoryProfileGeneration,
   isFixtureMode,
   loadAgentMemorySnapshot,
@@ -44,7 +44,10 @@ import type {
   MemoryProfileLocale,
   MemoryProfileSection,
 } from "./lib/types";
-import { CorrectionDialog } from "./components/CorrectionDialog";
+import {
+  CorrectionDialog,
+  type CorrectionDialogMode,
+} from "./components/CorrectionDialog";
 import { AgentConfigManager } from "./components/AgentConfigManager";
 import { KnowledgeBoard } from "./components/KnowledgeBoard";
 import { McpManager } from "./components/McpManager";
@@ -53,6 +56,16 @@ import { SkillManager } from "./components/SkillManager";
 import { SettingsPage } from "./components/SettingsPage";
 import { useAppUpdater } from "./hooks/useAppUpdater";
 import "./App.css";
+
+const sidebarCollapsedStorageKey = "agent-backplane.sidebar-collapsed";
+
+function readSidebarCollapsed() {
+  try {
+    return window.localStorage.getItem(sidebarCollapsedStorageKey) === "true";
+  } catch {
+    return false;
+  }
+}
 
 function targetsForEvidence(
   entries: MemoryEntry[],
@@ -64,13 +77,18 @@ function targetsForEvidence(
       (candidate) => candidate.id === item.entryId && candidate.sourcePath === item.sourcePath,
     );
     if (entry) {
-      targets.set(entry.id, { entryId: entry.id, sourcePath: entry.sourcePath });
+      targets.set(entry.id, {
+        entryId: entry.id,
+        sourcePath: entry.sourcePath,
+        revisionHash: entry.revisionHash,
+      });
     }
   }
   return [...targets.values()];
 }
 
 interface CorrectionRequest {
+  mode: CorrectionDialogMode;
   slug: string;
   title: string;
   body: string;
@@ -95,8 +113,8 @@ function App() {
   const [paneLayout, setPaneLayout] = useState(() =>
     clampPaneLayout(DEFAULT_PANE_LAYOUT, window.innerWidth),
   );
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(readSidebarCollapsed);
   const selectedAgentRef = useRef(selectedAgent);
   const localeRef = useRef<MemoryProfileLocale>(locale);
   const generationAttemptsRef = useRef(new Set<string>());
@@ -177,6 +195,29 @@ function App() {
     onSuccess: (nextDraft, request) => {
       setDraft(nextDraft);
       setCorrectionContext(request);
+      setCorrectionText("");
+    },
+  });
+
+  const revertDraftMutation = useMutation({
+    mutationFn: (entry: MemoryEntry) => {
+      if (!entry.change) throw new Error("Only explicit memory changes can be reverted");
+      return draftRevert(
+        selectedAgentRef.current,
+        null,
+        entry.change,
+        entry.sourcePath,
+      );
+    },
+    onSuccess: (nextDraft, entry) => {
+      setDraft(nextDraft);
+      setCorrectionContext({
+        mode: "revert",
+        slug: nextDraft.slug,
+        title: entry.title,
+        body: entry.summary,
+        targets: [{ entryId: entry.id, sourcePath: entry.sourcePath }],
+      });
       setCorrectionText("");
     },
   });
@@ -290,6 +331,7 @@ function App() {
 
   function draftProfileCorrection(section: MemoryProfileSection) {
     correctionDraftMutation.mutate({
+      mode: "edit",
       slug: `memory-profile-${section.id}`,
       title: section.title,
       body: section.body,
@@ -299,11 +341,31 @@ function App() {
 
   function draftEntryCorrection(entry: MemoryEntry) {
     correctionDraftMutation.mutate({
+      mode: "edit",
       slug: `memory-entry-${entry.id}`,
       title: entry.title,
       body: entry.summary,
-      targets: [{ entryId: entry.id, sourcePath: entry.sourcePath }],
+      targets: [{
+        entryId: entry.id,
+        sourcePath: entry.sourcePath,
+        revisionHash: entry.revisionHash,
+      }],
     });
+  }
+
+  function draftNewMemory() {
+    correctionDraftMutation.mutate({
+      mode: "create",
+      slug: `memory-${Date.now()}`,
+      title: "",
+      body: "",
+      targets: [],
+    });
+  }
+
+  function draftMemoryRevert(entry: MemoryEntry) {
+    if (entry.change?.operation !== "replace") return;
+    revertDraftMutation.mutate(entry);
   }
 
   function closeCorrectionDialog() {
@@ -313,7 +375,12 @@ function App() {
   }
 
   function writeCurrentCorrection() {
-    if (!draft || !correctionText.trim()) return;
+    if (!draft || !correctionContext) return;
+    if (correctionContext.mode === "revert") {
+      writeMutation.mutate(draft);
+      return;
+    }
+    if (!correctionText.trim()) return;
     writeMutation.mutate({
       ...draft,
       content: `Memory update request:\n\n${correctionText.trim()}\n`,
@@ -330,6 +397,7 @@ function App() {
     setCorrectionText("");
     setLastWritePath(null);
     setProfileGenerationTask(null);
+    revertDraftMutation.reset();
   }
 
   function changeAgent(nextAgent: AgentKind) {
@@ -382,6 +450,18 @@ function App() {
     setPaneLayout((layout) => resizePaneLayout(layout, deltaX, window.innerWidth));
   }
 
+  function toggleSidebar() {
+    setIsSidebarCollapsed((collapsed) => {
+      const next = !collapsed;
+      try {
+        window.localStorage.setItem(sidebarCollapsedStorageKey, String(next));
+      } catch {
+        // Keep the in-memory preference when storage is unavailable.
+      }
+      return next;
+    });
+  }
+
   const pageMode =
     activeTopic === "skillManager"
       ? "skills-mode"
@@ -398,54 +478,35 @@ function App() {
       className={`app-shell ${pageMode}${isSidebarCollapsed ? " sidebar-collapsed" : ""}${isResizingSidebar ? " resizing" : ""}`}
       style={{
         gridTemplateColumns: isSidebarCollapsed
-          ? "0px 0px minmax(0, 1fr)"
+          ? "64px 0 minmax(0, 1fr)"
           : paneGridTemplate(paneLayout),
       }}
     >
       {fixtureMode && <div className="fixture-banner">{uiText.app.fixtureBanner}</div>}
-      <button
-        aria-label={
-          isSidebarCollapsed ? uiText.app.expandSidebar : uiText.app.collapseSidebar
-        }
-        className={isSidebarCollapsed ? "sidebar-toggle collapsed" : "sidebar-toggle"}
-        onClick={() => setIsSidebarCollapsed((collapsed) => !collapsed)}
-        style={{ left: isSidebarCollapsed ? 78 : paneLayout.sidebarWidth - 42 }}
-        title={isSidebarCollapsed ? uiText.app.expandSidebar : uiText.app.collapseSidebar}
-        type="button"
-      >
-        {isSidebarCollapsed ? (
-          <PanelLeftOpen aria-hidden="true" size={17} />
-        ) : (
-          <PanelLeftClose aria-hidden="true" size={17} />
-        )}
-      </button>
+      <Sidebar
+        activeTopic={activeTopic}
+        collapsed={isSidebarCollapsed}
+        selectedAgent={selectedAgent}
+        uiText={uiText}
+        onManageAgent={() => setActiveTopic("agentManager")}
+        onOpenSettings={() => setActiveTopic("settings")}
+        onSelectAgent={changeAgent}
+        onSelectTopic={setActiveTopic}
+        onToggleCollapsed={toggleSidebar}
+        updateAvailable={Boolean(appUpdater.state.update)}
+      />
 
-      {!isSidebarCollapsed && (
-        <>
-          <Sidebar
-            activeTopic={activeTopic}
-            selectedAgent={selectedAgent}
-            uiText={uiText}
-            onManageAgent={() => setActiveTopic("agentManager")}
-            onOpenSettings={() => setActiveTopic("settings")}
-            onSelectAgent={changeAgent}
-            onSelectTopic={setActiveTopic}
-            updateAvailable={Boolean(appUpdater.state.update)}
-          />
-
-          <div
-            aria-label={uiText.app.resizeSidebar}
-            className={isResizingSidebar ? "pane-resizer active" : "pane-resizer"}
-            onKeyDown={nudgePaneResize}
-            onPointerCancel={stopPaneResize}
-            onPointerDown={startPaneResize}
-            onPointerMove={movePaneResize}
-            onPointerUp={stopPaneResize}
-            role="separator"
-            tabIndex={0}
-          />
-        </>
-      )}
+      <div
+        aria-label={uiText.app.resizeSidebar}
+        className={isResizingSidebar ? "pane-resizer active" : "pane-resizer"}
+        onKeyDown={nudgePaneResize}
+        onPointerCancel={stopPaneResize}
+        onPointerDown={startPaneResize}
+        onPointerMove={movePaneResize}
+        onPointerUp={stopPaneResize}
+        role="separator"
+        tabIndex={0}
+      />
 
       <section className="workspace-surface">
         {activeTopic === "skillManager" ? (
@@ -470,7 +531,9 @@ function App() {
             locale={locale}
             onCancelProfileGeneration={cancelProfileGeneration}
             onDraftEntryCorrection={draftEntryCorrection}
+            onDraftNewMemory={draftNewMemory}
             onDraftProfileCorrection={draftProfileCorrection}
+            onDraftRevert={draftMemoryRevert}
             onOpenSource={(path) => openSourceMutation.mutate(path)}
             onRegenerateProfile={regenerateProfile}
             profile={profile}
@@ -490,6 +553,9 @@ function App() {
       {correctionDraftMutation.error && (
         <div className="status-toast error">{String(correctionDraftMutation.error)}</div>
       )}
+      {revertDraftMutation.error && (
+        <div className="status-toast error">{String(revertDraftMutation.error)}</div>
+      )}
       {writeMutation.error && (
         <div className="status-toast error">{String(writeMutation.error)}</div>
       )}
@@ -502,6 +568,7 @@ function App() {
           content={correctionText}
           draft={draft}
           isWriting={writeMutation.isPending}
+          mode={correctionContext.mode}
           originalBody={correctionContext.body}
           originalTitle={correctionContext.title}
           uiText={uiText}

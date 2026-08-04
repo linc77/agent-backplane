@@ -7,8 +7,17 @@ import type {
   RiskFlag,
   ScanResult,
 } from "./types";
+import { resolvedMemoryTargetIds } from "./memoryChanges";
 
 export type MemoryTruthStatus = "current" | "stale" | "uncertain" | "conflict";
+export type MemoryTruthDecisionKind =
+  | "currentOverrides"
+  | "currentCorrection"
+  | "currentDefault"
+  | "reverted"
+  | "displaced"
+  | "conflict"
+  | "uncertainContext";
 
 export interface MemoryTruthItem {
   id: string;
@@ -18,6 +27,8 @@ export interface MemoryTruthItem {
   confidence: number;
   priorityRank: number;
   decision: string;
+  decisionKind?: MemoryTruthDecisionKind;
+  decisionCount?: number;
   reviewReason?: string;
   risk?: RiskFlag;
   staleCandidates: MemoryEntry[];
@@ -75,7 +86,11 @@ export function resolveMemoryTruth(scan?: ScanResult): MemoryTruthModel {
   const staleForCorrection = new Map<string, MemoryEntry[]>();
 
   for (const correction of correctionEntries) {
-    const targetIds = new Set(correction.change?.targetEntryIds ?? []);
+    const targetIds = new Set(resolvedMemoryTargetIds(
+      durableEntries,
+      correction.change?.targetEntryIds ?? [],
+      correction.change?.targetRevisions,
+    ));
     const candidates = durableEntries.filter((entry) => targetIds.has(entry.id));
 
     if (candidates.length) {
@@ -97,7 +112,7 @@ export function resolveMemoryTruth(scan?: ScanResult): MemoryTruthModel {
         entry,
         sources,
         status: "current",
-        decision: currentDecision(entry, staleForCorrection.get(entry.id)?.length ?? 0),
+        ...currentDecision(entry, staleForCorrection.get(entry.id)?.length ?? 0),
         staleCandidates: staleForCorrection.get(entry.id) ?? [],
       }),
     );
@@ -110,6 +125,7 @@ export function resolveMemoryTruth(scan?: ScanResult): MemoryTruthModel {
         sources,
         status: "stale",
         decision: "This memory change was reverted.",
+        decisionKind: "reverted",
         reviewReason: "The targeted claim was restored by a later revert.",
         staleCandidates: [],
       })),
@@ -122,6 +138,7 @@ export function resolveMemoryTruth(scan?: ScanResult): MemoryTruthModel {
           sources,
           status: "stale",
           decision: `Displaced by higher-priority memory: ${winner.title}.`,
+          decisionKind: "displaced",
           reviewReason: "A newer or higher-priority correction now owns this memory lane.",
           staleCandidates: [],
         });
@@ -135,6 +152,7 @@ export function resolveMemoryTruth(scan?: ScanResult): MemoryTruthModel {
           sources,
           status: "conflict",
           decision: risk.title,
+          decisionKind: "conflict",
           reviewReason: risk.detail,
           risk,
           staleCandidates: [],
@@ -148,6 +166,7 @@ export function resolveMemoryTruth(scan?: ScanResult): MemoryTruthModel {
           sources,
           status: "uncertain",
           decision: "Activity evidence is useful context, but not durable memory truth.",
+          decisionKind: "uncertainContext",
           reviewReason: "Promote this into a correction note only if it should become durable.",
           staleCandidates: [],
         }),
@@ -237,6 +256,8 @@ function buildTruthItem({
   sources,
   status,
   decision,
+  decisionKind,
+  decisionCount,
   reviewReason,
   risk,
   staleCandidates,
@@ -245,6 +266,8 @@ function buildTruthItem({
   sources: MemorySource[];
   status: MemoryTruthStatus;
   decision: string;
+  decisionKind?: MemoryTruthDecisionKind;
+  decisionCount?: number;
   reviewReason?: string;
   risk?: RiskFlag;
   staleCandidates: MemoryEntry[];
@@ -259,6 +282,8 @@ function buildTruthItem({
     confidence: confidenceForStatus(status, priorityRank, staleCandidates.length),
     priorityRank,
     decision,
+    decisionKind,
+    decisionCount,
     reviewReason,
     risk,
     staleCandidates,
@@ -267,14 +292,24 @@ function buildTruthItem({
 
 function currentDecision(entry: MemoryEntry, staleCandidateCount: number) {
   if (staleCandidateCount > 0) {
-    return `Current because a higher-priority correction overrides ${staleCandidateCount} lower-priority memory slice${staleCandidateCount === 1 ? "" : "s"}.`;
+    return {
+      decision: `Current because a higher-priority correction overrides ${staleCandidateCount} lower-priority memory slice${staleCandidateCount === 1 ? "" : "s"}.`,
+      decisionKind: "currentOverrides" as const,
+      decisionCount: staleCandidateCount,
+    };
   }
 
   if (entry.topic === "overrides") {
-    return "Current because correction notes have highest priority.";
+    return {
+      decision: "Current because correction notes have highest priority.",
+      decisionKind: "currentCorrection" as const,
+    };
   }
 
-  return "Current because no higher-priority correction or risk displaces this memory.";
+  return {
+    decision: "Current because no higher-priority correction or risk displaces this memory.",
+    decisionKind: "currentDefault" as const,
+  };
 }
 
 function confidenceForStatus(status: MemoryTruthStatus, priorityRank: number, staleCandidateCount: number) {

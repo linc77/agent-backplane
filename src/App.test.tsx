@@ -14,6 +14,15 @@ import type {
   ScanResult,
 } from "./lib/types";
 
+Object.defineProperty(globalThis, "ResizeObserver", {
+  configurable: true,
+  value: class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  },
+});
+
 const invokeMock = vi.hoisted(() => vi.fn());
 const revealItemInDirMock = vi.hoisted(() => vi.fn());
 
@@ -62,7 +71,12 @@ Object.defineProperty(window, "backplane", {
         targets: unknown,
       ) => invokeMock("draft_correction", { agent, rootOverride, slug, bulletLines, targets }),
       draftCorrectionFromContent: () => Promise.reject(new Error("unused")),
-      draftRevert: () => Promise.reject(new Error("unused")),
+      draftRevert: (
+        agent: AgentKind,
+        rootOverride: string | null,
+        change: unknown,
+        sourcePath: string,
+      ) => invokeMock("draft_revert", { agent, rootOverride, change, sourcePath }),
       writeCorrection: (rootOverride: string | null, draft: unknown) =>
         invokeMock("write_correction", { rootOverride, draft }),
     },
@@ -144,7 +158,7 @@ const profile: MemoryProfile = {
   schemaVersion: "1",
   generatedAt: "2026-07-17T02:00:00Z",
   sourceHash: "profile-source-hash",
-  generator: "codex-profile-v4",
+  generator: "codex-profile-v7",
   cachePath: "/Users/qsh/.codex/memories/.backplane/profile.zh-CN.json",
   sections: [
     {
@@ -212,13 +226,42 @@ function correctionDraft(): CorrectionDraft {
     slug: "memory-profile-python-rust-current-stack",
     content: "Memory update request:\n\n- Correct the current stack.\n",
     targetPath: "/Users/qsh/.codex/memories/extensions/ad_hoc/notes/profile-update.md",
-    targetSourcePaths: ["MEMORY.md"],
+    targetSourcePaths: ["MEMORY.md", "extensions/ad_hoc/notes/profile.md"],
     change: {
       id: "change-profile-update",
       operation: "replace",
-      targetEntryIds: ["profile"],
+      targetEntryIds: ["profile", "profile-correction"],
       revertsChangeId: null,
       createdAt: "2026-07-17T03:00:00.000Z",
+    },
+  };
+}
+
+function appendDraft(): CorrectionDraft {
+  return {
+    ...correctionDraft(),
+    slug: "memory-new",
+    targetSourcePaths: [],
+    change: {
+      ...correctionDraft().change,
+      id: "change-memory-new",
+      operation: "append",
+      targetEntryIds: [],
+    },
+  };
+}
+
+function revertDraft(): CorrectionDraft {
+  return {
+    ...correctionDraft(),
+    slug: "revert-change-profile",
+    targetSourcePaths: ["extensions/ad_hoc/notes/profile.md"],
+    change: {
+      id: "change-revert-profile",
+      operation: "revert",
+      targetEntryIds: ["change-profile"],
+      revertsChangeId: "change-profile",
+      createdAt: "2026-07-17T04:00:00.000Z",
     },
   };
 }
@@ -259,10 +302,29 @@ describe("App memory profile", () => {
   });
 
   it("opens directly on the redesigned memory page without Home or Check", async () => {
-    const { container, findByRole, queryByRole } = renderApp();
+    const { container, findByLabelText, findByRole, findByText, queryByRole } = renderApp();
 
-    expect(await findByRole("heading", { name: "Codex 记住的你" })).toBeInTheDocument();
+    const overviewHeading = await findByRole("heading", { name: "Codex 记住的你" });
+    expect(overviewHeading).toBeInTheDocument();
     expect(await findByRole("button", { name: "更新画像" })).toBeInTheDocument();
+    expect(await findByRole("region", { name: "Codex 记忆图谱" })).toBeInTheDocument();
+    expect(await findByRole("button", { name: "记忆图谱" })).toHaveAttribute("aria-pressed", "true");
+    expect(container.querySelector(".memory-overview-sidebar")).toContainElement(overviewHeading);
+    expect(await findByRole("button", { name: "明亮" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(await findByRole("button", { name: "折叠侧边栏" }));
+    expect(container.querySelector(".app-shell")).toHaveClass("sidebar-collapsed");
+    expect(await findByRole("button", { name: "展开侧边栏" })).toBeInTheDocument();
+    fireEvent.click(await findByLabelText(/你把 Python 和 Rust 作为当前主栈/));
+    expect(await findByText(profile.sections[0].body)).toBeInTheDocument();
+    expect(await findByRole("button", { name: "收起依据" })).toBeInTheDocument();
+    fireEvent.click(await findByRole("button", { name: "知识簇" }));
+    expect(await findByRole("button", { name: "知识簇" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(await findByRole("button", { name: "树状图" }));
+    expect(await findByRole("button", { name: "树状图" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(await findByRole("button", { name: "深海蓝" }));
+    expect(await findByRole("button", { name: "深海蓝" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(await findByRole("button", { name: "明亮" }));
+    expect(await findByRole("button", { name: "明亮" })).toHaveAttribute("aria-pressed", "true");
     expect(queryByRole("button", { name: "首页" })).not.toBeInTheDocument();
     expect(queryByRole("button", { name: "检查" })).not.toBeInTheDocument();
     expect(container.querySelector(".app-shell")).toHaveClass("memory-mode");
@@ -271,8 +333,9 @@ describe("App memory profile", () => {
   });
 
   it("loads the cached profile by Agent and locale without regenerating a fresh result", async () => {
-    const { findByText } = renderApp();
+    const { findByRole, findByText } = renderApp();
 
+    fireEvent.click(await findByRole("button", { name: "关键记忆" }));
     expect(await findByText(profile.sections[0].body)).toBeInTheDocument();
     expect(invokeMock).toHaveBeenCalledWith("load_agent_memory_snapshot", {
       agent: "codex",
@@ -291,6 +354,10 @@ describe("App memory profile", () => {
       sections: [{ ...profile.sections[0], body: "后台更新后的中文记忆画像。" }],
     };
     let loads = 0;
+    let finishGeneration!: (task: MemoryProfileGenerationTask) => void;
+    const generation = new Promise<MemoryProfileGenerationTask>((resolve) => {
+      finishGeneration = resolve;
+    });
     invokeMock.mockImplementation((command: string) => {
       if (command === "load_agent_memory_snapshot") {
         loads += 1;
@@ -301,15 +368,16 @@ describe("App memory profile", () => {
         );
       }
       if (command === "start_memory_profile_generation") {
-        return Promise.resolve(generationTask("succeeded", updatedProfile));
+        return generation;
       }
       if (command === "load_agent_config_inventory") {
         return Promise.resolve({ generatedAt: "now", catalogPath: "/tmp", targets: [] });
       }
       return Promise.reject(new Error(`unexpected command: ${command}`));
     });
-    const { findByText } = renderApp();
+    const { findByRole, findByText } = renderApp();
 
+    fireEvent.click(await findByRole("button", { name: "关键记忆" }));
     expect(await findByText(profile.sections[0].body)).toBeInTheDocument();
     await waitFor(() =>
       expect(invokeMock).toHaveBeenCalledWith("start_memory_profile_generation", {
@@ -317,6 +385,7 @@ describe("App memory profile", () => {
         locale: "zh-CN",
       }),
     );
+    finishGeneration(generationTask("succeeded", updatedProfile));
     expect(await findByText("后台更新后的中文记忆画像。")).toBeInTheDocument();
   });
 
@@ -333,8 +402,9 @@ describe("App memory profile", () => {
       }
       return Promise.reject(new Error(`unexpected command: ${command}`));
     });
-    const { findByText } = renderApp();
+    const { findByRole, findByText } = renderApp();
 
+    fireEvent.click(await findByRole("button", { name: "关键记忆" }));
     expect(await findByText(profile.sections[0].body)).toBeInTheDocument();
     expect(await findByText("更新失败，继续显示上次结果。")).toBeInTheDocument();
     expect(await findByText("查看错误")).toBeInTheDocument();
@@ -359,8 +429,9 @@ describe("App memory profile", () => {
       }
       return Promise.reject(new Error(`unexpected command: ${command}`));
     });
-    const { findByText } = renderApp();
+    const { findByRole, findByText } = renderApp();
 
+    fireEvent.click(await findByRole("button", { name: "关键记忆" }));
     expect(await findByText(profile.sections[0].body)).toBeInTheDocument();
     expect(invokeMock).toHaveBeenCalledWith("start_memory_profile_generation", {
       agent: "codex",
@@ -380,6 +451,7 @@ describe("App memory profile", () => {
     });
     const { findByRole, findByText, getByRole } = renderApp();
 
+    fireEvent.click(await findByRole("button", { name: "关键记忆" }));
     fireEvent.click(await findByText("查看依据 2"));
     fireEvent.click(
       await findByRole("button", {
@@ -394,6 +466,7 @@ describe("App memory profile", () => {
 
     fireEvent.click(getByRole("button", { name: "修改" }));
     expect(await findByRole("heading", { name: "修改这条记忆" })).toBeInTheDocument();
+    expect(await findByText("将影响 2 条原始记忆")).toBeInTheDocument();
     expect(invokeMock).toHaveBeenCalledWith("draft_correction", expect.objectContaining({
       agent: "codex",
       slug: "memory-profile-python-rust-current-stack",
@@ -405,6 +478,51 @@ describe("App memory profile", () => {
         },
       ]),
     }));
+  });
+
+  it("surfaces review decisions and supports adding and reverting explicit memory", async () => {
+    let draftKind: "append" | "revert" | null = null;
+    invokeMock.mockImplementation((command: string, payload?: { targets?: unknown[] }) => {
+      if (command === "load_agent_memory_snapshot") return Promise.resolve(snapshot());
+      if (command === "load_agent_config_inventory") {
+        return Promise.resolve({ generatedAt: "now", catalogPath: "/tmp", targets: [] });
+      }
+      if (command === "draft_correction" && payload?.targets?.length === 0) {
+        draftKind = "append";
+        return Promise.resolve(appendDraft());
+      }
+      if (command === "draft_revert") {
+        draftKind = "revert";
+        return Promise.resolve(revertDraft());
+      }
+      if (command === "write_correction") {
+        return Promise.resolve({ path: "/tmp/memory-change.md", changeId: `written-${draftKind}` });
+      }
+      return Promise.reject(new Error(`unexpected command: ${command}`));
+    });
+    const { findByRole, findByText, getByRole } = renderApp();
+
+    fireEvent.click(await findByRole("button", { name: /待确认/ }));
+    expect(await findByRole("heading", { name: "待确认的记忆" })).toBeInTheDocument();
+    expect(await findByText("画像需要确认")).toBeInTheDocument();
+    expect(await findByText(/历史与已覆盖记忆 1/)).toBeInTheDocument();
+
+    fireEvent.click(getByRole("button", { name: "原始记忆" }));
+    fireEvent.click(await findByRole("button", { name: "新增记忆" }));
+    expect(await findByRole("heading", { name: "新增一条记忆" })).toBeInTheDocument();
+    expect(await findByText("不会覆盖现有记忆")).toBeInTheDocument();
+    fireEvent.change(getByRole("textbox", { name: "希望 Codex 记住什么？" }), {
+      target: { value: "回答时先给结论。" },
+    });
+    fireEvent.click(getByRole("button", { name: "保存记忆" }));
+    expect(await findByText("记忆已修改，正在更新画像。")).toBeInTheDocument();
+
+    fireEvent.click(getByRole("button", { name: "原始记忆" }));
+    fireEvent.click(await findByRole("button", { name: "撤销修正" }));
+    expect(await findByRole("heading", { name: "撤销这条修正" })).toBeInTheDocument();
+    expect(await findByText(/撤销不会删除历史文件/)).toBeInTheDocument();
+    fireEvent.click(getByRole("button", { name: "确认撤销" }));
+    await waitFor(() => expect(draftKind).toBe("revert"));
   });
 
   it("resizes only the sidebar pane", async () => {
@@ -425,21 +543,21 @@ describe("App memory profile", () => {
     );
   });
 
-  it("collapses and restores the sidebar from the titlebar control", async () => {
-    const { container, findByRole, getByRole, queryByRole } = renderApp();
+  it("collapses and restores the sidebar from its footer control", async () => {
+    const { container, findByRole, getByRole } = renderApp();
     await findByRole("heading", { name: "Codex 记住的你" });
 
-    fireEvent.click(getByRole("button", { name: "折叠侧栏" }));
+    fireEvent.click(getByRole("button", { name: "折叠侧边栏" }));
 
-    expect(queryByRole("complementary")).not.toBeInTheDocument();
+    expect(container.querySelector(".sidebar")).toHaveClass("collapsed");
     expect(container.querySelector(".app-shell")).toHaveClass("sidebar-collapsed");
     expect(container.querySelector(".app-shell")).toHaveStyle({
-      gridTemplateColumns: "0px 0px minmax(0, 1fr)",
+      gridTemplateColumns: "64px 0 minmax(0, 1fr)",
     });
 
-    fireEvent.click(getByRole("button", { name: "展开侧栏" }));
+    fireEvent.click(getByRole("button", { name: "展开侧边栏" }));
 
-    expect(getByRole("complementary")).toBeInTheDocument();
+    expect(container.querySelector(".sidebar")).not.toHaveClass("collapsed");
     expect(container.querySelector(".app-shell")).not.toHaveClass("sidebar-collapsed");
   });
 });

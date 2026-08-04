@@ -4,6 +4,8 @@ import {
   Check,
   ChevronDown,
   Cable,
+  PanelLeftClose,
+  PanelLeftOpen,
   Settings2,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ComponentType } from "react";
@@ -30,21 +32,25 @@ function navItems(uiText: UiText): TopicDef[] {
 
 export function Sidebar({
   activeTopic,
+  collapsed,
   selectedAgent,
   uiText,
   onManageAgent,
   onOpenSettings,
   onSelectAgent,
   onSelectTopic,
+  onToggleCollapsed,
   updateAvailable,
 }: {
   activeTopic: MemoryView;
+  collapsed: boolean;
   selectedAgent: AgentKind;
   uiText: UiText;
   onManageAgent: () => void;
   onOpenSettings: () => void;
   onSelectAgent: (agent: AgentKind) => void;
   onSelectTopic: (topic: MemoryView) => void;
+  onToggleCollapsed: () => void;
   updateAvailable: boolean;
 }) {
   const topics = navItems(uiText);
@@ -81,15 +87,15 @@ export function Sidebar({
   }, [isAgentMenuOpen]);
 
   return (
-    <aside className="sidebar">
+    <aside className={collapsed ? "sidebar collapsed" : "sidebar"}>
       <div aria-hidden="true" className="sidebar-titlebar" />
-
       <div className="agent-context" ref={selectorRef}>
         <button
           aria-expanded={isAgentMenuOpen}
           aria-haspopup="menu"
           className={isAgentMenuOpen ? "agent-context-trigger open" : "agent-context-trigger"}
           onClick={() => setIsAgentMenuOpen((open) => !open)}
+          title={collapsed ? selectedTarget?.label ?? agentMeta[selectedAgent].label : undefined}
           type="button"
         >
           <span className={`agent-mark ${selectedAgent}`}>{agentMeta[selectedAgent].mark}</span>
@@ -173,6 +179,7 @@ export function Sidebar({
               className={topic.id === activeTopic ? "topic-item active" : "topic-item"}
               key={topic.id}
               onClick={() => onSelectTopic(topic.id)}
+              title={collapsed ? topic.label : undefined}
               type="button"
             >
               <Icon size={17} />
@@ -183,18 +190,32 @@ export function Sidebar({
       </nav>
 
       <div className="sidebar-footer">
-        <button
-          aria-current={activeTopic === "settings" ? "page" : undefined}
-          className={activeTopic === "settings" ? "settings-button active" : "settings-button"}
-          onClick={onOpenSettings}
-          type="button"
-        >
-          <Settings2 aria-hidden="true" size={16} />
-          <span>{uiText.sidebar.settings}</span>
-          {updateAvailable && (
-            <span className="settings-update-badge">{uiText.sidebar.updateAvailable}</span>
-          )}
-        </button>
+        <div className="sidebar-footer-actions">
+          <button
+            aria-current={activeTopic === "settings" ? "page" : undefined}
+            className={activeTopic === "settings" ? "settings-button active" : "settings-button"}
+            onClick={onOpenSettings}
+            title={collapsed ? uiText.sidebar.settings : undefined}
+            type="button"
+          >
+            <Settings2 aria-hidden="true" size={16} />
+            <span>{uiText.sidebar.settings}</span>
+            {updateAvailable && (
+              <span className="settings-update-badge">{uiText.sidebar.updateAvailable}</span>
+            )}
+          </button>
+          <button
+            aria-label={collapsed ? uiText.sidebar.expand : uiText.sidebar.collapse}
+            className="sidebar-collapse-button"
+            onClick={onToggleCollapsed}
+            title={collapsed ? uiText.sidebar.expand : uiText.sidebar.collapse}
+            type="button"
+          >
+            {collapsed
+              ? <PanelLeftOpen aria-hidden="true" size={16} />
+              : <PanelLeftClose aria-hidden="true" size={16} />}
+          </button>
+        </div>
       </div>
     </aside>
   );

@@ -27,7 +27,9 @@ export interface UiText {
   };
   sidebar: {
     agentMenuLabel: string;
+    collapse: string;
     currentAgent: string;
+    expand: string;
     manageAgent: string;
     settings: string;
     updateAvailable: string;
@@ -48,13 +50,51 @@ export interface UiText {
     currentMemories: string;
     needsAttention: string;
     viewLabel: string;
+    graphView: string;
     profileView: string;
+    reviewView: string;
     memoryView: string;
+    graphLabel: string;
+    graphLayoutLabel: string;
+    graphRadialLayout: string;
+    graphClusterLayout: string;
+    graphTreeLayout: string;
+    graphThemeLabel: string;
+    graphAmberTheme: string;
+    graphOceanTheme: string;
+    graphVioletTheme: string;
+    graphLightTheme: string;
+    graphGroupCount: (count: number) => string;
+    graphInspectorLabel: string;
+    graphRootLabel: (agent: string) => string;
+    graphRootCaption: (themes: number, memories: number) => string;
+    graphOverviewTitle: string;
+    graphOverviewDescription: string;
+    graphHint: string;
+    graphExpandEvidence: (count: number) => string;
+    graphCollapseEvidence: string;
+    graphOriginalMemory: string;
+    graphOpenSource: string;
     showAll: string;
     showNeedsAttention: (count: number) => string;
     sectionState: Record<"steady" | "recent" | "review", string>;
     evidenceCount: (count: number) => string;
     editMemory: string;
+    addMemory: string;
+    revertMemory: string;
+    promoteMemory: string;
+    reviewCenterTitle: string;
+    reviewCenterDescription: string;
+    profileReviewTitle: string;
+    profileReviewDescription: string;
+    conflictReviewTitle: string;
+    conflictReviewDescription: string;
+    historyReviewTitle: (count: number) => string;
+    historyReviewDescription: string;
+    uncertainReviewTitle: (count: number) => string;
+    uncertainReviewDescription: string;
+    reviewEmptyTitle: string;
+    reviewEmptyDescription: string;
     memoryListTitle: string;
     memoryListDescription: string;
     searchMemories: string;
@@ -79,6 +119,19 @@ export interface UiText {
     confidence: Record<"high" | "medium" | "low", string>;
     stability: Record<"stable" | "recent" | "uncertain", string>;
     evidenceTrust: Record<"current" | "stale" | "uncertain" | "conflict", string>;
+    truthDecision: {
+      currentOverrides: (count: number) => string;
+      currentCorrection: string;
+      currentDefault: string;
+      reverted: string;
+      revertedReason: string;
+      displaced: string;
+      displacedReason: string;
+      conflict: string;
+      conflictReason: string;
+      uncertainContext: string;
+      uncertainContextReason: string;
+    };
   };
   skills: {
     eyebrow: string;
@@ -281,16 +334,29 @@ export interface UiText {
   dialog: {
     eyebrow: string;
     title: string;
+    addEyebrow: string;
+    addTitle: string;
+    revertEyebrow: string;
+    revertTitle: string;
     currentMemory: string;
     correctMemory: string;
     correctionHint: string;
     correctionPlaceholder: string;
+    addMemoryPrompt: string;
+    addMemoryHint: string;
+    addMemoryPlaceholder: string;
+    revertHint: string;
+    affectedMemories: (count: number) => string;
+    noExistingMemoryAffected: string;
+    targetSources: string;
     writeDetails: string;
     targetPath: string;
     content: string;
     cancel: string;
     writing: string;
     writeCorrection: string;
+    writeMemory: string;
+    revertChange: string;
   };
   format: {
     evidence: (path: string, startLine: number, endLine: number) => string;
@@ -318,7 +384,9 @@ const zhCN: UiText = {
   },
   sidebar: {
     agentMenuLabel: "切换当前 Agent",
+    collapse: "折叠侧边栏",
     currentAgent: "当前 Agent",
+    expand: "展开侧边栏",
     manageAgent: "管理当前 Agent 配置",
     settings: "设置",
     updateAvailable: "可更新",
@@ -390,8 +458,31 @@ const zhCN: UiText = {
     currentMemories: "当前记忆",
     needsAttention: "建议确认",
     viewLabel: "记忆展示方式",
-    profileView: "画像概览",
-    memoryView: "全部记忆",
+    graphView: "记忆图谱",
+    profileView: "关键记忆",
+    reviewView: "待确认",
+    memoryView: "原始记忆",
+    graphLabel: "Codex 记忆图谱",
+    graphLayoutLabel: "图谱布局",
+    graphRadialLayout: "放射图",
+    graphClusterLayout: "知识簇",
+    graphTreeLayout: "树状图",
+    graphThemeLabel: "配色",
+    graphAmberTheme: "暖金",
+    graphOceanTheme: "深海蓝",
+    graphVioletTheme: "紫罗兰",
+    graphLightTheme: "明亮",
+    graphGroupCount: (count) => `${count} 个关键主题`,
+    graphInspectorLabel: "记忆详情",
+    graphRootLabel: (agent) => `${agent} 记忆`,
+    graphRootCaption: (themes, memories) => `${themes} 个主题 · ${memories} 条记忆`,
+    graphOverviewTitle: "记忆总览",
+    graphOverviewDescription: "图谱只展示有真实依据的记忆关系。关键主题来自中文画像，展开后可以核对对应的原始记忆。",
+    graphHint: "点击主题节点可以展开依据，再点击依据查看原文、来源或直接修改。",
+    graphExpandEvidence: (count) => `展开 ${count} 条依据`,
+    graphCollapseEvidence: "收起依据",
+    graphOriginalMemory: "原始记忆",
+    graphOpenSource: "查看来源",
     showAll: "显示全部画像",
     showNeedsAttention: (count) => `只看建议确认 ${count}`,
     sectionState: {
@@ -401,8 +492,23 @@ const zhCN: UiText = {
     },
     evidenceCount: (count) => `${count} 条依据`,
     editMemory: "修改",
-    memoryListTitle: "Codex 当前记忆",
-    memoryListDescription: "这里展示画像背后的有效记忆条目。你可以搜索、查看来源并逐条修改。",
+    addMemory: "新增记忆",
+    revertMemory: "撤销修正",
+    promoteMemory: "保留为记忆",
+    reviewCenterTitle: "待确认的记忆",
+    reviewCenterDescription: "这里只集中展示证据不足、互相冲突或已经被修正的内容。先看判断原因，再决定修改、保留或查看来源。",
+    profileReviewTitle: "画像需要确认",
+    profileReviewDescription: "这些中文画像存在弱证据、历史依据或不确定来源。",
+    conflictReviewTitle: "冲突需要处理",
+    conflictReviewDescription: "底层记忆之间存在明确冲突，修改后会追加一条更高优先级的修正。",
+    historyReviewTitle: (count) => `历史与已覆盖记忆 ${count}`,
+    historyReviewDescription: "这些内容仍保留用于追溯，但已经不参与当前画像。",
+    uncertainReviewTitle: (count) => `近期线索 ${count}`,
+    uncertainReviewDescription: "近期行为默认只是上下文，不会自动变成长期记忆。需要时可以明确保留。",
+    reviewEmptyTitle: "目前没有需要确认的记忆",
+    reviewEmptyDescription: "当前画像和底层记忆没有发现明显冲突或弱证据。",
+    memoryListTitle: "原始记忆",
+    memoryListDescription: "这里保留画像背后的有效原始记录，用于搜索、追溯来源和精确纠错。",
     searchMemories: "搜索记忆",
     noMemoryMatches: "没有匹配的记忆",
     unknownSource: "未知来源",
@@ -437,6 +543,19 @@ const zhCN: UiText = {
       stale: "历史依据",
       uncertain: "不确定",
       conflict: "需复核",
+    },
+    truthDecision: {
+      currentOverrides: (count) => `这条修正优先于 ${count} 条较旧记忆，因此作为当前结论。`,
+      currentCorrection: "用户明确写入的修正拥有最高优先级，因此作为当前结论。",
+      currentDefault: "没有更高优先级的修正或风险标记，因此作为当前记忆。",
+      reverted: "这条修正已经被撤销。",
+      revertedReason: "后续撤销记录恢复了被它覆盖的记忆。",
+      displaced: "这条记忆已经被更高优先级的修正覆盖。",
+      displacedReason: "它仍作为历史依据保留，但不再参与当前画像。",
+      conflict: "这条记忆的修正关系存在冲突。",
+      conflictReason: "修正目标或撤销链已经发生变化，请核对来源后重新确认。",
+      uncertainContext: "这是一条近期行为线索，还不是长期记忆。",
+      uncertainContextReason: "只有在你明确确认后，它才会被保留为长期记忆。",
     },
   },
   skills: {
@@ -688,16 +807,29 @@ const zhCN: UiText = {
   dialog: {
     eyebrow: "纠正 Codex 记忆",
     title: "修改这条记忆",
+    addEyebrow: "告诉 Codex",
+    addTitle: "新增一条记忆",
+    revertEyebrow: "记忆历史",
+    revertTitle: "撤销这条修正",
     currentMemory: "当前记忆",
     correctMemory: "正确情况是什么？",
     correctionHint: "保存后会写入一条优先级更高的修正，并自动更新画像。",
     correctionPlaceholder: "直接写下正确内容，例如：我现在主要使用 TypeScript 和 Python。",
-    writeDetails: "查看写入位置",
+    addMemoryPrompt: "希望 Codex 记住什么？",
+    addMemoryHint: "这会新增一条明确记忆，不会覆盖已有内容，并会自动更新画像。",
+    addMemoryPlaceholder: "例如：回答技术问题时，先给结论，再解释原因。",
+    revertHint: "撤销不会删除历史文件，而是追加一条恢复记录，让这条修正不再生效。",
+    affectedMemories: (count) => `将影响 ${count} 条原始记忆`,
+    noExistingMemoryAffected: "不会覆盖现有记忆",
+    targetSources: "涉及来源",
+    writeDetails: "查看写入位置和影响范围",
     targetPath: "目标路径",
     content: "内容",
     cancel: "取消",
     writing: "写入中...",
     writeCorrection: "保存修改",
+    writeMemory: "保存记忆",
+    revertChange: "确认撤销",
   },
   format: {
     evidence: (path, startLine, endLine) => `${path} 第 ${startLine}-${endLine} 行`,
@@ -718,7 +850,9 @@ const enUS: UiText = {
   },
   sidebar: {
     agentMenuLabel: "Switch current Agent",
+    collapse: "Collapse sidebar",
     currentAgent: "Current Agent",
+    expand: "Expand sidebar",
     manageAgent: "Manage current Agent",
     settings: "Settings",
     updateAvailable: "Update",
@@ -790,8 +924,31 @@ const enUS: UiText = {
     currentMemories: "Current memories",
     needsAttention: "Review suggested",
     viewLabel: "Memory view",
-    profileView: "Profile overview",
-    memoryView: "All memories",
+    graphView: "Memory graph",
+    profileView: "Key memories",
+    reviewView: "Review",
+    memoryView: "Source memories",
+    graphLabel: "Codex memory graph",
+    graphLayoutLabel: "Graph layout",
+    graphRadialLayout: "Radial",
+    graphClusterLayout: "Clusters",
+    graphTreeLayout: "Tree",
+    graphThemeLabel: "Theme",
+    graphAmberTheme: "Amber",
+    graphOceanTheme: "Ocean",
+    graphVioletTheme: "Violet",
+    graphLightTheme: "Light",
+    graphGroupCount: (count) => `${count} key themes`,
+    graphInspectorLabel: "Memory details",
+    graphRootLabel: (agent) => `${agent} memory`,
+    graphRootCaption: (themes, memories) => `${themes} themes · ${memories} memories`,
+    graphOverviewTitle: "Memory overview",
+    graphOverviewDescription: "The graph only shows relationships backed by real evidence. Key themes come from the profile and expand into their source memories.",
+    graphHint: "Select a theme to expand its evidence, then select an evidence node to inspect, trace, or correct it.",
+    graphExpandEvidence: (count) => `Expand ${count} evidence`,
+    graphCollapseEvidence: "Collapse evidence",
+    graphOriginalMemory: "Source memory",
+    graphOpenSource: "Open source",
     showAll: "Show all profile sections",
     showNeedsAttention: (count) => `Review suggested ${count}`,
     sectionState: {
@@ -801,8 +958,23 @@ const enUS: UiText = {
     },
     evidenceCount: (count) => `${count} evidence`,
     editMemory: "Edit",
-    memoryListTitle: "Current Codex memory",
-    memoryListDescription: "These active memory entries sit behind the profile. Search them, inspect their sources, and edit them one by one.",
+    addMemory: "Add memory",
+    revertMemory: "Revert correction",
+    promoteMemory: "Keep as memory",
+    reviewCenterTitle: "Memories to review",
+    reviewCenterDescription: "This inbox collects weakly supported, conflicting, or displaced memories. Inspect the decision path before correcting, promoting, or tracing a source.",
+    profileReviewTitle: "Profile needs review",
+    profileReviewDescription: "These profile observations rely on weak, historical, or uncertain evidence.",
+    conflictReviewTitle: "Conflicts to resolve",
+    conflictReviewDescription: "The underlying records disagree. Editing appends a higher-priority correction.",
+    historyReviewTitle: (count) => `History and displaced memories ${count}`,
+    historyReviewDescription: "These records remain available for provenance but no longer shape the current profile.",
+    uncertainReviewTitle: (count) => `Recent signals ${count}`,
+    uncertainReviewDescription: "Recent activity stays contextual by default and does not become durable memory unless you explicitly keep it.",
+    reviewEmptyTitle: "No memories need review",
+    reviewEmptyDescription: "No obvious conflicts or weak evidence were found in the current profile and source memories.",
+    memoryListTitle: "Source memories",
+    memoryListDescription: "These active source records sit behind the profile and remain available for search, provenance, and precise corrections.",
     searchMemories: "Search memories",
     noMemoryMatches: "No matching memories",
     unknownSource: "Unknown source",
@@ -837,6 +1009,19 @@ const enUS: UiText = {
       stale: "Historical evidence",
       uncertain: "Uncertain",
       conflict: "Needs review",
+    },
+    truthDecision: {
+      currentOverrides: (count) => `This correction takes priority over ${count} older memories and is treated as current.`,
+      currentCorrection: "An explicit user correction has the highest priority and is treated as current.",
+      currentDefault: "No higher-priority correction or risk displaces this memory, so it remains current.",
+      reverted: "This correction has been reverted.",
+      revertedReason: "A later restoration record reactivated the memory it had replaced.",
+      displaced: "A higher-priority correction has displaced this memory.",
+      displacedReason: "It remains available as history but no longer shapes the current profile.",
+      conflict: "This memory has a conflicting correction relationship.",
+      conflictReason: "Its correction target or revert chain changed. Review the source before confirming it again.",
+      uncertainContext: "This is a recent activity signal, not durable memory yet.",
+      uncertainContextReason: "It becomes durable only after you explicitly choose to keep it.",
     },
   },
   skills: {
@@ -1088,16 +1273,29 @@ const enUS: UiText = {
   dialog: {
     eyebrow: "Correct Codex memory",
     title: "Edit this memory",
+    addEyebrow: "Tell Codex",
+    addTitle: "Add a memory",
+    revertEyebrow: "Memory history",
+    revertTitle: "Revert this correction",
     currentMemory: "Current memory",
     correctMemory: "What is correct?",
     correctionHint: "Saving writes a higher-priority correction and refreshes the profile automatically.",
     correctionPlaceholder: "Write the correct information directly, for example: I mainly use TypeScript and Python now.",
-    writeDetails: "View write location",
+    addMemoryPrompt: "What should Codex remember?",
+    addMemoryHint: "This adds an explicit memory without replacing existing content and refreshes the profile automatically.",
+    addMemoryPlaceholder: "For example: Lead with the conclusion before explaining technical details.",
+    revertHint: "Reverting keeps the history intact and appends a restoration record so this correction no longer applies.",
+    affectedMemories: (count) => `Affects ${count} source memories`,
+    noExistingMemoryAffected: "Does not replace existing memory",
+    targetSources: "Affected sources",
+    writeDetails: "View write location and impact",
     targetPath: "Target path",
     content: "Content",
     cancel: "Cancel",
     writing: "Writing...",
     writeCorrection: "Save change",
+    writeMemory: "Save memory",
+    revertChange: "Confirm revert",
   },
   format: {
     evidence: (path, startLine, endLine) => `${path} L${startLine}-${endLine}`,

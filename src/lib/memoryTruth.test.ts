@@ -151,6 +151,44 @@ describe("resolveMemoryTruth", () => {
     expect(truth.review.map((item) => item.entry.id)).toEqual(["project-a"]);
   });
 
+  it("expands an old block target to every atomic descendant", () => {
+    const projectA = {
+      ...scan.entries[0],
+      id: "project-a",
+      aliasIds: ["legacy-project-block"],
+      topic: "projects" as const,
+      summary: "Project A is active.",
+    };
+    const projectB = {
+      ...projectA,
+      id: "project-b",
+      summary: "Project B is active.",
+    };
+    const correction = {
+      ...scan.entries[1],
+      id: "project-block-correction",
+      relatedTopics: ["projects" as const],
+      change: {
+        ...scan.entries[1].change!,
+        id: "change-project-block",
+        targetEntryIds: ["legacy-project-block"],
+      },
+    };
+
+    const truth = resolveMemoryTruth({
+      ...scan,
+      entries: [projectA, projectB, correction],
+      risks: [],
+    });
+
+    expect(truth.current.map((item) => item.entry.id)).toEqual([correction.id]);
+    expect(truth.current[0].staleCandidates.map((entry) => entry.id)).toEqual([
+      "project-a",
+      "project-b",
+    ]);
+    expect(truth.review.map((item) => item.entry.id)).toEqual(["project-a", "project-b"]);
+  });
+
   it("moves deterministic risk entries into the review queue", () => {
     const truth = resolveMemoryTruth({
       ...scan,
