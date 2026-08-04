@@ -7,6 +7,7 @@ import {
   type PointerEvent,
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import {
   cancelMemoryProfileGeneration,
   draftCorrection,
@@ -94,6 +95,7 @@ function App() {
   const [paneLayout, setPaneLayout] = useState(() =>
     clampPaneLayout(DEFAULT_PANE_LAYOUT, window.innerWidth),
   );
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
   const selectedAgentRef = useRef(selectedAgent);
   const localeRef = useRef<MemoryProfileLocale>(locale);
@@ -393,32 +395,57 @@ function App() {
 
   return (
     <div
-      className={`app-shell ${pageMode}${isResizingSidebar ? " resizing" : ""}`}
-      style={{ gridTemplateColumns: paneGridTemplate(paneLayout) }}
+      className={`app-shell ${pageMode}${isSidebarCollapsed ? " sidebar-collapsed" : ""}${isResizingSidebar ? " resizing" : ""}`}
+      style={{
+        gridTemplateColumns: isSidebarCollapsed
+          ? "0px 0px minmax(0, 1fr)"
+          : paneGridTemplate(paneLayout),
+      }}
     >
       {fixtureMode && <div className="fixture-banner">{uiText.app.fixtureBanner}</div>}
-      <Sidebar
-        activeTopic={activeTopic}
-        selectedAgent={selectedAgent}
-        uiText={uiText}
-        onManageAgent={() => setActiveTopic("agentManager")}
-        onOpenSettings={() => setActiveTopic("settings")}
-        onSelectAgent={changeAgent}
-        onSelectTopic={setActiveTopic}
-        updateAvailable={Boolean(appUpdater.state.update)}
-      />
+      <button
+        aria-label={
+          isSidebarCollapsed ? uiText.app.expandSidebar : uiText.app.collapseSidebar
+        }
+        className={isSidebarCollapsed ? "sidebar-toggle collapsed" : "sidebar-toggle"}
+        onClick={() => setIsSidebarCollapsed((collapsed) => !collapsed)}
+        style={{ left: isSidebarCollapsed ? 78 : paneLayout.sidebarWidth - 42 }}
+        title={isSidebarCollapsed ? uiText.app.expandSidebar : uiText.app.collapseSidebar}
+        type="button"
+      >
+        {isSidebarCollapsed ? (
+          <PanelLeftOpen aria-hidden="true" size={17} />
+        ) : (
+          <PanelLeftClose aria-hidden="true" size={17} />
+        )}
+      </button>
 
-      <div
-        aria-label={uiText.app.resizeSidebar}
-        className={isResizingSidebar ? "pane-resizer active" : "pane-resizer"}
-        onKeyDown={nudgePaneResize}
-        onPointerCancel={stopPaneResize}
-        onPointerDown={startPaneResize}
-        onPointerMove={movePaneResize}
-        onPointerUp={stopPaneResize}
-        role="separator"
-        tabIndex={0}
-      />
+      {!isSidebarCollapsed && (
+        <>
+          <Sidebar
+            activeTopic={activeTopic}
+            selectedAgent={selectedAgent}
+            uiText={uiText}
+            onManageAgent={() => setActiveTopic("agentManager")}
+            onOpenSettings={() => setActiveTopic("settings")}
+            onSelectAgent={changeAgent}
+            onSelectTopic={setActiveTopic}
+            updateAvailable={Boolean(appUpdater.state.update)}
+          />
+
+          <div
+            aria-label={uiText.app.resizeSidebar}
+            className={isResizingSidebar ? "pane-resizer active" : "pane-resizer"}
+            onKeyDown={nudgePaneResize}
+            onPointerCancel={stopPaneResize}
+            onPointerDown={startPaneResize}
+            onPointerMove={movePaneResize}
+            onPointerUp={stopPaneResize}
+            role="separator"
+            tabIndex={0}
+          />
+        </>
+      )}
 
       <section className="workspace-surface">
         {activeTopic === "skillManager" ? (

@@ -71,6 +71,8 @@ textarea:focus-visible,
 .pane-resizer {
   position: relative;
   z-index: 1;
+  grid-column: 2;
+  grid-row: 1;
   min-width: 8px;
   border: 0;
   outline: 0;
@@ -98,50 +100,48 @@ textarea:focus-visible,
 .sidebar {
   display: flex;
   flex-direction: column;
+  grid-column: 1;
+  grid-row: 1;
   min-width: 0;
   border-right: 0;
   background: var(--bp-sidebar);
   contain: layout paint style;
 }
 
-.sidebar-brand {
-  display: flex;
-  gap: var(--bp-space-3);
-  align-items: center;
-  min-height: 70px;
-  padding: var(--bp-space-4) var(--bp-space-4) var(--bp-space-3);
+.sidebar-titlebar {
+  flex: 0 0 52px;
+  -webkit-app-region: drag;
   user-select: none;
 }
 
-.sidebar-brand-icon {
-  display: grid;
+.sidebar-toggle {
+  position: fixed;
+  top: 10px;
+  z-index: 30;
+  display: inline-grid;
   place-items: center;
-  width: var(--bp-control-md);
-  height: var(--bp-control-md);
-  color: var(--bp-accent-text);
-  border: 1px solid color-mix(in oklch, var(--bp-accent) 20%, transparent);
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: var(--bp-text-secondary);
+  border: 0;
   border-radius: var(--bp-radius-control);
-  background: var(--bp-accent-soft);
+  background: transparent;
+  -webkit-app-region: no-drag;
+  transition:
+    color var(--bp-duration-quick) var(--bp-ease-out),
+    background var(--bp-duration-quick) var(--bp-ease-out),
+    left var(--bp-duration-base) var(--bp-ease-out);
 }
 
-.sidebar-brand-copy {
-  display: grid;
-  gap: 1px;
-  min-width: 0;
-  line-height: 1;
-}
-
-.sidebar-brand-copy small {
-  color: var(--bp-text-muted);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.11em;
-}
-
-.sidebar-brand-copy strong {
+.sidebar-toggle:hover,
+.sidebar-toggle:focus-visible {
   color: var(--bp-text);
-  font-size: var(--bp-font-heading);
-  font-weight: 680;
+  background: color-mix(in oklch, var(--bp-text) 7%, transparent);
+}
+
+.sidebar-toggle.collapsed {
+  background: color-mix(in oklch, var(--bp-surface) 82%, transparent);
 }
 
 .sidebar-footer span,
@@ -411,6 +411,8 @@ textarea:focus-visible,
 }
 
 .workspace-surface {
+  grid-column: 3;
+  grid-row: 1;
   min-width: 0;
   min-height: 0;
   margin: var(--bp-space-1) var(--bp-space-1) var(--bp-space-1) 0;
@@ -420,6 +422,10 @@ textarea:focus-visible,
   background: var(--bp-surface);
   box-shadow: var(--bp-shadow-panel);
   container-type: inline-size;
+}
+
+.app-shell.sidebar-collapsed .workspace-surface {
+  margin-left: var(--bp-space-1);
 }
 
 .workspace-surface > main {

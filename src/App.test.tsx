@@ -424,4 +424,22 @@ describe("App memory profile", () => {
       }),
     );
   });
+
+  it("collapses and restores the sidebar from the titlebar control", async () => {
+    const { container, findByRole, getByRole, queryByRole } = renderApp();
+    await findByRole("heading", { name: "Codex 记住的你" });
+
+    fireEvent.click(getByRole("button", { name: "折叠侧栏" }));
+
+    expect(queryByRole("complementary")).not.toBeInTheDocument();
+    expect(container.querySelector(".app-shell")).toHaveClass("sidebar-collapsed");
+    expect(container.querySelector(".app-shell")).toHaveStyle({
+      gridTemplateColumns: "0px 0px minmax(0, 1fr)",
+    });
+
+    fireEvent.click(getByRole("button", { name: "展开侧栏" }));
+
+    expect(getByRole("complementary")).toBeInTheDocument();
+    expect(container.querySelector(".app-shell")).not.toHaveClass("sidebar-collapsed");
+  });
 });

@@ -10,6 +10,8 @@ describe("Electron window policy", () => {
     });
     expect(mainWindowOptions.minWidth).toBe(980);
     expect(mainWindowOptions.minHeight).toBe(640);
+    expect(mainWindowOptions.titleBarStyle).toBe("hiddenInset");
+    expect(mainWindowOptions.trafficLightPosition).toEqual({ x: 16, y: 18 });
   });
 
   it("trusts only the packaged renderer and the exact development origin", () => {

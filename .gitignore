@@ -10,6 +10,7 @@ lerna-debug.log*
 # Local agent and editor configuration
 .agents/
 .codex/
+.linc-agent/
 .vscode/
 AGENTS.md
 

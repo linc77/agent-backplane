@@ -18,6 +18,8 @@ export type Locale = "zh-CN" | "en-US";
 export interface UiText {
   app: {
     fixtureBanner: string;
+    collapseSidebar: string;
+    expandSidebar: string;
     resizeSidebar: string;
     resizeInspector: string;
     scanning: (agent: string) => string;
@@ -307,6 +309,8 @@ export const localeOptions: ReadonlyArray<{ locale: Locale; label: string }> = [
 const zhCN: UiText = {
   app: {
     fixtureBanner: "演示模式：仅使用示例记忆",
+    collapseSidebar: "折叠侧栏",
+    expandSidebar: "展开侧栏",
     resizeSidebar: "调整侧栏宽度",
     resizeInspector: "调整依据栏宽度",
     scanning: (agent) => `正在扫描 ${agent} 记忆...`,
@@ -705,6 +709,8 @@ const zhCN: UiText = {
 const enUS: UiText = {
   app: {
     fixtureBanner: "Fixture mode: demo memory only",
+    collapseSidebar: "Collapse sidebar",
+    expandSidebar: "Expand sidebar",
     resizeSidebar: "Resize sidebar",
     resizeInspector: "Resize evidence pane",
     scanning: (agent) => `Scanning ${agent} memory...`,

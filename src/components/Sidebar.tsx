@@ -5,7 +5,6 @@ import {
   ChevronDown,
   Cable,
   Settings2,
-  Waypoints,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ComponentType } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -83,15 +82,7 @@ export function Sidebar({
 
   return (
     <aside className="sidebar">
-      <div className="sidebar-brand" aria-label="Agent Backplane">
-        <span className="sidebar-brand-icon">
-          <Waypoints aria-hidden="true" size={18} />
-        </span>
-        <span className="sidebar-brand-copy">
-          <small>AGENT</small>
-          <strong>Backplane</strong>
-        </span>
-      </div>
+      <div aria-hidden="true" className="sidebar-titlebar" />
 
       <div className="agent-context" ref={selectorRef}>
         <button

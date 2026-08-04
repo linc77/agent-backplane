@@ -6,6 +6,8 @@ export const mainWindowOptions = {
   center: true,
   show: false,
   title: "Agent Backplane",
+  titleBarStyle: "hiddenInset",
+  trafficLightPosition: { x: 16, y: 18 },
   webPreferences: {
     contextIsolation: true,
     nodeIntegration: false,
