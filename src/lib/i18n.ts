@@ -48,11 +48,12 @@ export interface UiText {
     overviewLabel: string;
     profileThemes: string;
     currentMemories: string;
-    needsAttention: string;
+    collapseOverviewSidebar: string;
+    expandOverviewSidebar: string;
+    resizeOverviewSidebar: string;
     viewLabel: string;
     graphView: string;
     profileView: string;
-    reviewView: string;
     memoryView: string;
     graphLabel: string;
     graphLayoutLabel: string;
@@ -76,25 +77,11 @@ export interface UiText {
     graphOriginalMemory: string;
     graphOpenSource: string;
     showAll: string;
-    showNeedsAttention: (count: number) => string;
     sectionState: Record<"steady" | "recent" | "review", string>;
     evidenceCount: (count: number) => string;
     editMemory: string;
     addMemory: string;
     revertMemory: string;
-    promoteMemory: string;
-    reviewCenterTitle: string;
-    reviewCenterDescription: string;
-    profileReviewTitle: string;
-    profileReviewDescription: string;
-    conflictReviewTitle: string;
-    conflictReviewDescription: string;
-    historyReviewTitle: (count: number) => string;
-    historyReviewDescription: string;
-    uncertainReviewTitle: (count: number) => string;
-    uncertainReviewDescription: string;
-    reviewEmptyTitle: string;
-    reviewEmptyDescription: string;
     memoryListTitle: string;
     memoryListDescription: string;
     searchMemories: string;
@@ -493,11 +480,12 @@ const zhCN: UiText = {
     overviewLabel: "记忆概览",
     profileThemes: "画像主题",
     currentMemories: "当前记忆",
-    needsAttention: "建议确认",
+    collapseOverviewSidebar: "折叠记忆侧栏",
+    expandOverviewSidebar: "展开记忆侧栏",
+    resizeOverviewSidebar: "调整记忆侧栏宽度",
     viewLabel: "记忆展示方式",
     graphView: "记忆图谱",
     profileView: "关键记忆",
-    reviewView: "待确认",
     memoryView: "原始记忆",
     graphLabel: "Codex 记忆图谱",
     graphLayoutLabel: "图谱布局",
@@ -521,29 +509,15 @@ const zhCN: UiText = {
     graphOriginalMemory: "原始记忆",
     graphOpenSource: "查看来源",
     showAll: "显示全部画像",
-    showNeedsAttention: (count) => `只看建议确认 ${count}`,
     sectionState: {
       steady: "较稳定",
       recent: "近期形成",
-      review: "建议确认",
+      review: "依据较弱",
     },
     evidenceCount: (count) => `${count} 条依据`,
     editMemory: "修改",
     addMemory: "新增记忆",
     revertMemory: "撤销修正",
-    promoteMemory: "保留为记忆",
-    reviewCenterTitle: "待确认的记忆",
-    reviewCenterDescription: "这里只集中展示证据不足、互相冲突或已经被修正的内容。先看判断原因，再决定修改、保留或查看来源。",
-    profileReviewTitle: "画像需要确认",
-    profileReviewDescription: "这些中文画像存在弱证据、历史依据或不确定来源。",
-    conflictReviewTitle: "冲突需要处理",
-    conflictReviewDescription: "底层记忆之间存在明确冲突，修改后会追加一条更高优先级的修正。",
-    historyReviewTitle: (count) => `历史与已覆盖记忆 ${count}`,
-    historyReviewDescription: "这些内容仍保留用于追溯，但已经不参与当前画像。",
-    uncertainReviewTitle: (count) => `近期线索 ${count}`,
-    uncertainReviewDescription: "近期行为默认只是上下文，不会自动变成长期记忆。需要时可以明确保留。",
-    reviewEmptyTitle: "目前没有需要确认的记忆",
-    reviewEmptyDescription: "当前画像和底层记忆没有发现明显冲突或弱证据。",
     memoryListTitle: "原始记忆",
     memoryListDescription: "这里保留画像背后的有效原始记录，用于搜索、追溯来源和精确纠错。",
     searchMemories: "搜索记忆",
@@ -1002,11 +976,12 @@ const enUS: UiText = {
     overviewLabel: "Memory overview",
     profileThemes: "Profile themes",
     currentMemories: "Current memories",
-    needsAttention: "Review suggested",
+    collapseOverviewSidebar: "Collapse memory sidebar",
+    expandOverviewSidebar: "Expand memory sidebar",
+    resizeOverviewSidebar: "Resize memory sidebar",
     viewLabel: "Memory view",
     graphView: "Memory graph",
     profileView: "Key memories",
-    reviewView: "Review",
     memoryView: "Source memories",
     graphLabel: "Codex memory graph",
     graphLayoutLabel: "Graph layout",
@@ -1030,29 +1005,15 @@ const enUS: UiText = {
     graphOriginalMemory: "Source memory",
     graphOpenSource: "Open source",
     showAll: "Show all profile sections",
-    showNeedsAttention: (count) => `Review suggested ${count}`,
     sectionState: {
       steady: "More stable",
       recent: "Recently formed",
-      review: "Review suggested",
+      review: "Weak evidence",
     },
     evidenceCount: (count) => `${count} evidence`,
     editMemory: "Edit",
     addMemory: "Add memory",
     revertMemory: "Revert correction",
-    promoteMemory: "Keep as memory",
-    reviewCenterTitle: "Memories to review",
-    reviewCenterDescription: "This inbox collects weakly supported, conflicting, or displaced memories. Inspect the decision path before correcting, promoting, or tracing a source.",
-    profileReviewTitle: "Profile needs review",
-    profileReviewDescription: "These profile observations rely on weak, historical, or uncertain evidence.",
-    conflictReviewTitle: "Conflicts to resolve",
-    conflictReviewDescription: "The underlying records disagree. Editing appends a higher-priority correction.",
-    historyReviewTitle: (count) => `History and displaced memories ${count}`,
-    historyReviewDescription: "These records remain available for provenance but no longer shape the current profile.",
-    uncertainReviewTitle: (count) => `Recent signals ${count}`,
-    uncertainReviewDescription: "Recent activity stays contextual by default and does not become durable memory unless you explicitly keep it.",
-    reviewEmptyTitle: "No memories need review",
-    reviewEmptyDescription: "No obvious conflicts or weak evidence were found in the current profile and source memories.",
     memoryListTitle: "Source memories",
     memoryListDescription: "These active source records sit behind the profile and remain available for search, provenance, and precise corrections.",
     searchMemories: "Search memories",

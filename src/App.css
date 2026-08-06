@@ -1,6 +1,12 @@
 @import "./styles/tokens.css";
 
 :root {
+  --bp-topbar-height: 58px;
+  --bp-topbar-bg: rgba(251, 252, 253, 0.98);
+  --bp-divider-width: 1px;
+  --bp-divider-color: #dfe4eb;
+  --bp-main-min-width: 560px;
+  --bp-topbar-border: var(--bp-divider-color);
   color: var(--bp-text);
   background: var(--bp-canvas);
   font-family: var(--bp-font-sans);
@@ -56,7 +62,12 @@ textarea:focus-visible,
 }
 
 .app-shell {
+  position: relative;
   display: grid;
+  grid-template-columns:
+    var(--sidebar-width, 240px)
+    var(--bp-divider-width)
+    minmax(var(--bp-main-min-width), 1fr);
   height: 100dvh;
   overflow: hidden;
   background: var(--bp-canvas);
@@ -68,25 +79,7 @@ textarea:focus-visible,
   user-select: none;
 }
 
-.app-shell.skills-mode,
-.app-shell.agent-mode,
-.app-shell.mcp-mode,
-.app-shell.settings-mode,
-.app-shell.memory-mode {
-  grid-template-columns: 240px 8px minmax(420px, 1fr) !important;
-}
-
-.app-shell.sidebar-collapsed.skills-mode,
-.app-shell.sidebar-collapsed.agent-mode,
-.app-shell.sidebar-collapsed.mcp-mode,
-.app-shell.sidebar-collapsed.settings-mode,
-.app-shell.sidebar-collapsed.memory-mode {
-  grid-template-columns: 64px 0 minmax(420px, 1fr) !important;
-}
-
 .app-shell.sidebar-collapsed .pane-resizer {
-  min-width: 0;
-  opacity: 0;
   pointer-events: none;
 }
 
@@ -95,28 +88,24 @@ textarea:focus-visible,
   z-index: 1;
   grid-column: 2;
   grid-row: 1;
-  min-width: 8px;
+  width: var(--bp-divider-width);
+  min-width: var(--bp-divider-width);
   border: 0;
   outline: 0;
-  background: transparent;
+  background: var(--bp-divider-color);
   cursor: col-resize;
 }
 
 .pane-resizer::before {
   position: absolute;
-  top: 14px;
-  right: 3px;
-  bottom: 14px;
-  left: 4px;
+  inset: 0 -4px;
   content: "";
-  border-radius: var(--bp-radius-pill);
-  transition: background var(--bp-duration-quick) var(--bp-ease-out);
 }
 
-.pane-resizer:hover::before,
-.pane-resizer.active::before,
-.pane-resizer:focus-visible::before {
-  background: var(--bp-border-strong);
+.pane-resizer:hover,
+.pane-resizer.active,
+.pane-resizer:focus-visible {
+  background: var(--bp-accent);
 }
 
 .sidebar {
@@ -131,39 +120,12 @@ textarea:focus-visible,
 }
 
 .sidebar-titlebar {
-  flex: 0 0 52px;
+  height: var(--bp-topbar-height);
+  flex: 0 0 var(--bp-topbar-height);
+  border-bottom: 1px solid var(--bp-topbar-border);
+  background: var(--bp-topbar-bg);
   -webkit-app-region: drag;
   user-select: none;
-}
-
-.sidebar-toggle {
-  position: fixed;
-  top: 10px;
-  z-index: 30;
-  display: inline-grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  color: var(--bp-text-secondary);
-  border: 0;
-  border-radius: var(--bp-radius-control);
-  background: transparent;
-  -webkit-app-region: no-drag;
-  transition:
-    color var(--bp-duration-quick) var(--bp-ease-out),
-    background var(--bp-duration-quick) var(--bp-ease-out),
-    left var(--bp-duration-base) var(--bp-ease-out);
-}
-
-.sidebar-toggle:hover,
-.sidebar-toggle:focus-visible {
-  color: var(--bp-text);
-  background: color-mix(in oklch, var(--bp-text) 7%, transparent);
-}
-
-.sidebar-toggle.collapsed {
-  background: color-mix(in oklch, var(--bp-surface) 82%, transparent);
 }
 
 .sidebar-footer span,
@@ -177,7 +139,7 @@ textarea:focus-visible,
 .agent-context {
   position: relative;
   z-index: 12;
-  padding: 0 var(--bp-space-2) var(--bp-space-4);
+  padding: 12px 12px 16px;
 }
 
 .agent-context-trigger {
@@ -186,8 +148,8 @@ textarea:focus-visible,
   gap: var(--bp-space-2);
   align-items: center;
   width: 100%;
-  min-height: 48px;
-  padding: var(--bp-space-2);
+  min-height: 52px;
+  padding: 9px 11px;
   color: var(--bp-text);
   text-align: left;
   border: 1px solid var(--bp-border);
@@ -244,12 +206,12 @@ textarea:focus-visible,
 
 .agent-context-menu {
   position: absolute;
-  top: 52px;
+  top: 66px;
   right: auto;
-  left: var(--bp-space-2);
+  left: 12px;
   display: grid;
   gap: 3px;
-  width: calc(100% - var(--bp-space-4));
+  width: calc(100% - 24px);
   min-width: 210px;
   padding: 7px;
   border: 1px solid var(--bp-border);
@@ -333,8 +295,8 @@ textarea:focus-visible,
 
 .topic-nav {
   display: grid;
-  gap: 2px;
-  padding: 0 var(--bp-space-2);
+  gap: 4px;
+  padding: 0 12px;
 }
 
 .topic-section {
@@ -354,11 +316,11 @@ textarea:focus-visible,
 .topic-item {
   display: grid;
   grid-template-columns: 20px 1fr auto;
-  gap: 8px;
+  gap: 10px;
   align-items: center;
   width: 100%;
-  min-height: var(--bp-control-md);
-  padding: 0 var(--bp-space-2);
+  min-height: 40px;
+  padding: 0 11px;
   color: var(--bp-text-secondary);
   text-align: left;
   border: 0;
@@ -400,7 +362,7 @@ textarea:focus-visible,
   gap: 8px;
   min-width: 0;
   margin-top: auto;
-  padding: var(--bp-space-3) var(--bp-space-2) var(--bp-space-3);
+  padding: 12px;
   border-top: 0;
 }
 
@@ -415,10 +377,14 @@ textarea:focus-visible,
   flex: 1 1 auto;
 }
 
-.sidebar-collapse-button {
+.app-sidebar-toggle {
+  position: absolute;
+  top: 7px;
+  left: calc(var(--sidebar-width) - 50px);
+  z-index: 100;
   display: inline-grid;
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   flex: 0 0 auto;
   place-items: center;
   padding: 0;
@@ -426,10 +392,20 @@ textarea:focus-visible,
   border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-app-region: no-drag !important;
+  transition:
+    color var(--bp-duration-quick) var(--bp-ease-out),
+    background var(--bp-duration-quick) var(--bp-ease-out);
 }
 
-.sidebar-collapse-button:hover,
-.sidebar-collapse-button:focus-visible {
+.app-shell.sidebar-collapsed .app-sidebar-toggle {
+  left: 86px;
+}
+
+.app-sidebar-toggle:hover,
+.app-sidebar-toggle:focus-visible {
   color: #1f2937;
   border-color: #d8dde6;
   background: #fff;
@@ -437,6 +413,11 @@ textarea:focus-visible,
 
 .sidebar.collapsed .agent-context {
   padding: 7px 10px 14px;
+}
+
+.sidebar.collapsed .agent-context-menu {
+  top: 54px;
+  left: 10px;
 }
 
 .sidebar.collapsed .agent-context-trigger {
@@ -500,11 +481,6 @@ textarea:focus-visible,
   background: #f79009;
 }
 
-.sidebar.collapsed .sidebar-collapse-button {
-  width: 44px;
-  height: 40px;
-}
-
 .sidebar-footer span {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -538,17 +514,13 @@ textarea:focus-visible,
   grid-row: 1;
   min-width: 0;
   min-height: 0;
-  margin: var(--bp-space-1) var(--bp-space-1) var(--bp-space-1) 0;
+  margin: 0;
   overflow: hidden;
-  border: 1px solid var(--bp-border);
-  border-radius: var(--bp-radius-surface);
+  border: 0;
+  border-radius: 0;
   background: var(--bp-surface);
-  box-shadow: var(--bp-shadow-panel);
+  box-shadow: none;
   container-type: inline-size;
-}
-
-.app-shell.sidebar-collapsed .workspace-surface {
-  margin-left: var(--bp-space-1);
 }
 
 .workspace-surface > main {
@@ -749,13 +721,28 @@ h2 {
 }
 
 .memory-profile {
-  display: flex;
-  flex-direction: column;
+  --memory-sidebar-width: 292px;
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr)
+    var(--bp-divider-width)
+    var(--memory-sidebar-width);
+  grid-template-rows: auto minmax(0, 1fr);
   width: 100%;
   height: 100%;
   max-width: none;
   margin: 0;
   padding: 0;
+}
+
+.memory-profile.overview-collapsed {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.memory-profile.overview-resizing,
+.memory-profile.overview-resizing * {
+  cursor: col-resize;
+  user-select: none;
 }
 
 .memory-profile-header {
@@ -906,11 +893,21 @@ button.memory-overview-item:hover:not(:disabled) {
   justify-content: space-between;
   width: 100%;
   max-width: none;
-  flex: 0 0 auto;
+  height: var(--bp-topbar-height);
+  min-height: var(--bp-topbar-height);
+  flex: 0 0 var(--bp-topbar-height);
   margin: 0;
-  padding: 12px 16px;
-  border-bottom: 1px solid #dfe4eb;
-  background: rgba(251, 252, 253, 0.96);
+  padding: 0 16px;
+  border-bottom: 1px solid var(--bp-topbar-border);
+  background: var(--bp-topbar-bg);
+  grid-column: 1;
+  grid-row: 1;
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
+.app-shell.sidebar-collapsed .memory-view-toolbar {
+  padding-left: 80px;
 }
 
 .memory-view-switch {
@@ -919,10 +916,10 @@ button.memory-overview-item:hover:not(:disabled) {
   padding: 3px;
   border-radius: 10px;
   background: var(--bp-canvas);
+  -webkit-app-region: no-drag;
 }
 
-.memory-view-switch button,
-.memory-review-filter {
+.memory-view-switch button {
   display: inline-flex;
   gap: 6px;
   align-items: center;
@@ -941,39 +938,37 @@ button.memory-overview-item:hover:not(:disabled) {
   box-shadow: 0 1px 2px oklch(0.22 0.01 255 / 0.08);
 }
 
-.memory-view-count {
+.memory-overview-collapse-button {
   display: inline-grid;
-  min-width: 18px;
-  height: 18px;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
   place-items: center;
-  padding: 0 5px;
-  color: #9a3412;
-  font-size: 10px;
-  font-weight: 700;
-  border-radius: 999px;
-  background: #ffeddc;
+  margin-left: auto;
+  padding: 0;
+  color: var(--bp-text-muted);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  -webkit-app-region: no-drag;
 }
 
-.memory-review-filter {
-  color: var(--bp-warning-text);
-}
-
-.memory-review-filter:hover,
-.memory-review-filter.active {
-  background: var(--bp-warning-soft);
+.memory-overview-collapse-button:hover,
+.memory-overview-collapse-button:focus-visible {
+  color: var(--bp-text);
+  border-color: var(--bp-border);
+  background: var(--bp-surface);
 }
 
 .memory-view-layout {
-  --memory-sidebar-width: 292px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--memory-sidebar-width);
-  min-width: 0;
-  min-height: 0;
-  flex: 1 1 auto;
+  display: contents;
 }
 
 .memory-view-content {
+  grid-column: 1;
+  grid-row: 2;
   min-width: 0;
+  min-height: 0;
   overflow: auto;
   padding: clamp(28px, 4vw, 52px);
   background: #fbfbfc;
@@ -986,19 +981,61 @@ button.memory-overview-item:hover:not(:disabled) {
 }
 
 .memory-view-content .memory-profile-grid-single,
-.memory-view-content .memory-review-center,
 .memory-view-content .memory-records {
   max-width: none;
   margin-top: 0;
 }
 
 .memory-overview-sidebar {
+  display: flex;
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  flex-direction: column;
   min-width: 0;
-  overflow: auto;
-  padding: 28px 24px;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
   color: var(--graph-text, #344054);
-  border-left: 1px solid var(--graph-border, #dfe4eb);
+  border-left: 0;
   background: var(--graph-inspector-bg, #f8fafc);
+}
+
+.memory-overview-resizer {
+  position: relative;
+  z-index: 20;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  width: var(--bp-divider-width);
+  min-width: var(--bp-divider-width);
+  border: 0;
+  outline: 0;
+  background: var(--bp-divider-color);
+  cursor: col-resize;
+}
+
+.memory-overview-resizer::before {
+  position: absolute;
+  inset: 0 -4px;
+  content: "";
+}
+
+.memory-overview-resizer:hover,
+.memory-overview-resizer.active,
+.memory-overview-resizer:focus-visible {
+  background: var(--bp-accent);
+}
+
+.memory-overview-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: var(--bp-topbar-height);
+  min-height: var(--bp-topbar-height);
+  padding: 0 16px;
+  border-bottom: 1px solid var(--bp-topbar-border);
+  background: var(--bp-topbar-bg);
+  -webkit-app-region: drag;
+  user-select: none;
 }
 
 .memory-overview-panel {
@@ -1007,6 +1044,9 @@ button.memory-overview-item:hover:not(:disabled) {
   align-items: stretch;
   flex-direction: column;
   width: 100%;
+  min-height: 0;
+  overflow: auto;
+  padding: 28px 24px;
 }
 
 .memory-overview-eyebrow {
@@ -1078,11 +1118,6 @@ button.memory-overview-item:hover:not(:disabled) {
 .memory-overview-sidebar-stats span {
   color: var(--graph-muted, #667085);
   font-size: 11px;
-}
-
-.memory-overview-sidebar-stats .attention strong,
-.memory-overview-sidebar-stats .attention span {
-  color: #b54708;
 }
 
 .memory-overview-update {
@@ -1786,198 +1821,11 @@ button.memory-overview-item:hover:not(:disabled) {
   line-height: 1.7;
 }
 
-.memory-review-center {
-  display: grid;
-  gap: 28px;
-  max-width: 980px;
-  margin-top: 22px;
-}
-
-.memory-review-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-}
-
-.memory-review-heading h2 {
-  margin-top: 5px;
-  color: #1d2430;
-  font-size: 24px;
-  font-weight: 670;
-}
-
-.memory-review-heading p:last-child,
-.memory-review-group > header p,
-.memory-review-archive > p {
-  max-width: 720px;
-  margin: 6px 0 0;
-  color: #667085;
-  font-size: 12px;
-  line-height: 1.6;
-}
-
-.memory-review-group {
-  display: grid;
-  gap: 13px;
-}
-
-.memory-review-group > header {
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
-  justify-content: space-between;
-}
-
-.memory-review-group > header h3 {
-  margin: 0;
-  color: #344054;
-  font-size: 15px;
-}
-
-.memory-review-group-count {
-  display: inline-grid;
-  min-width: 25px;
-  height: 25px;
-  place-items: center;
-  color: #9a3412;
-  font-size: 11px;
-  font-weight: 700;
-  border-radius: 999px;
-  background: #ffeddc;
-}
-
-.memory-review-group-count.conflict {
-  color: #991b1b;
-  background: #fee2e2;
-}
-
-.memory-review-profile-grid {
-  max-width: none;
-  margin-top: 0;
-}
-
-.memory-review-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.memory-review-card {
-  display: grid;
-  gap: 10px;
-  min-width: 0;
-  padding: 17px;
-  border: 1px solid #e1e5ea;
-  border-radius: 13px;
-  background: #fff;
-}
-
-.memory-review-card.conflict {
-  border-color: #efb6b6;
-  background: #fffafa;
-}
-
-.memory-review-card.stale {
-  background: #fafbfc;
-}
-
-.memory-review-card.uncertain {
-  border-color: #bfd1ef;
-  background: #fbfdff;
-}
-
-.memory-review-card > header,
-.memory-review-card > footer,
 .memory-record-actions,
 .memory-records-actions {
   display: flex;
   gap: 9px;
   align-items: center;
-}
-
-.memory-review-card > header {
-  color: #7a8494;
-  font-size: 10px;
-}
-
-.memory-review-card h3 {
-  margin: 0;
-  color: #1d2430;
-  font-size: 15px;
-  line-height: 1.45;
-}
-
-.memory-review-card > p {
-  margin: 0;
-  color: #475467;
-  font-size: 12px;
-  line-height: 1.6;
-}
-
-.memory-review-decision {
-  display: grid;
-  gap: 5px;
-  padding: 11px 12px;
-  color: #667085;
-  border-left: 2px solid #d0d5dd;
-  background: #f7f8fa;
-  font-size: 11px;
-  line-height: 1.55;
-}
-
-.memory-review-decision strong {
-  color: #344054;
-}
-
-.memory-review-decision p {
-  margin: 0;
-}
-
-.memory-review-decision span {
-  color: #7a8494;
-  font-size: 10px;
-}
-
-.memory-review-candidates {
-  display: grid;
-  gap: 5px;
-  color: #667085;
-  font-size: 11px;
-}
-
-.memory-review-candidates ul {
-  margin: 0;
-  padding-left: 18px;
-}
-
-.memory-review-card > footer {
-  justify-content: space-between;
-  padding-top: 2px;
-}
-
-.memory-review-archive {
-  padding: 14px 16px;
-  border: 1px solid #e1e5ea;
-  border-radius: 13px;
-  background: #f8fafc;
-}
-
-.memory-review-archive > summary {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  color: #475467;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 650;
-}
-
-.memory-review-archive[open] > summary {
-  margin-bottom: 2px;
-}
-
-.memory-review-archive .memory-review-grid {
-  margin-top: 13px;
 }
 
 .memory-profile-actions {
@@ -4780,9 +4628,8 @@ button.memory-overview-item:hover:not(:disabled) {
     align-self: flex-start;
   }
 
-  .memory-view-layout {
+  .memory-profile {
     --memory-sidebar-width: 268px;
-    grid-template-columns: minmax(0, 1fr) var(--memory-sidebar-width);
   }
 
   .memory-graph-shell {
@@ -4920,11 +4767,11 @@ button.memory-overview-item:hover:not(:disabled) {
     grid-template-columns: 1fr;
   }
 
-  .memory-review-grid {
+  .memory-profile {
     grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr) auto;
   }
 
-  .memory-view-layout,
   .memory-graph-shell {
     grid-template-columns: 1fr;
     height: auto;
@@ -4939,6 +4786,15 @@ button.memory-overview-item:hover:not(:disabled) {
     min-height: 260px;
     border-top: 1px solid var(--graph-border);
     border-left: 0;
+  }
+
+  .memory-overview-sidebar {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .memory-overview-resizer {
+    display: none;
   }
 
   .memory-graph-inspector {
