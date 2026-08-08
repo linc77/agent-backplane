@@ -60,8 +60,22 @@ const api: BackplaneDesktopApi = {
     load: (agent) => ipcRenderer.invoke(channels.loadMcpInventory, { agent }),
   },
   modelGateway: {
+    loadProviders: () => ipcRenderer.invoke(channels.loadModelGatewayProviders),
+    saveProvider: (input) => ipcRenderer.invoke(channels.saveModelGatewayProvider, input),
+    deleteProvider: (id) => ipcRenderer.invoke(channels.deleteModelGatewayProvider, { id }),
     discover: (input) => ipcRenderer.invoke(channels.discoverModelGateway, input),
     benchmark: (input) => ipcRenderer.invoke(channels.benchmarkModelGateway, input),
+    probe: (input) => ipcRenderer.invoke(channels.probeModelGateway, input),
+    startTest: (input) => ipcRenderer.invoke(channels.startModelGatewayTest, input),
+    getTest: () => ipcRenderer.invoke(channels.getModelGatewayTest),
+    cancelTest: () => ipcRenderer.invoke(channels.cancelModelGatewayTest),
+    loadMonitors: () => ipcRenderer.invoke(channels.loadModelGatewayMonitors),
+    saveMonitor: (input) => ipcRenderer.invoke(channels.saveModelGatewayMonitor, input),
+    deleteMonitor: (id) => ipcRenderer.invoke(channels.deleteModelGatewayMonitor, { id }),
+    setMonitorEnabled: (id, enabled) =>
+      ipcRenderer.invoke(channels.setModelGatewayMonitorEnabled, { id, enabled }),
+    runMonitorNow: (id) => ipcRenderer.invoke(channels.runModelGatewayMonitorNow, { id }),
+    exportReport: (input) => ipcRenderer.invoke(channels.exportModelGatewayReport, input),
   },
   shell: {
     revealSource: (path) => ipcRenderer.invoke(channels.revealSource, { path }),

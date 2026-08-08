@@ -5,6 +5,7 @@ import type {
   AgentMemorySnapshot,
   ApplySkillProfileInput,
   CorrectionDraft,
+  ExportModelGatewayReportInput,
   MemoryChangeMetadata,
   MemoryChangeTarget,
   MemoryProfile,
@@ -13,9 +14,16 @@ import type {
   McpInventory,
   ModelBenchmarkInput,
   ModelGatewayCredentials,
+  ModelGatewayMonitorInventory,
+  ModelGatewayProviderInventory,
+  ModelGatewayProbeInput,
+  ModelGatewayProbeSample,
+  ModelGatewayTestTask,
   ProjectSkillBinding,
   ScanResult,
   SaveAgentProfileInput,
+  SaveModelGatewayMonitorInput,
+  SaveModelGatewayProviderInput,
   SaveProjectSkillSelectionInput,
   SaveSkillProfileInput,
   SaveSkillManifestInput,
@@ -26,6 +34,7 @@ import type {
   SkillSyncResult,
   SkillUsageInventory,
   SkillUsageTarget,
+  StartModelGatewayTestInput,
 } from "./types";
 import { demoMemoryProfile, demoScanResult } from "./demoData";
 
@@ -329,6 +338,31 @@ export function discoverModelGateway(input: ModelGatewayCredentials) {
   return desktopApi().modelGateway.discover(input);
 }
 
+export function loadModelGatewayProviders(): Promise<ModelGatewayProviderInventory> {
+  if (isFixtureMode()) {
+    return Promise.resolve({
+      generatedAt: new Date().toISOString(),
+      providers: [{
+        id: "00000000-0000-4000-8000-000000000001",
+        name: "Fixture Gateway",
+        baseUrl: "https://gateway.example.com/v1",
+        hasSecret: true,
+        createdAt: "2026-08-07T00:00:00.000Z",
+        updatedAt: "2026-08-07T00:00:00.000Z",
+      }],
+    });
+  }
+  return desktopApi().modelGateway.loadProviders();
+}
+
+export function saveModelGatewayProvider(input: SaveModelGatewayProviderInput) {
+  return desktopApi().modelGateway.saveProvider(input);
+}
+
+export function deleteModelGatewayProvider(id: string) {
+  return desktopApi().modelGateway.deleteProvider(id);
+}
+
 export function benchmarkModelGateway(input: ModelBenchmarkInput) {
   if (isFixtureMode()) {
     return Promise.resolve({
@@ -341,6 +375,105 @@ export function benchmarkModelGateway(input: ModelBenchmarkInput) {
   }
 
   return desktopApi().modelGateway.benchmark(input);
+}
+
+function fixtureProbe(input: ModelGatewayProbeInput): ModelGatewayProbeSample {
+  const latency = input.protocol === "imageGeneration" ? 2_800 : input.protocol === "audioGeneration" ? 1_900 : 428;
+  return {
+    id: "fixture-probe",
+    observedAt: new Date().toISOString(),
+    providerId: input.providerId ?? null,
+    protocol: input.protocol,
+    modelId: input.modelId,
+    outcome: "success",
+    statusCode: 200,
+    ttfbMs: 180,
+    ttftMs: input.stream ? 260 : input.protocol.includes("Generation") ? null : 180,
+    totalMs: latency,
+    inputTokens: 8,
+    outputTokens: 1,
+    generatedUnits: input.protocol === "imageGeneration" ? 1 : null,
+    responseModel: input.modelId,
+    systemFingerprint: null,
+    gatewayRequestId: "fixture-request",
+    finishReason: "stop",
+    retryAfterMs: null,
+    error: null,
+    connectionMode: input.connectionMode,
+  };
+}
+
+export function probeModelGateway(input: ModelGatewayProbeInput) {
+  if (isFixtureMode()) return Promise.resolve(fixtureProbe(input));
+  return desktopApi().modelGateway.probe(input);
+}
+
+export function startModelGatewayTest(input: StartModelGatewayTestInput): Promise<ModelGatewayTestTask> {
+  if (isFixtureMode()) {
+    const sample = fixtureProbe({
+      ...input,
+      ...input.config,
+      connectionMode: "warm",
+    });
+    return Promise.resolve({
+      id: "fixture-test",
+      providerId: input.providerId ?? null,
+      status: "succeeded",
+      startedAt: sample.observedAt,
+      finishedAt: sample.observedAt,
+      completedSamples: 1,
+      totalSamples: 1,
+      stopReason: null,
+      config: input.config,
+      summary: {
+        sampleCount: 1,
+        successCount: 1,
+        successRate: 1,
+        outcomes: { success: 1 },
+        totalLatency: { count: 1, minMs: sample.totalMs, p50Ms: sample.totalMs, p95Ms: null, p99Ms: null, maxMs: sample.totalMs },
+        ttft: { count: sample.ttftMs === null ? 0 : 1, minMs: sample.ttftMs, p50Ms: sample.ttftMs, p95Ms: null, p99Ms: null, maxMs: sample.ttftMs },
+        outputTokens: sample.outputTokens ?? 0,
+        generatedUnits: sample.generatedUnits ?? 0,
+      },
+      samples: [sample],
+      error: null,
+    });
+  }
+  return desktopApi().modelGateway.startTest(input);
+}
+
+export function getModelGatewayTest() {
+  return desktopApi().modelGateway.getTest();
+}
+
+export function cancelModelGatewayTest() {
+  return desktopApi().modelGateway.cancelTest();
+}
+
+export function loadModelGatewayMonitors(): Promise<ModelGatewayMonitorInventory> {
+  if (isFixtureMode()) return Promise.resolve({ generatedAt: new Date().toISOString(), monitors: [] });
+  return desktopApi().modelGateway.loadMonitors();
+}
+
+export function saveModelGatewayMonitor(input: SaveModelGatewayMonitorInput) {
+  return desktopApi().modelGateway.saveMonitor(input);
+}
+
+export function deleteModelGatewayMonitor(id: string) {
+  return desktopApi().modelGateway.deleteMonitor(id);
+}
+
+export function setModelGatewayMonitorEnabled(id: string, enabled: boolean) {
+  return desktopApi().modelGateway.setMonitorEnabled(id, enabled);
+}
+
+export function runModelGatewayMonitorNow(id: string) {
+  return desktopApi().modelGateway.runMonitorNow(id);
+}
+
+export function exportModelGatewayReport(input: ExportModelGatewayReportInput) {
+  if (isFixtureMode()) return Promise.resolve(null);
+  return desktopApi().modelGateway.exportReport(input);
 }
 
 export function saveAgentProviderProfile(input: SaveAgentProfileInput) {

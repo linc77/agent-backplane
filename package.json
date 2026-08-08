@@ -34,6 +34,7 @@
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
     "smol-toml": "^1.7.0",
+    "undici": "^7.28.0",
     "yaml": "^2.9.0",
     "zod": "^4.4.3"
   },

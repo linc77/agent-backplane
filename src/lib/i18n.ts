@@ -242,10 +242,18 @@ export interface UiText {
     eyebrow: string;
     title: string;
     subtitle: string;
+    provider: string;
+    providerName: string;
+    providerNamePlaceholder: string;
+    newProvider: string;
+    saveProvider: string;
+    deleteProvider: string;
+    confirmDeleteProvider: (name: string) => string;
     baseUrl: string;
     baseUrlPlaceholder: string;
     apiKey: string;
     apiKeyPlaceholder: string;
+    encryptedKeyPlaceholder: string;
     apiKeyHint: string;
     discover: string;
     discovering: string;
@@ -273,6 +281,49 @@ export interface UiText {
     latency: (milliseconds: number) => string;
     tokenCount: (count: number) => string;
     statuses: Record<"idle" | "queued" | "running" | "success" | "failed", string>;
+    tabs: Record<"models" | "test" | "monitors" | "reports", string>;
+    protocol: string;
+    model: string;
+    stream: string;
+    sampleCount: string;
+    warmupSamples: string;
+    targetRps: string;
+    maxConcurrency: string;
+    maxOutputTokens: string;
+    timeoutSeconds: string;
+    expertMode: string;
+    startTest: string;
+    cancelTest: string;
+    testHint: string;
+    testEmpty: string;
+    testProgress: (completed: number, total: number) => string;
+    successRate: string;
+    ttftP50: string;
+    ttftP95: string;
+    ttftP99: string;
+    e2eP50: string;
+    e2eP95: string;
+    e2eP99: string;
+    p99Pending: string;
+    monitorName: string;
+    monitorInterval: string;
+    latencyBatchSize: string;
+    dailyRequests: string;
+    dailyTokens: string;
+    dailyGeneratedRequests: string;
+    enableMonitor: string;
+    createMonitor: string;
+    monitorHint: string;
+    monitorsEmpty: string;
+    runNow: string;
+    pause: string;
+    resume: string;
+    remove: string;
+    reportsHint: string;
+    reportsEmpty: string;
+    reportSaved: (path: string) => string;
+    health: Record<"learning" | "healthy" | "degraded" | "unhealthy" | "paused" | "credentials_required", string>;
+    protocols: Record<"chatCompletions" | "responses" | "anthropicMessages" | "embeddings" | "imageGeneration" | "audioGeneration" | "models", string>;
   };
   agents: {
     eyebrow: string;
@@ -737,12 +788,20 @@ const zhCN: UiText = {
   modelGateway: {
     eyebrow: "模型连接",
     title: "模型网关",
-    subtitle: "输入 OpenAI-compatible Base URL 与 API Key，发现网关模型并逐个测试最小生成请求的往返耗时。",
+    subtitle: "保存多个模型厂商的 URL 与加密 Key，并进行模型发现、临时测试和持续监控。",
+    provider: "厂商配置",
+    providerName: "厂商名称",
+    providerNamePlaceholder: "例如 OpenAI、DeepSeek 或公司网关",
+    newProvider: "+ 新建厂商",
+    saveProvider: "保存厂商",
+    deleteProvider: "删除厂商",
+    confirmDeleteProvider: (name) => `确定删除厂商“${name}”及其加密 Key？`,
     baseUrl: "Base URL",
     baseUrlPlaceholder: "https://gateway.example.com/v1",
     apiKey: "API Key",
-    apiKeyPlaceholder: "仅在本次检测中使用",
-    apiKeyHint: "Key 只保留在当前页面内存并发送给桌面主进程执行请求，不会保存到 Backplane 配置。",
+    apiKeyPlaceholder: "输入 Key 并加密保存",
+    encryptedKeyPlaceholder: "已使用系统凭证加密保存；留空保持不变",
+    apiKeyHint: "厂商 URL 会保存在本机配置中；Key 使用 macOS 系统凭证加密保存，读取时不会返回到页面。",
     discover: "获取模型",
     discovering: "正在获取...",
     discoveryFailed: "无法获取模型。请检查 Base URL、Key 与网关兼容性。",
@@ -774,6 +833,64 @@ const zhCN: UiText = {
       running: "测速中",
       success: "可用",
       failed: "失败",
+    },
+    tabs: { models: "模型发现", test: "临时测试", monitors: "持续监控", reports: "测试报告" },
+    protocol: "协议",
+    model: "模型",
+    stream: "流式输出",
+    sampleCount: "正式样本数",
+    warmupSamples: "预热样本数",
+    targetRps: "目标 RPS",
+    maxConcurrency: "最大并发",
+    maxOutputTokens: "最大输出 token",
+    timeoutSeconds: "超时（秒）",
+    expertMode: "我确认有权进行高负载测试",
+    startTest: "开始稳定性测试",
+    cancelTest: "取消测试",
+    testHint: "按固定到达率发起端到端探针；失败不自动重试。P99 需至少 1000 个成功样本。",
+    testEmpty: "还没有临时测试结果。",
+    testProgress: (completed, total) => `${completed} / ${total} 个样本`,
+    successRate: "成功率",
+    ttftP50: "TTFT P50",
+    ttftP95: "TTFT P95",
+    ttftP99: "TTFT P99",
+    e2eP50: "端到端 P50",
+    e2eP95: "端到端 P95",
+    e2eP99: "端到端 P99",
+    p99Pending: "样本不足",
+    monitorName: "Monitor 名称",
+    monitorInterval: "健康探针间隔（分钟）",
+    latencyBatchSize: "每小时延迟样本",
+    dailyRequests: "每日最大请求数",
+    dailyTokens: "每日最大输出 token",
+    dailyGeneratedRequests: "每日最大生成任务",
+    enableMonitor: "创建后立即启用",
+    createMonitor: "创建 Monitor",
+    monitorHint: "Monitor 使用当前保存的厂商凭证；仅在 Backplane 进程运行期间执行，重启后恢复。",
+    monitorsEmpty: "还没有持续监控。",
+    runNow: "立即检查",
+    pause: "暂停",
+    resume: "恢复",
+    remove: "删除",
+    reportsHint: "延迟百分位按网关、协议、模型和场景分别计算，不跨模型合并。",
+    reportsEmpty: "运行临时测试或创建 Monitor 后，这里会显示脱敏报告。",
+    reportSaved: (path) => `报告已保存：${path}`,
+    health: {
+      learning: "学习中",
+      healthy: "健康",
+      degraded: "波动",
+      unhealthy: "异常",
+      paused: "已暂停",
+      credentials_required: "需要凭证",
+    },
+    protocols: {
+      chatCompletions: "OpenAI Chat Completions",
+      responses: "OpenAI Responses",
+      anthropicMessages: "Anthropic Messages",
+      embeddings: "Embeddings",
+      imageGeneration: "图片生成",
+      audioGeneration: "音频生成",
+      models: "模型列表",
     },
   },
   agents: {
@@ -1233,12 +1350,20 @@ const enUS: UiText = {
   modelGateway: {
     eyebrow: "Model connectivity",
     title: "Model Gateway",
-    subtitle: "Enter an OpenAI-compatible Base URL and API key to discover models and measure each model with a minimal generation request.",
+    subtitle: "Save multiple model providers with encrypted credentials, then use them for discovery, temporary tests, and continuous monitoring.",
+    provider: "Provider",
+    providerName: "Provider name",
+    providerNamePlaceholder: "OpenAI, DeepSeek, or Company Gateway",
+    newProvider: "+ New provider",
+    saveProvider: "Save provider",
+    deleteProvider: "Delete provider",
+    confirmDeleteProvider: (name) => `Delete provider “${name}” and its encrypted key?`,
     baseUrl: "Base URL",
     baseUrlPlaceholder: "https://gateway.example.com/v1",
     apiKey: "API Key",
-    apiKeyPlaceholder: "Used only for this check",
-    apiKeyHint: "The key stays in this page's memory and is sent to the desktop main process for requests. It is not saved to Backplane configuration.",
+    apiKeyPlaceholder: "Enter and encrypt the key",
+    encryptedKeyPlaceholder: "Encrypted with the system credential store; leave blank to keep it",
+    apiKeyHint: "Provider URLs are saved in local configuration. Keys are encrypted with the macOS credential store and are never returned to the page.",
     discover: "Get models",
     discovering: "Discovering...",
     discoveryFailed: "Models could not be loaded. Check the Base URL, key, and gateway compatibility.",
@@ -1270,6 +1395,64 @@ const enUS: UiText = {
       running: "Testing",
       success: "Available",
       failed: "Failed",
+    },
+    tabs: { models: "Model discovery", test: "Temporary test", monitors: "Continuous monitoring", reports: "Reports" },
+    protocol: "Protocol",
+    model: "Model",
+    stream: "Streaming",
+    sampleCount: "Measured samples",
+    warmupSamples: "Warm-up samples",
+    targetRps: "Target RPS",
+    maxConcurrency: "Maximum concurrency",
+    maxOutputTokens: "Maximum output tokens",
+    timeoutSeconds: "Timeout (seconds)",
+    expertMode: "I confirm that I am authorized to run a high-load test",
+    startTest: "Start stability test",
+    cancelTest: "Cancel test",
+    testHint: "Runs end-to-end probes at a fixed arrival rate without retries. P99 requires at least 1,000 successful samples.",
+    testEmpty: "No temporary test has run yet.",
+    testProgress: (completed, total) => `${completed} / ${total} samples`,
+    successRate: "Success rate",
+    ttftP50: "TTFT P50",
+    ttftP95: "TTFT P95",
+    ttftP99: "TTFT P99",
+    e2eP50: "End-to-end P50",
+    e2eP95: "End-to-end P95",
+    e2eP99: "End-to-end P99",
+    p99Pending: "Insufficient samples",
+    monitorName: "Monitor name",
+    monitorInterval: "Health interval (minutes)",
+    latencyBatchSize: "Hourly latency samples",
+    dailyRequests: "Daily request limit",
+    dailyTokens: "Daily output-token limit",
+    dailyGeneratedRequests: "Daily generated-task limit",
+    enableMonitor: "Enable after creation",
+    createMonitor: "Create Monitor",
+    monitorHint: "Monitors use the currently saved provider credential and run only while Backplane is alive. Enabled Monitors resume after restart.",
+    monitorsEmpty: "No continuous Monitors yet.",
+    runNow: "Run now",
+    pause: "Pause",
+    resume: "Resume",
+    remove: "Delete",
+    reportsHint: "Latency percentiles stay isolated by gateway, protocol, model, and scenario; models are never merged.",
+    reportsEmpty: "Run a temporary test or create a Monitor to see redacted reports here.",
+    reportSaved: (path) => `Report saved: ${path}`,
+    health: {
+      learning: "Learning",
+      healthy: "Healthy",
+      degraded: "Degraded",
+      unhealthy: "Unhealthy",
+      paused: "Paused",
+      credentials_required: "Credentials required",
+    },
+    protocols: {
+      chatCompletions: "OpenAI Chat Completions",
+      responses: "OpenAI Responses",
+      anthropicMessages: "Anthropic Messages",
+      embeddings: "Embeddings",
+      imageGeneration: "Image generation",
+      audioGeneration: "Audio generation",
+      models: "Model list",
     },
   },
   agents: {

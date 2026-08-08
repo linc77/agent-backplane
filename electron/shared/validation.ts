@@ -129,9 +129,88 @@ export const saveAgentProfileSchema = z.object({
 }).strict();
 export const modelGatewayCredentialsSchema = z.object({
   baseUrl: z.string().min(1).max(4_096),
-  apiKey: z.string().min(1).max(16_384),
+  apiKey: z.string().max(16_384),
+  providerId: z.string().uuid().nullable().optional(),
 }).strict();
+export const saveModelGatewayProviderSchema = z.object({
+  id: z.string().uuid().nullable(),
+  name: z.string().min(1).max(160),
+  baseUrl: z.string().min(1).max(4_096),
+  apiKey: z.string().max(16_384).nullable(),
+  clearSecret: z.boolean(),
+}).strict();
+export const modelGatewayProviderIdSchema = z.object({ id: z.string().uuid() }).strict();
 export const modelGatewayBenchmarkSchema = modelGatewayCredentialsSchema.extend({
   modelId: z.string().min(1).max(1_024),
+}).strict();
+export const modelGatewayProtocolSchema = z.enum([
+  "chatCompletions",
+  "responses",
+  "anthropicMessages",
+  "embeddings",
+  "imageGeneration",
+  "audioGeneration",
+  "models",
+]);
+export const modelGatewayProbeSchema = modelGatewayCredentialsSchema.extend({
+  modelId: z.string().max(1_024),
+  protocol: modelGatewayProtocolSchema,
+  stream: z.boolean(),
+  maxOutputTokens: z.number().int().min(1).max(4_096),
+  timeoutMs: z.number().int().min(1_000).max(600_000),
+  connectionMode: z.enum(["warm", "cold"]),
+}).strict().refine((value) => value.protocol === "models" || value.modelId.trim().length > 0, "Model is required.");
+const modelGatewayTestConfigSchema = z.object({
+  modelId: z.string().max(1_024),
+  protocol: modelGatewayProtocolSchema,
+  stream: z.boolean(),
+  sampleCount: z.number().int().min(1).max(10_000),
+  warmupSamples: z.number().int().min(0).max(100),
+  targetRps: z.number().min(0.05).max(100),
+  maxConcurrency: z.number().int().min(1).max(100),
+  maxOutputTokens: z.number().int().min(1).max(4_096),
+  timeoutMs: z.number().int().min(1_000).max(600_000),
+  expertMode: z.boolean(),
+}).strict()
+  .refine((value) => value.protocol === "models" || value.modelId.trim().length > 0, "Model is required.")
+  .refine((value) => value.expertMode || (value.targetRps <= 1 && value.maxConcurrency <= 3), "Expert mode is required above the safe load limit.");
+export const startModelGatewayTestSchema = modelGatewayCredentialsSchema.extend({
+  config: modelGatewayTestConfigSchema,
+}).strict();
+const modelGatewayThresholdsSchema = z.object({
+  minimumSuccessRate: z.number().min(0).max(1),
+  maximumP95Ms: z.number().int().min(1).max(3_600_000),
+  maximumP99Ms: z.number().int().min(1).max(3_600_000),
+}).strict();
+const modelGatewayBudgetSchema = z.object({
+  maximumDailyRequests: z.number().int().min(1).max(1_000_000),
+  maximumDailyOutputTokens: z.number().int().min(1).max(1_000_000_000),
+  maximumDailyGeneratedRequests: z.number().int().min(1).max(1_000_000),
+}).strict();
+export const saveModelGatewayMonitorSchema = z.object({
+  id: z.string().uuid().nullable(),
+  name: z.string().min(1).max(160),
+  providerId: z.string().uuid(),
+  modelId: z.string().max(1_024),
+  protocol: modelGatewayProtocolSchema,
+  stream: z.boolean(),
+  enabled: z.boolean(),
+  fixtureId: z.string().min(1).max(128),
+  intervalMinutes: z.number().int().min(1).max(1_440),
+  latencyBatchSize: z.number().int().min(1).max(100),
+  maxOutputTokens: z.number().int().min(1).max(4_096),
+  timeoutMs: z.number().int().min(1_000).max(600_000),
+  thresholds: modelGatewayThresholdsSchema,
+  budget: modelGatewayBudgetSchema,
+}).strict().refine((value) => value.protocol === "models" || value.modelId.trim().length > 0, "Model is required.");
+export const modelGatewayMonitorIdSchema = z.object({ id: z.string().uuid() }).strict();
+export const modelGatewayMonitorEnabledSchema = z.object({
+  id: z.string().uuid(),
+  enabled: z.boolean(),
+}).strict();
+export const exportModelGatewayReportSchema = z.object({
+  scope: z.enum(["test", "monitor"]),
+  id: z.string().uuid(),
+  format: z.enum(["json", "csv"]),
 }).strict();
 export const revealSourceSchema = z.object({ path: z.string().min(1) }).strict();
