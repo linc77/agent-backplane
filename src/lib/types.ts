@@ -478,6 +478,29 @@ export interface McpInventory {
 export interface ModelGatewayCredentials {
   baseUrl: string;
   apiKey: string;
+  providerId?: string | null;
+}
+
+export interface ModelGatewayProvider {
+  id: string;
+  name: string;
+  baseUrl: string;
+  hasSecret: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ModelGatewayProviderInventory {
+  generatedAt: string;
+  providers: ModelGatewayProvider[];
+}
+
+export interface SaveModelGatewayProviderInput {
+  id: string | null;
+  name: string;
+  baseUrl: string;
+  apiKey: string | null;
+  clearSecret: boolean;
 }
 
 export interface GatewayModel {
@@ -503,4 +526,199 @@ export interface ModelBenchmarkResult {
   latencyMs: number;
   outputTokens: number | null;
   error: string | null;
+}
+
+export type ModelGatewayProtocol =
+  | "chatCompletions"
+  | "responses"
+  | "anthropicMessages"
+  | "embeddings"
+  | "imageGeneration"
+  | "audioGeneration"
+  | "models";
+
+export type ModelGatewayProbeOutcome =
+  | "success"
+  | "authentication_error"
+  | "rate_limited"
+  | "server_error"
+  | "timeout"
+  | "network_error"
+  | "invalid_response"
+  | "stream_truncated"
+  | "dropped";
+
+export interface ModelGatewayProbeInput extends ModelGatewayCredentials {
+  modelId: string;
+  protocol: ModelGatewayProtocol;
+  stream: boolean;
+  maxOutputTokens: number;
+  timeoutMs: number;
+  connectionMode: "warm" | "cold";
+}
+
+export interface ModelGatewayProbeSample {
+  id: string;
+  observedAt: string;
+  providerId: string | null;
+  protocol: ModelGatewayProtocol;
+  modelId: string;
+  connectionMode: "warm" | "cold";
+  outcome: ModelGatewayProbeOutcome;
+  statusCode: number | null;
+  ttfbMs: number | null;
+  ttftMs: number | null;
+  totalMs: number;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  generatedUnits: number | null;
+  responseModel: string | null;
+  systemFingerprint: string | null;
+  gatewayRequestId: string | null;
+  finishReason: string | null;
+  retryAfterMs: number | null;
+  error: string | null;
+}
+
+export interface ModelGatewayLatencySummary {
+  count: number;
+  minMs: number | null;
+  p50Ms: number | null;
+  p95Ms: number | null;
+  p99Ms: number | null;
+  maxMs: number | null;
+}
+
+export interface ModelGatewayProbeSummary {
+  sampleCount: number;
+  successCount: number;
+  successRate: number;
+  outcomes: Partial<Record<ModelGatewayProbeOutcome, number>>;
+  totalLatency: ModelGatewayLatencySummary;
+  ttft: ModelGatewayLatencySummary;
+  outputTokens: number;
+  generatedUnits: number;
+}
+
+export interface ModelGatewayTestConfig {
+  modelId: string;
+  protocol: ModelGatewayProtocol;
+  stream: boolean;
+  sampleCount: number;
+  warmupSamples: number;
+  targetRps: number;
+  maxConcurrency: number;
+  maxOutputTokens: number;
+  timeoutMs: number;
+  expertMode: boolean;
+}
+
+export interface StartModelGatewayTestInput extends ModelGatewayCredentials {
+  config: ModelGatewayTestConfig;
+}
+
+export type ModelGatewayTestStatus =
+  | "idle"
+  | "running"
+  | "cancelling"
+  | "succeeded"
+  | "cancelled"
+  | "failed";
+
+export interface ModelGatewayTestTask {
+  id: string | null;
+  providerId: string | null;
+  status: ModelGatewayTestStatus;
+  startedAt: string | null;
+  finishedAt: string | null;
+  completedSamples: number;
+  totalSamples: number;
+  stopReason: "rate_limit" | "budget" | null;
+  config: ModelGatewayTestConfig | null;
+  summary: ModelGatewayProbeSummary | null;
+  samples: ModelGatewayProbeSample[];
+  error: string | null;
+}
+
+export type ModelGatewayMonitorHealth =
+  | "learning"
+  | "healthy"
+  | "degraded"
+  | "unhealthy"
+  | "paused"
+  | "credentials_required";
+
+export interface ModelGatewayMonitorThresholds {
+  minimumSuccessRate: number;
+  maximumP95Ms: number;
+  maximumP99Ms: number;
+}
+
+export interface ModelGatewayMonitorBudget {
+  maximumDailyRequests: number;
+  maximumDailyOutputTokens: number;
+  maximumDailyGeneratedRequests: number;
+}
+
+export interface ModelGatewayMonitor {
+  id: string;
+  name: string;
+  providerId: string;
+  baseUrl: string;
+  modelId: string;
+  protocol: ModelGatewayProtocol;
+  stream: boolean;
+  enabled: boolean;
+  hasSecret: boolean;
+  fixtureId: string;
+  intervalMinutes: number;
+  latencyBatchSize: number;
+  maxOutputTokens: number;
+  timeoutMs: number;
+  thresholds: ModelGatewayMonitorThresholds;
+  budget: ModelGatewayMonitorBudget;
+  health: ModelGatewayMonitorHealth;
+  consecutiveFailures: number;
+  consecutiveSuccesses: number;
+  createdAt: string;
+  updatedAt: string;
+  lastProbeAt: string | null;
+  nextProbeAt: string | null;
+  lastLatencyBatchAt: string | null;
+  lastColdProbeAt: string | null;
+  latestSample: ModelGatewayProbeSample | null;
+  summary7d: ModelGatewayProbeSummary;
+}
+
+export interface SaveModelGatewayMonitorInput {
+  id: string | null;
+  name: string;
+  providerId: string;
+  modelId: string;
+  protocol: ModelGatewayProtocol;
+  stream: boolean;
+  enabled: boolean;
+  fixtureId: string;
+  intervalMinutes: number;
+  latencyBatchSize: number;
+  maxOutputTokens: number;
+  timeoutMs: number;
+  thresholds: ModelGatewayMonitorThresholds;
+  budget: ModelGatewayMonitorBudget;
+}
+
+export interface ModelGatewayMonitorInventory {
+  generatedAt: string;
+  monitors: ModelGatewayMonitor[];
+}
+
+export interface ModelGatewayReportExport {
+  path: string;
+  format: "json" | "csv";
+}
+
+export interface ExportModelGatewayReportInput {
+  scope: "test" | "monitor";
+  id: string;
+  format: "json" | "csv";
 }

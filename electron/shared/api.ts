@@ -5,11 +5,21 @@ import type {
   AgentMemorySnapshot,
   ApplySkillProfileInput,
   CorrectionDraft,
+  ExportModelGatewayReportInput,
   McpInventory,
   ModelBenchmarkInput,
   ModelBenchmarkResult,
   ModelGatewayCredentials,
   ModelGatewayDiscovery,
+  ModelGatewayMonitorInventory,
+  ModelGatewayProviderInventory,
+  ModelGatewayProbeInput,
+  ModelGatewayProbeSample,
+  ModelGatewayReportExport,
+  ModelGatewayTestTask,
+  SaveModelGatewayMonitorInput,
+  SaveModelGatewayProviderInput,
+  StartModelGatewayTestInput,
   MemoryProfileGenerationTask,
   MemoryProfileLocale,
   MemoryChangeMetadata,
@@ -101,8 +111,21 @@ export interface BackplaneDesktopApi {
     load(agent: AgentKind): Promise<McpInventory>;
   };
   modelGateway: {
+    loadProviders(): Promise<ModelGatewayProviderInventory>;
+    saveProvider(input: SaveModelGatewayProviderInput): Promise<ModelGatewayProviderInventory>;
+    deleteProvider(id: string): Promise<ModelGatewayProviderInventory>;
     discover(input: ModelGatewayCredentials): Promise<ModelGatewayDiscovery>;
     benchmark(input: ModelBenchmarkInput): Promise<ModelBenchmarkResult>;
+    probe(input: ModelGatewayProbeInput): Promise<ModelGatewayProbeSample>;
+    startTest(input: StartModelGatewayTestInput): Promise<ModelGatewayTestTask>;
+    getTest(): Promise<ModelGatewayTestTask>;
+    cancelTest(): Promise<ModelGatewayTestTask>;
+    loadMonitors(): Promise<ModelGatewayMonitorInventory>;
+    saveMonitor(input: SaveModelGatewayMonitorInput): Promise<ModelGatewayMonitorInventory>;
+    deleteMonitor(id: string): Promise<ModelGatewayMonitorInventory>;
+    setMonitorEnabled(id: string, enabled: boolean): Promise<ModelGatewayMonitorInventory>;
+    runMonitorNow(id: string): Promise<ModelGatewayMonitorInventory>;
+    exportReport(input: ExportModelGatewayReportInput): Promise<ModelGatewayReportExport | null>;
   };
   shell: {
     revealSource(path: string): Promise<void>;

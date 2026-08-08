@@ -1,5 +1,5 @@
 import type { BrowserWindow, IpcMainInvokeEvent } from "electron";
-import { app, dialog, ipcMain, session, shell } from "electron";
+import { app, dialog, ipcMain, Notification, session, shell } from "electron";
 import { realpath } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -14,9 +14,17 @@ import {
   draftCorrectionSchema,
   draftRevertSchema,
   emptyInputSchema,
+  exportModelGatewayReportSchema,
   memoryProfileInputSchema,
   modelGatewayBenchmarkSchema,
   modelGatewayCredentialsSchema,
+  modelGatewayMonitorEnabledSchema,
+  modelGatewayMonitorIdSchema,
+  modelGatewayProviderIdSchema,
+  modelGatewayProbeSchema,
+  saveModelGatewayProviderSchema,
+  saveModelGatewayMonitorSchema,
+  startModelGatewayTestSchema,
   profileIdInputSchema,
   revealSourceSchema,
   rootOverrideSchema,
@@ -48,6 +56,19 @@ import {
 import { resolveAgentMemoryRoot, resolveMemoryRoot } from "../services/memory/paths";
 import { loadMcpInventory } from "../services/mcp";
 import { benchmarkModelGateway, discoverModelGateway } from "../services/modelGateway";
+import {
+  defaultModelGatewayMonitoringPaths,
+  ModelGatewayMonitoringService,
+} from "../services/modelGatewayMonitoring";
+import { probeModelGateway } from "../services/modelGatewayProbe";
+import {
+  defaultModelGatewayProviderPaths,
+  ModelGatewayProviderService,
+} from "../services/modelGatewayProviders";
+import { renderModelGatewayReport } from "../services/modelGatewayReport";
+import { ModelGatewayStore } from "../services/modelGatewayStore";
+import { ModelGatewayTestManager } from "../services/modelGatewayTest";
+import { atomicWrite } from "../services/shared";
 import { loadSkillInventory, saveSkillManifest } from "../services/skills";
 import { createSkillProfileService } from "../services/skillProfiles";
 import { loadSkillUsage } from "../services/skillUsage";
@@ -55,6 +76,42 @@ import { isTrustedRendererUrl } from "../windowPolicy";
 
 const { autoUpdater } = electronUpdater;
 let appUpdater: AppUpdaterService | undefined;
+let modelGatewayMonitoring: ModelGatewayMonitoringService | undefined;
+let modelGatewayTests: ModelGatewayTestManager | undefined;
+let modelGatewayStore: ModelGatewayStore | undefined;
+let modelGatewayProviders: ModelGatewayProviderService | undefined;
+
+function getModelGatewayServices() {
+  if (!modelGatewayMonitoring || !modelGatewayTests) {
+    const paths = defaultModelGatewayMonitoringPaths();
+    const providerPaths = defaultModelGatewayProviderPaths();
+    const store = new ModelGatewayStore(paths.database);
+    modelGatewayStore = store;
+    const providers = new ModelGatewayProviderService(
+      providerPaths.catalog,
+      new ElectronSecretStore(providerPaths.secrets),
+    );
+    modelGatewayProviders = providers;
+    modelGatewayMonitoring = new ModelGatewayMonitoringService({
+      paths,
+      providers,
+      store,
+      notify: (title, body) => {
+        if (Notification.isSupported()) new Notification({ title, body }).show();
+      },
+    });
+    modelGatewayTests = new ModelGatewayTestManager({
+      onSample: (runId, sample) => store.insertSample({ runId }, sample),
+    });
+    void modelGatewayMonitoring.start();
+  }
+  return {
+    monitoring: modelGatewayMonitoring!,
+    providers: modelGatewayProviders!,
+    tests: modelGatewayTests!,
+    store: modelGatewayStore!,
+  };
+}
 
 function getAppUpdater() {
   appUpdater ??= createAppUpdaterService({
@@ -102,6 +159,12 @@ export function registerIpcHandlers(window: BrowserWindow, developmentOrigin?: s
   const skillProfiles = createSkillProfileService({
     catalogPath: join(homedir(), ".agent-backplane", "skill-profiles.json"),
   });
+  const gatewayServices = getModelGatewayServices();
+  const resolveGatewayCredentials = async <T extends { providerId?: string | null; baseUrl: string; apiKey: string }>(input: T) => {
+    if (!input.providerId) return input;
+    const credentials = await gatewayServices.providers.resolve(input.providerId);
+    return { ...input, ...credentials };
+  };
   ipcMain.handle(channels.getAppUpdateState, (event) => {
     assertTrustedSender(event, window, developmentOrigin);
     return getAppUpdater().getState();
@@ -153,10 +216,64 @@ export function registerIpcHandlers(window: BrowserWindow, developmentOrigin?: s
     skillProfiles.sync(input));
   handle(channels.loadMcpInventory, agentInputSchema, window, developmentOrigin, ({ agent }) =>
     loadMcpInventory(agent));
-  handle(channels.discoverModelGateway, modelGatewayCredentialsSchema, window, developmentOrigin, (input) =>
-    discoverModelGateway(input));
-  handle(channels.benchmarkModelGateway, modelGatewayBenchmarkSchema, window, developmentOrigin, (input) =>
-    benchmarkModelGateway(input));
+  ipcMain.handle(channels.loadModelGatewayProviders, (event) => {
+    assertTrustedSender(event, window, developmentOrigin);
+    return gatewayServices.providers.inventory();
+  });
+  handle(channels.saveModelGatewayProvider, saveModelGatewayProviderSchema, window, developmentOrigin, (input) =>
+    gatewayServices.providers.save(input));
+  handle(channels.deleteModelGatewayProvider, modelGatewayProviderIdSchema, window, developmentOrigin, async ({ id }) => {
+    const monitors = await gatewayServices.monitoring.inventory();
+    if (monitors.monitors.some((monitor) => monitor.providerId === id)) {
+      throw new Error("Delete Monitors that use this provider first.");
+    }
+    return gatewayServices.providers.delete(id);
+  });
+  handle(channels.discoverModelGateway, modelGatewayCredentialsSchema, window, developmentOrigin, async (input) =>
+    discoverModelGateway(await resolveGatewayCredentials(input)));
+  handle(channels.benchmarkModelGateway, modelGatewayBenchmarkSchema, window, developmentOrigin, async (input) =>
+    benchmarkModelGateway(await resolveGatewayCredentials(input)));
+  handle(channels.probeModelGateway, modelGatewayProbeSchema, window, developmentOrigin, async (input) =>
+    probeModelGateway(await resolveGatewayCredentials(input)));
+  handle(channels.startModelGatewayTest, startModelGatewayTestSchema, window, developmentOrigin, async (input) =>
+    gatewayServices.tests.start(await resolveGatewayCredentials(input)));
+  ipcMain.handle(channels.getModelGatewayTest, (event) => {
+    assertTrustedSender(event, window, developmentOrigin);
+    return gatewayServices.tests.get();
+  });
+  ipcMain.handle(channels.cancelModelGatewayTest, (event) => {
+    assertTrustedSender(event, window, developmentOrigin);
+    return gatewayServices.tests.cancel();
+  });
+  ipcMain.handle(channels.loadModelGatewayMonitors, (event) => {
+    assertTrustedSender(event, window, developmentOrigin);
+    return gatewayServices.monitoring.inventory();
+  });
+  handle(channels.saveModelGatewayMonitor, saveModelGatewayMonitorSchema, window, developmentOrigin, (input) =>
+    gatewayServices.monitoring.save(input));
+  handle(channels.deleteModelGatewayMonitor, modelGatewayMonitorIdSchema, window, developmentOrigin, ({ id }) =>
+    gatewayServices.monitoring.delete(id));
+  handle(channels.setModelGatewayMonitorEnabled, modelGatewayMonitorEnabledSchema, window, developmentOrigin, ({ id, enabled }) =>
+    gatewayServices.monitoring.setEnabled(id, enabled));
+  handle(channels.runModelGatewayMonitorNow, modelGatewayMonitorIdSchema, window, developmentOrigin, ({ id }) =>
+    gatewayServices.monitoring.runNow(id));
+  handle(channels.exportModelGatewayReport, exportModelGatewayReportSchema, window, developmentOrigin, async (input) => {
+    const selection = await dialog.showSaveDialog(window, {
+      defaultPath: `model-gateway-${input.scope}-${input.id.slice(0, 8)}.${input.format}`,
+      filters: [{ name: input.format.toUpperCase(), extensions: [input.format] }],
+    });
+    if (selection.canceled || !selection.filePath) return null;
+    const samples = input.scope === "test"
+      ? gatewayServices.store.samplesForRun(input.id)
+      : gatewayServices.store.samplesForMonitor(
+        input.id,
+        new Date(Date.now() - 7 * 24 * 60 * 60 * 1_000).toISOString(),
+        100_000,
+        null,
+      );
+    await atomicWrite(selection.filePath, renderModelGatewayReport(input, samples));
+    return { path: selection.filePath, format: input.format };
+  });
   handle(channels.startMemoryProfileGeneration, memoryProfileInputSchema, window, developmentOrigin, ({ agent, locale }) =>
     startProfileGeneration(agent, locale));
   ipcMain.handle(channels.getMemoryProfileGeneration, (event) => {
