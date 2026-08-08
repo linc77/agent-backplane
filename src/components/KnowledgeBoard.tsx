@@ -1,30 +1,35 @@
 import {
   ExternalLink,
   FileText,
-  History,
   LayoutGrid,
-  Lightbulb,
   List,
   Network,
   PencilLine,
+  PanelRightClose,
+  PanelRightOpen,
   Plus,
   RefreshCw,
   RotateCcw,
   Search,
-  ShieldAlert,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type PointerEvent,
+} from "react";
 import { agentMeta } from "../lib/agentScope";
 import type { Locale, UiText } from "../lib/i18n";
 import {
   resolveMemoryTruth,
-  type MemoryTruthItem,
   type MemoryTruthModel,
 } from "../lib/memoryTruth";
 import {
   memoryEvidenceTrustStatus,
   memoryProfileSectionState,
-  memoryTruthDisplayText,
 } from "../lib/memoryReview";
 import type {
   AgentKind,
@@ -36,7 +41,42 @@ import type {
 } from "../lib/types";
 import { MemoryGraph } from "./MemoryGraph";
 
-type BoardView = "graph" | "profile" | "review" | "memories";
+type BoardView = "graph" | "profile" | "memories";
+const overviewSidebarCollapsedStorageKey = "agent-backplane.memory-overview-collapsed";
+const overviewSidebarWidthStorageKey = "agent-backplane.memory-overview-width";
+const defaultOverviewSidebarWidth = 292;
+const minOverviewSidebarWidth = 240;
+const maxOverviewSidebarWidth = 480;
+const minOverviewContentWidth = 480;
+
+function clampOverviewSidebarWidth(width: number, containerWidth = Number.POSITIVE_INFINITY) {
+  const availableMaximum = Number.isFinite(containerWidth)
+    ? Math.max(minOverviewSidebarWidth, containerWidth - minOverviewContentWidth)
+    : maxOverviewSidebarWidth;
+  return Math.min(
+    Math.max(Math.round(width), minOverviewSidebarWidth),
+    Math.min(maxOverviewSidebarWidth, availableMaximum),
+  );
+}
+
+function readOverviewSidebarCollapsed() {
+  try {
+    return window.localStorage.getItem(overviewSidebarCollapsedStorageKey) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function readOverviewSidebarWidth() {
+  try {
+    const stored = Number(window.localStorage.getItem(overviewSidebarWidthStorageKey));
+    return Number.isFinite(stored) && stored > 0
+      ? clampOverviewSidebarWidth(stored)
+      : defaultOverviewSidebarWidth;
+  } catch {
+    return defaultOverviewSidebarWidth;
+  }
+}
 
 function ProfileEvidenceDetails({
   onOpenSource,
@@ -119,91 +159,6 @@ function matchesMemory(entry: MemoryEntry, query: string) {
   return `${entry.title}\n${entry.summary}\n${entry.sourcePath}`.toLocaleLowerCase().includes(normalized);
 }
 
-function TruthReviewCard({
-  item,
-  onDraftCorrection,
-  onOpenSource,
-  uiText,
-  writable,
-}: {
-  item: MemoryTruthItem;
-  onDraftCorrection: (entry: MemoryEntry) => void;
-  onOpenSource: (path: string) => void;
-  uiText: UiText;
-  writable: boolean;
-}) {
-  const canCorrect = item.status === "conflict" || item.status === "uncertain";
-  const displayText = memoryTruthDisplayText(item, uiText);
-
-  return (
-    <article className={`memory-review-card ${item.status}`}>
-      <header>
-        <span className={`evidence-status ${item.status}`}>
-          {uiText.truthStatuses[item.status]}
-        </span>
-        <span>{uiText.memoryCards[item.entry.topic]}</span>
-      </header>
-      <h3>{item.entry.title}</h3>
-      <p>{item.entry.summary}</p>
-      <div className="memory-review-decision">
-        <strong>{uiText.inspector.decisionPath}</strong>
-        <p>{displayText.decision}</p>
-        {displayText.reviewReason && (
-          <>
-            <strong>{uiText.inspector.reviewReason}</strong>
-            <p>{displayText.reviewReason}</p>
-          </>
-        )}
-        <span>
-          {uiText.truthStatuses[item.status]} · {Math.round(item.confidence * 100)}%
-        </span>
-      </div>
-      {item.staleCandidates.length > 0 && (
-        <div className="memory-review-candidates">
-          <strong>{uiText.inspector.staleCandidates}</strong>
-          <ul>
-            {item.staleCandidates.map((candidate) => (
-              <li key={candidate.id}>{candidate.title}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-      <footer>
-        {item.source && (
-          <button
-            className="memory-source-link"
-            onClick={() => onOpenSource(item.source!.path)}
-            type="button"
-          >
-            <FileText aria-hidden="true" size={13} />
-            {uiText.format.evidence(
-              item.entry.sourcePath,
-              item.entry.startLine,
-              item.entry.endLine,
-            )}
-          </button>
-        )}
-        {writable && canCorrect && (
-          <button
-            className="memory-record-edit"
-            onClick={() => onDraftCorrection(item.entry)}
-            type="button"
-          >
-            {item.status === "uncertain" ? (
-              <Lightbulb aria-hidden="true" size={13} />
-            ) : (
-              <PencilLine aria-hidden="true" size={13} />
-            )}
-            {item.status === "uncertain"
-              ? uiText.memorySummary.promoteMemory
-              : uiText.memorySummary.editMemory}
-          </button>
-        )}
-      </footer>
-    </article>
-  );
-}
-
 export function KnowledgeBoard({
   isProfileLoading,
   isProfileRegenerating,
@@ -243,19 +198,22 @@ export function KnowledgeBoard({
 }) {
   const [view, setView] = useState<BoardView>("graph");
   const [memoryQuery, setMemoryQuery] = useState("");
+  const [isOverviewSidebarCollapsed, setIsOverviewSidebarCollapsed] = useState(
+    readOverviewSidebarCollapsed,
+  );
+  const [overviewSidebarWidth, setOverviewSidebarWidth] = useState(
+    readOverviewSidebarWidth,
+  );
+  const [isOverviewSidebarResizing, setIsOverviewSidebarResizing] = useState(false);
+  const profileRef = useRef<HTMLElement | null>(null);
+  const overviewResizeRef = useRef<{
+    containerWidth: number;
+    startWidth: number;
+    startX: number;
+  } | null>(null);
   const sources = scan?.sources ?? [];
   const truth = useMemo(() => resolveMemoryTruth(scan), [scan]);
   const currentMemories = truth.current.map((item) => item.entry);
-  const reviewSections = (profile?.sections ?? []).filter(
-    (section) => memoryProfileSectionState(section, sources, truth) === "review",
-  );
-  const conflictReviewItems = truth.review.filter((item) => item.status === "conflict");
-  const historicalReviewItems = truth.review.filter((item) => item.status === "stale");
-  const uncertainReviewItems = truth.review.filter((item) => item.status === "uncertain");
-  const attentionCount = reviewSections.length + conflictReviewItems.length;
-  const hasReviewContent = Boolean(
-    attentionCount || historicalReviewItems.length || uncertainReviewItems.length,
-  );
   const visibleSections = profile?.sections ?? [];
   const visibleMemories = currentMemories.filter((entry) => matchesMemory(entry, memoryQuery));
   const hasMemory = Boolean(scan?.entries.length);
@@ -271,9 +229,45 @@ export function KnowledgeBoard({
         ? uiText.memorySummary.stale
         : null;
 
-  function showReviewCenter() {
-    setView("review");
-  }
+  useEffect(() => {
+    if (!isOverviewSidebarResizing) return;
+
+    function handlePointerMove(event: globalThis.PointerEvent) {
+      const drag = overviewResizeRef.current;
+      if (!drag) return;
+      setOverviewSidebarWidth(
+        clampOverviewSidebarWidth(
+          drag.startWidth + drag.startX - event.clientX,
+          drag.containerWidth,
+        ),
+      );
+    }
+
+    function handlePointerEnd() {
+      overviewResizeRef.current = null;
+      setIsOverviewSidebarResizing(false);
+    }
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerEnd);
+    window.addEventListener("pointercancel", handlePointerEnd);
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerEnd);
+      window.removeEventListener("pointercancel", handlePointerEnd);
+    };
+  }, [isOverviewSidebarResizing]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        overviewSidebarWidthStorageKey,
+        String(overviewSidebarWidth),
+      );
+    } catch {
+      // Keep the in-memory width when storage is unavailable.
+    }
+  }, [overviewSidebarWidth]);
 
   function renderProfilePlaceholder() {
     if (isProfileLoading && !profile) {
@@ -302,6 +296,45 @@ export function KnowledgeBoard({
     return null;
   }
 
+  function toggleOverviewSidebar() {
+    setIsOverviewSidebarCollapsed((collapsed) => {
+      const next = !collapsed;
+      try {
+        window.localStorage.setItem(overviewSidebarCollapsedStorageKey, String(next));
+      } catch {
+        // Keep the in-memory preference when storage is unavailable.
+      }
+      return next;
+    });
+  }
+
+  function startOverviewSidebarResize(event: PointerEvent<HTMLDivElement>) {
+    const measuredWidth = profileRef.current?.getBoundingClientRect().width ?? 0;
+    const containerWidth = measuredWidth > 0 ? measuredWidth : window.innerWidth;
+    event.preventDefault();
+    if (typeof event.currentTarget.setPointerCapture === "function") {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+    overviewResizeRef.current = {
+      containerWidth,
+      startWidth: overviewSidebarWidth,
+      startX: event.clientX,
+    };
+    setIsOverviewSidebarResizing(true);
+  }
+
+  function nudgeOverviewSidebarResize(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    const measuredWidth = profileRef.current?.getBoundingClientRect().width ?? 0;
+    const containerWidth = measuredWidth > 0 ? measuredWidth : window.innerWidth;
+    const step = event.shiftKey ? 48 : 16;
+    const delta = event.key === "ArrowLeft" ? step : -step;
+    setOverviewSidebarWidth((width) =>
+      clampOverviewSidebarWidth(width + delta, containerWidth),
+    );
+  }
+
   const overviewPanel = (
     <div className="memory-overview-panel">
       <span className="memory-overview-eyebrow">{uiText.memorySummary.eyebrow}</span>
@@ -318,15 +351,6 @@ export function KnowledgeBoard({
           <button onClick={() => setView("memories")} type="button">
             <strong>{currentMemories.length}</strong>
             <span>{uiText.memorySummary.currentMemories}</span>
-          </button>
-          <button
-            className={attentionCount ? "attention" : ""}
-            disabled={!hasReviewContent}
-            onClick={showReviewCenter}
-            type="button"
-          >
-            <strong>{attentionCount}</strong>
-            <span>{uiText.memorySummary.needsAttention}</span>
           </button>
         </div>
       )}
@@ -366,58 +390,104 @@ export function KnowledgeBoard({
     </div>
   );
 
+  const overviewToggleButton = (
+    <button
+      aria-label={
+        isOverviewSidebarCollapsed
+          ? uiText.memorySummary.expandOverviewSidebar
+          : uiText.memorySummary.collapseOverviewSidebar
+      }
+      className="memory-overview-collapse-button"
+      onClick={toggleOverviewSidebar}
+      title={
+        isOverviewSidebarCollapsed
+          ? uiText.memorySummary.expandOverviewSidebar
+          : uiText.memorySummary.collapseOverviewSidebar
+      }
+      type="button"
+    >
+      {isOverviewSidebarCollapsed
+        ? <PanelRightOpen aria-hidden="true" size={16} />
+        : <PanelRightClose aria-hidden="true" size={16} />}
+    </button>
+  );
+
+  const overviewSidebar = isOverviewSidebarCollapsed
+    ? null
+    : (
+        <>
+          <div
+            aria-label={uiText.memorySummary.resizeOverviewSidebar}
+            aria-orientation="vertical"
+            aria-valuemax={maxOverviewSidebarWidth}
+            aria-valuemin={minOverviewSidebarWidth}
+            aria-valuenow={overviewSidebarWidth}
+            className={
+              isOverviewSidebarResizing
+                ? "memory-overview-resizer active"
+                : "memory-overview-resizer"
+            }
+            onKeyDown={nudgeOverviewSidebarResize}
+            onPointerDown={startOverviewSidebarResize}
+            role="separator"
+            tabIndex={0}
+          />
+          <aside className="memory-overview-sidebar">
+            <div className="memory-overview-sidebar-header">{overviewToggleButton}</div>
+            {overviewPanel}
+          </aside>
+        </>
+      );
+
   return (
     <main className="board memory-board">
-      <section className="memory-profile">
+      <section
+        className={`memory-profile${isOverviewSidebarCollapsed ? " overview-collapsed" : ""}${isOverviewSidebarResizing ? " overview-resizing" : ""}`}
+        ref={profileRef}
+        style={{ "--memory-sidebar-width": `${overviewSidebarWidth}px` } as CSSProperties}
+      >
 
-        {(profile || currentMemories.length > 0) && (
+        {(profile || currentMemories.length > 0 || isOverviewSidebarCollapsed) && (
           <div className="memory-view-toolbar">
-            <div aria-label={uiText.memorySummary.viewLabel} className="memory-view-switch" role="group">
-              <button
-                aria-pressed={view === "graph"}
-                className={view === "graph" ? "active" : ""}
-                onClick={() => setView("graph")}
-                type="button"
-              >
-                <Network aria-hidden="true" size={15} />
-                {uiText.memorySummary.graphView}
-              </button>
-              <button
-                aria-pressed={view === "profile"}
-                className={view === "profile" ? "active" : ""}
-                onClick={() => setView("profile")}
-                type="button"
-              >
-                <LayoutGrid aria-hidden="true" size={15} />
-                {uiText.memorySummary.profileView}
-              </button>
-              <button
-                aria-pressed={view === "review"}
-                className={view === "review" ? "active" : ""}
-                onClick={() => setView("review")}
-                type="button"
-              >
-                <ShieldAlert aria-hidden="true" size={15} />
-                {uiText.memorySummary.reviewView}
-                {attentionCount > 0 && (
-                  <span className="memory-view-count">{attentionCount}</span>
-                )}
-              </button>
-              <button
-                aria-pressed={view === "memories"}
-                className={view === "memories" ? "active" : ""}
-                onClick={() => setView("memories")}
-                type="button"
-              >
-                <List aria-hidden="true" size={15} />
-                {uiText.memorySummary.memoryView}
-              </button>
-            </div>
+            {(profile || currentMemories.length > 0) && (
+              <div aria-label={uiText.memorySummary.viewLabel} className="memory-view-switch" role="group">
+                <button
+                  aria-pressed={view === "profile"}
+                  className={view === "profile" ? "active" : ""}
+                  onClick={() => setView("profile")}
+                  type="button"
+                >
+                  <LayoutGrid aria-hidden="true" size={15} />
+                  {uiText.memorySummary.profileView}
+                </button>
+                <button
+                  aria-pressed={view === "graph"}
+                  className={view === "graph" ? "active" : ""}
+                  onClick={() => setView("graph")}
+                  type="button"
+                >
+                  <Network aria-hidden="true" size={15} />
+                  {uiText.memorySummary.graphView}
+                </button>
+                <button
+                  aria-pressed={view === "memories"}
+                  className={view === "memories" ? "active" : ""}
+                  onClick={() => setView("memories")}
+                  type="button"
+                >
+                  <List aria-hidden="true" size={15} />
+                  {uiText.memorySummary.memoryView}
+                </button>
+              </div>
+            )}
+            {isOverviewSidebarCollapsed && overviewToggleButton}
           </div>
         )}
 
         {view === "graph" && (
-          <div className="memory-view-layout">
+          <div
+            className={`memory-view-layout${isOverviewSidebarCollapsed ? " overview-collapsed" : ""}`}
+          >
             <div className="memory-view-content memory-view-content-graph">
               {profile ? (
                 <MemoryGraph
@@ -435,12 +505,14 @@ export function KnowledgeBoard({
                 />
               ) : renderProfilePlaceholder()}
             </div>
-            <aside className="memory-overview-sidebar">{overviewPanel}</aside>
+            {overviewSidebar}
           </div>
         )}
 
         {view !== "graph" && (
-          <div className="memory-view-layout">
+          <div
+            className={`memory-view-layout${isOverviewSidebarCollapsed ? " overview-collapsed" : ""}`}
+          >
             <div className="memory-view-content">
               {view === "profile" && renderProfilePlaceholder()}
         {view === "profile" && profile && (
@@ -481,141 +553,6 @@ export function KnowledgeBoard({
               );
             })}
           </div>
-        )}
-
-        {view === "review" && (
-          <section className="memory-review-center">
-            <header className="memory-review-heading">
-              <div>
-                <p className="eyebrow">{uiText.memorySummary.reviewView}</p>
-                <h2>{uiText.memorySummary.reviewCenterTitle}</h2>
-                <p>{uiText.memorySummary.reviewCenterDescription}</p>
-              </div>
-            </header>
-
-            {!hasReviewContent && (
-              <div className="memory-profile-placeholder">
-                <strong>{uiText.memorySummary.reviewEmptyTitle}</strong>
-                <p>{uiText.memorySummary.reviewEmptyDescription}</p>
-              </div>
-            )}
-
-            {reviewSections.length > 0 && (
-              <section className="memory-review-group">
-                <header>
-                  <div>
-                    <h3>{uiText.memorySummary.profileReviewTitle}</h3>
-                    <p>{uiText.memorySummary.profileReviewDescription}</p>
-                  </div>
-                  <span className="memory-review-group-count">{reviewSections.length}</span>
-                </header>
-                <div className="memory-profile-grid memory-review-profile-grid">
-                  {reviewSections.map((section) => (
-                    <article className="memory-profile-section review" key={section.id}>
-                      <header>
-                        <span className="profile-state review">
-                          {uiText.memorySummary.sectionState.review}
-                        </span>
-                        <span>{uiText.memorySummary.evidenceCount(section.evidence.length)}</span>
-                      </header>
-                      <h2>{section.title}</h2>
-                      <p>{section.body}</p>
-                      <div className="memory-profile-actions">
-                        {writable && (
-                          <button
-                            className="profile-edit-button"
-                            disabled={profileStale || isProfileRegenerating}
-                            onClick={() => onDraftProfileCorrection(section)}
-                            type="button"
-                          >
-                            <PencilLine aria-hidden="true" size={14} />
-                            {uiText.memorySummary.editMemory}
-                          </button>
-                        )}
-                        <ProfileEvidenceDetails
-                          onOpenSource={onOpenSource}
-                          section={section}
-                          sources={sources}
-                          truth={truth}
-                          uiText={uiText}
-                        />
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {conflictReviewItems.length > 0 && (
-              <section className="memory-review-group">
-                <header>
-                  <div>
-                    <h3>{uiText.memorySummary.conflictReviewTitle}</h3>
-                    <p>{uiText.memorySummary.conflictReviewDescription}</p>
-                  </div>
-                  <span className="memory-review-group-count conflict">
-                    {conflictReviewItems.length}
-                  </span>
-                </header>
-                <div className="memory-review-grid">
-                  {conflictReviewItems.map((item) => (
-                    <TruthReviewCard
-                      item={item}
-                      key={item.id}
-                      onDraftCorrection={onDraftEntryCorrection}
-                      onOpenSource={onOpenSource}
-                      uiText={uiText}
-                      writable={writable}
-                    />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {historicalReviewItems.length > 0 && (
-              <details className="memory-review-archive">
-                <summary>
-                  <History aria-hidden="true" size={15} />
-                  <span>{uiText.memorySummary.historyReviewTitle(historicalReviewItems.length)}</span>
-                </summary>
-                <p>{uiText.memorySummary.historyReviewDescription}</p>
-                <div className="memory-review-grid">
-                  {historicalReviewItems.map((item) => (
-                    <TruthReviewCard
-                      item={item}
-                      key={item.id}
-                      onDraftCorrection={onDraftEntryCorrection}
-                      onOpenSource={onOpenSource}
-                      uiText={uiText}
-                      writable={writable}
-                    />
-                  ))}
-                </div>
-              </details>
-            )}
-
-            {uncertainReviewItems.length > 0 && (
-              <details className="memory-review-archive">
-                <summary>
-                  <Lightbulb aria-hidden="true" size={15} />
-                  <span>{uiText.memorySummary.uncertainReviewTitle(uncertainReviewItems.length)}</span>
-                </summary>
-                <p>{uiText.memorySummary.uncertainReviewDescription}</p>
-                <div className="memory-review-grid">
-                  {uncertainReviewItems.map((item) => (
-                    <TruthReviewCard
-                      item={item}
-                      key={item.id}
-                      onDraftCorrection={onDraftEntryCorrection}
-                      onOpenSource={onOpenSource}
-                      uiText={uiText}
-                      writable={writable}
-                    />
-                  ))}
-                </div>
-              </details>
-            )}
-          </section>
         )}
 
         {view === "memories" && (
@@ -691,7 +628,7 @@ export function KnowledgeBoard({
           </section>
         )}
             </div>
-            <aside className="memory-overview-sidebar">{overviewPanel}</aside>
+            {overviewSidebar}
           </div>
         )}
       </section>

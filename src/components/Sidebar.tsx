@@ -5,8 +5,6 @@ import {
   ChevronDown,
   Cable,
   Gauge,
-  PanelLeftClose,
-  PanelLeftOpen,
   Settings2,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ComponentType } from "react";
@@ -41,7 +39,6 @@ export function Sidebar({
   onOpenSettings,
   onSelectAgent,
   onSelectTopic,
-  onToggleCollapsed,
   updateAvailable,
 }: {
   activeTopic: MemoryView;
@@ -52,7 +49,6 @@ export function Sidebar({
   onOpenSettings: () => void;
   onSelectAgent: (agent: AgentKind) => void;
   onSelectTopic: (topic: MemoryView) => void;
-  onToggleCollapsed: () => void;
   updateAvailable: boolean;
 }) {
   const topics = navItems(uiText);
@@ -205,17 +201,6 @@ export function Sidebar({
             {updateAvailable && (
               <span className="settings-update-badge">{uiText.sidebar.updateAvailable}</span>
             )}
-          </button>
-          <button
-            aria-label={collapsed ? uiText.sidebar.expand : uiText.sidebar.collapse}
-            className="sidebar-collapse-button"
-            onClick={onToggleCollapsed}
-            title={collapsed ? uiText.sidebar.expand : uiText.sidebar.collapse}
-            type="button"
-          >
-            {collapsed
-              ? <PanelLeftOpen aria-hidden="true" size={16} />
-              : <PanelLeftClose aria-hidden="true" size={16} />}
           </button>
         </div>
       </div>

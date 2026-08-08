@@ -3,10 +3,12 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEvent,
   type PointerEvent,
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import {
   cancelMemoryProfileGeneration,
   draftCorrection,
@@ -21,7 +23,6 @@ import {
 import {
   clampPaneLayout,
   DEFAULT_PANE_LAYOUT,
-  paneGridTemplate,
   resizePaneLayout,
   type PaneLayout,
 } from "./lib/paneLayout";
@@ -297,6 +298,36 @@ function App() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  useEffect(() => {
+    if (!isResizingSidebar) return;
+
+    function handlePointerMove(event: globalThis.PointerEvent) {
+      const drag = dragRef.current;
+      if (!drag) return;
+      setPaneLayout(
+        resizePaneLayout(
+          drag.startLayout,
+          event.clientX - drag.startX,
+          drag.viewportWidth,
+        ),
+      );
+    }
+
+    function handlePointerEnd() {
+      dragRef.current = null;
+      setIsResizingSidebar(false);
+    }
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerEnd);
+    window.addEventListener("pointercancel", handlePointerEnd);
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerEnd);
+      window.removeEventListener("pointercancel", handlePointerEnd);
+    };
+  }, [isResizingSidebar]);
+
   const taskMatchesSelection =
     profileGenerationTask?.agent === selectedAgent &&
     profileGenerationTask?.locale === locale;
@@ -417,30 +448,15 @@ function App() {
 
   function startPaneResize(event: PointerEvent<HTMLDivElement>) {
     event.preventDefault();
-    event.currentTarget.setPointerCapture(event.pointerId);
+    if (typeof event.currentTarget.setPointerCapture === "function") {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
     dragRef.current = {
       startX: event.clientX,
       startLayout: paneLayout,
       viewportWidth: window.innerWidth,
     };
     setIsResizingSidebar(true);
-  }
-
-  function movePaneResize(event: PointerEvent<HTMLDivElement>) {
-    const drag = dragRef.current;
-    if (!drag) return;
-    setPaneLayout(
-      resizePaneLayout(
-        drag.startLayout,
-        event.clientX - drag.startX,
-        drag.viewportWidth,
-      ),
-    );
-  }
-
-  function stopPaneResize() {
-    dragRef.current = null;
-    setIsResizingSidebar(false);
   }
 
   function nudgePaneResize(event: KeyboardEvent<HTMLDivElement>) {
@@ -480,12 +496,21 @@ function App() {
     <div
       className={`app-shell ${pageMode}${isSidebarCollapsed ? " sidebar-collapsed" : ""}${isResizingSidebar ? " resizing" : ""}`}
       style={{
-        gridTemplateColumns: isSidebarCollapsed
-          ? "64px 0 minmax(0, 1fr)"
-          : paneGridTemplate(paneLayout),
-      }}
+        "--sidebar-width": `${isSidebarCollapsed ? 64 : paneLayout.sidebarWidth}px`,
+      } as CSSProperties}
     >
       {fixtureMode && <div className="fixture-banner">{uiText.app.fixtureBanner}</div>}
+      <button
+        aria-label={isSidebarCollapsed ? uiText.sidebar.expand : uiText.sidebar.collapse}
+        className="app-sidebar-toggle"
+        onClick={toggleSidebar}
+        title={isSidebarCollapsed ? uiText.sidebar.expand : uiText.sidebar.collapse}
+        type="button"
+      >
+        {isSidebarCollapsed
+          ? <PanelLeftOpen aria-hidden="true" size={16} />
+          : <PanelLeftClose aria-hidden="true" size={16} />}
+      </button>
       <Sidebar
         activeTopic={activeTopic}
         collapsed={isSidebarCollapsed}
@@ -495,20 +520,17 @@ function App() {
         onOpenSettings={() => setActiveTopic("settings")}
         onSelectAgent={changeAgent}
         onSelectTopic={setActiveTopic}
-        onToggleCollapsed={toggleSidebar}
         updateAvailable={Boolean(appUpdater.state.update)}
       />
 
       <div
+        aria-disabled={isSidebarCollapsed}
         aria-label={uiText.app.resizeSidebar}
         className={isResizingSidebar ? "pane-resizer active" : "pane-resizer"}
         onKeyDown={nudgePaneResize}
-        onPointerCancel={stopPaneResize}
         onPointerDown={startPaneResize}
-        onPointerMove={movePaneResize}
-        onPointerUp={stopPaneResize}
         role="separator"
-        tabIndex={0}
+        tabIndex={isSidebarCollapsed ? -1 : 0}
       />
 
       <section className="workspace-surface">

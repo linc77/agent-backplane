@@ -2,7 +2,7 @@ export interface PaneLayout {
   sidebarWidth: number;
 }
 
-export const RESIZER_WIDTH = 8;
+export const RESIZER_WIDTH = 1;
 export const MIN_SIDEBAR_WIDTH = 180;
 export const MAX_SIDEBAR_WIDTH = 420;
 export const MIN_BOARD_WIDTH = 560;
@@ -33,8 +33,4 @@ export function resizePaneLayout(
     { sidebarWidth: layout.sidebarWidth + deltaX },
     viewportWidth,
   );
-}
-
-export function paneGridTemplate(layout: PaneLayout) {
-  return `${layout.sidebarWidth}px ${RESIZER_WIDTH}px minmax(${MIN_BOARD_WIDTH}px, 1fr)`;
 }

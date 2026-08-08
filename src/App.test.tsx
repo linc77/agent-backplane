@@ -309,7 +309,17 @@ describe("App memory profile", () => {
     expect(await findByRole("button", { name: "更新画像" })).toBeInTheDocument();
     expect(await findByRole("region", { name: "Codex 记忆图谱" })).toBeInTheDocument();
     expect(await findByRole("button", { name: "记忆图谱" })).toHaveAttribute("aria-pressed", "true");
+    const memoryViewSwitch = await findByRole("group", { name: "记忆展示方式" });
+    expect(
+      Array.from(memoryViewSwitch.querySelectorAll("button"), (button) => button.textContent),
+    ).toEqual(["关键记忆", "记忆图谱", "原始记忆"]);
     expect(container.querySelector(".memory-overview-sidebar")).toContainElement(overviewHeading);
+    expect(await findByRole("button", { name: "折叠侧边栏" })).toHaveClass(
+      "app-sidebar-toggle",
+    );
+    expect(container.querySelector(".memory-overview-sidebar-header")).toContainElement(
+      await findByRole("button", { name: "折叠记忆侧栏" }),
+    );
     expect(await findByRole("button", { name: "明亮" })).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(await findByRole("button", { name: "折叠侧边栏" }));
     expect(container.querySelector(".app-shell")).toHaveClass("sidebar-collapsed");
@@ -328,7 +338,8 @@ describe("App memory profile", () => {
     expect(queryByRole("button", { name: "首页" })).not.toBeInTheDocument();
     expect(queryByRole("button", { name: "检查" })).not.toBeInTheDocument();
     expect(container.querySelector(".app-shell")).toHaveClass("memory-mode");
-    expect(container.querySelectorAll('[role="separator"]')).toHaveLength(1);
+    expect(await findByRole("separator", { name: "调整侧栏宽度" })).toBeInTheDocument();
+    expect(await findByRole("separator", { name: "调整记忆侧栏宽度" })).toBeInTheDocument();
     expect(container.querySelector(".inspector")).not.toBeInTheDocument();
   });
 
@@ -480,7 +491,7 @@ describe("App memory profile", () => {
     }));
   });
 
-  it("surfaces review decisions and supports adding and reverting explicit memory", async () => {
+  it("omits the review inbox and supports adding and reverting explicit memory", async () => {
     let draftKind: "append" | "revert" | null = null;
     invokeMock.mockImplementation((command: string, payload?: { targets?: unknown[] }) => {
       if (command === "load_agent_memory_snapshot") return Promise.resolve(snapshot());
@@ -500,12 +511,11 @@ describe("App memory profile", () => {
       }
       return Promise.reject(new Error(`unexpected command: ${command}`));
     });
-    const { findByRole, findByText, getByRole } = renderApp();
+    const { findByRole, findByText, getByRole, queryByRole, queryByText } = renderApp();
 
-    fireEvent.click(await findByRole("button", { name: /待确认/ }));
-    expect(await findByRole("heading", { name: "待确认的记忆" })).toBeInTheDocument();
-    expect(await findByText("画像需要确认")).toBeInTheDocument();
-    expect(await findByText(/历史与已覆盖记忆 1/)).toBeInTheDocument();
+    expect(await findByRole("heading", { name: "Codex 记住的你" })).toBeInTheDocument();
+    expect(queryByRole("button", { name: /待确认/ })).not.toBeInTheDocument();
+    expect(queryByText("建议确认")).not.toBeInTheDocument();
 
     fireEvent.click(getByRole("button", { name: "原始记忆" }));
     fireEvent.click(await findByRole("button", { name: "新增记忆" }));
@@ -533,31 +543,71 @@ describe("App memory profile", () => {
     Object.defineProperty(element, "setPointerCapture", { value: vi.fn() });
 
     fireEvent.pointerDown(element, { pointerId: 1, clientX: 240 });
-    fireEvent.pointerMove(element, { pointerId: 1, clientX: 280 });
-    fireEvent.pointerUp(element, { pointerId: 1, clientX: 280 });
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: 280 });
+    fireEvent.pointerUp(window, { pointerId: 1, clientX: 280 });
 
     await waitFor(() =>
       expect(container.querySelector(".app-shell")).toHaveStyle({
-        gridTemplateColumns: expect.stringContaining("280px"),
+        "--sidebar-width": "280px",
       }),
     );
+    expect(element).not.toHaveClass("active");
   });
 
-  it("collapses and restores the sidebar from its footer control", async () => {
-    const { container, findByRole, getByRole } = renderApp();
+  it("resizes the memory overview sidebar from its divider", async () => {
+    const { container, findByRole } = renderApp();
+    await findByRole("heading", { name: "Codex 记住的你" });
+    const separator = await findByRole("separator", { name: "调整记忆侧栏宽度" });
+    Object.defineProperty(separator, "setPointerCapture", { value: vi.fn() });
+
+    fireEvent.pointerDown(separator, { pointerId: 2, clientX: 1000 });
+    fireEvent.pointerMove(window, { pointerId: 2, clientX: 960 });
+    fireEvent.pointerUp(window, { pointerId: 2, clientX: 960 });
+
+    await waitFor(() =>
+      expect(container.querySelector(".memory-profile")).toHaveStyle({
+        "--memory-sidebar-width": "332px",
+      }),
+    );
+    expect(separator).not.toHaveClass("active");
+  });
+
+  it("collapses and restores both sidebars from their top controls", async () => {
+    const { container, findByRole, getByRole, queryByRole } = renderApp();
     await findByRole("heading", { name: "Codex 记住的你" });
 
-    fireEvent.click(getByRole("button", { name: "折叠侧边栏" }));
+    const leftCollapse = getByRole("button", { name: "折叠侧边栏" });
+    const rightCollapse = getByRole("button", { name: "折叠记忆侧栏" });
+    expect(leftCollapse).toHaveClass("app-sidebar-toggle");
+    expect(container.querySelector(".memory-overview-sidebar-header")).toContainElement(
+      rightCollapse,
+    );
+
+    fireEvent.click(leftCollapse);
 
     expect(container.querySelector(".sidebar")).toHaveClass("collapsed");
     expect(container.querySelector(".app-shell")).toHaveClass("sidebar-collapsed");
     expect(container.querySelector(".app-shell")).toHaveStyle({
-      gridTemplateColumns: "64px 0 minmax(0, 1fr)",
+      "--sidebar-width": "64px",
     });
 
     fireEvent.click(getByRole("button", { name: "展开侧边栏" }));
 
     expect(container.querySelector(".sidebar")).not.toHaveClass("collapsed");
     expect(container.querySelector(".app-shell")).not.toHaveClass("sidebar-collapsed");
+
+    fireEvent.click(rightCollapse);
+
+    expect(container.querySelector(".memory-view-layout")).toHaveClass("overview-collapsed");
+    expect(container.querySelector(".memory-overview-sidebar")).not.toBeInTheDocument();
+    expect(queryByRole("heading", { name: "Codex 记住的你" })).not.toBeInTheDocument();
+    expect(container.querySelector(".memory-view-toolbar")).toContainElement(
+      getByRole("button", { name: "展开记忆侧栏" }),
+    );
+
+    fireEvent.click(getByRole("button", { name: "展开记忆侧栏" }));
+
+    expect(container.querySelector(".memory-view-layout")).not.toHaveClass("overview-collapsed");
+    expect(await findByRole("heading", { name: "Codex 记住的你" })).toBeInTheDocument();
   });
 });
