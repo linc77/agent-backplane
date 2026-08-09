@@ -40,6 +40,7 @@ import type {
   ModelGatewayProbeSummary,
   ModelGatewayProtocol,
 } from "../lib/types";
+import { ModelLogo } from "./ModelLogo";
 import { PageHeader } from "./PageHeader";
 
 type BenchmarkViewStatus = "idle" | "queued" | "running" | "success" | "failed";
@@ -54,10 +55,10 @@ const IDLE_BENCHMARK: BenchmarkViewState = { status: "idle", result: null };
 const BENCHMARK_CONCURRENCY = 3;
 
 function resultIcon(status: BenchmarkViewStatus) {
-  if (status === "success") return <CheckCircle2 aria-hidden="true" size={15} />;
-  if (status === "failed") return <XCircle aria-hidden="true" size={15} />;
-  if (status === "running" || status === "queued") return <Clock3 aria-hidden="true" size={15} />;
-  return <Gauge aria-hidden="true" size={15} />;
+  if (status === "success") return <CheckCircle2 aria-hidden="true" size={11} />;
+  if (status === "failed") return <XCircle aria-hidden="true" size={11} />;
+  if (status === "running" || status === "queued") return <Clock3 aria-hidden="true" size={11} />;
+  return <Gauge aria-hidden="true" size={11} />;
 }
 
 function discoveryErrorDetail(error: unknown, text: UiText["modelGateway"]) {
@@ -453,8 +454,16 @@ export function ModelGateway({ uiText }: { uiText: UiText }) {
               const isPending = benchmark.status === "queued" || benchmark.status === "running";
               return (
                 <article className={`model-gateway-row ${benchmark.status}`} key={model.id}>
-                  <span className={`model-benchmark-status ${benchmark.status}`}>{resultIcon(benchmark.status)}</span>
-                  <div className="model-gateway-copy"><h2>{model.id}</h2><span>{model.ownedBy ?? text.ownerUnknown}</span></div>
+                  <div className="model-logo-stack">
+                    <ModelLogo modelId={model.id} ownedBy={model.ownedBy} />
+                    <span className={`model-benchmark-status ${benchmark.status}`}>
+                      {resultIcon(benchmark.status)}
+                    </span>
+                  </div>
+                  <div className="model-gateway-copy">
+                    <h2>{model.id}</h2>
+                    <span>{model.ownedBy ?? text.ownerUnknown}</span>
+                  </div>
                   <div className="model-benchmark-result">
                     <strong className={benchmark.status}>{text.statuses[benchmark.status]}</strong>
                     {benchmark.result && <span>{text.latency(benchmark.result.latencyMs)}{benchmark.result.outputTokens !== null ? ` · ${text.tokenCount(benchmark.result.outputTokens)}` : ""}</span>}
