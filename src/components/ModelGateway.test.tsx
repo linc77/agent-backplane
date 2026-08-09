@@ -104,6 +104,31 @@ describe("ModelGateway", () => {
     });
   });
 
+  it("shows recognized model logos and a neutral fallback", async () => {
+    apiMocks.discoverModelGateway.mockResolvedValue({
+      baseUrl: "https://gateway.example.com/v1",
+      models: [
+        { id: "deepseek-chat", ownedBy: "deepseek", createdAt: null },
+        { id: "gpt-4o-mini", ownedBy: "openai", createdAt: null },
+        { id: "claude-3-7-sonnet", ownedBy: "anthropic", createdAt: null },
+        { id: "gemini-2.5-pro", ownedBy: "google", createdAt: null },
+        { id: "private-model", ownedBy: "team", createdAt: null },
+      ],
+    });
+    const { container, findByText, getByLabelText, getByRole } = renderGateway();
+
+    fireEvent.change(getByLabelText("Base URL"), {
+      target: { value: "https://gateway.example.com/v1" },
+    });
+    fireEvent.change(getByLabelText("API Key"), { target: { value: "secret-key" } });
+    fireEvent.click(getByRole("button", { name: "获取模型" }));
+    expect(await findByText("deepseek-chat")).toBeInTheDocument();
+
+    for (const brand of ["deepseek", "openai", "claude", "gemini", "unknown"]) {
+      expect(container.querySelector(`[data-model-brand="${brand}"]`)).toBeInTheDocument();
+    }
+  });
+
   it("shows a safe discovery failure state", async () => {
     apiMocks.discoverModelGateway.mockRejectedValue(
       new Error("Error invoking remote method 'model-gateway:discover': HTTP 401"),
